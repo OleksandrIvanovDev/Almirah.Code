@@ -8,5 +8,6 @@ Gem::Specification.new do |s|
   s.files       = ["lib/almirah.rb"]
   s.homepage    =
     "https://rubygems.org/gems/almirah"
-  s.license       = "MIT"
+  s.license      = "MIT"
+  s.executables  << "almirah" 
 end

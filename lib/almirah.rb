@@ -1,5 +1,20 @@
+require "thor"
+
+class CLI < Thor
+  desc "please <pass>", "say <pass>"
+    def please(pass)
+      Almirah.new().start(pass)
+    end
+end
+
 class Almirah
-  def self.hi
-    puts "Hi, this is Almirah gem. My development is in-progress."
+  def start(pass)
+    # Documents
+    documentList = Array.new
+
+    Dir.glob( "#{pass}/**/*.md" ).each do |f|
+      puts f
+    end
   end
+
 end
