@@ -10,6 +10,11 @@ class CLI < Thor
 end
 
 class Almirah
+
+  def getGemRoot
+    File.expand_path './..', File.dirname(__FILE__)
+  end
+
   def start(pass)
     # Documents
     documentList = Array.new
@@ -20,10 +25,14 @@ class Almirah
       documentList.append(spec)
     end
 
+    FileUtils.remove_dir(pass + "/build", true)
+    FileUtils.mkdir_p(pass + "/build/specifications")
+    
     documentList.each do |spec|
+      FileUtils.mkdir_p(pass + "/build/specifications/" + spec.key.downcase)
       HtmlRender.new( spec,
-      "D:\Projects\Proposals\Almirah\Almirah.Code\lib\almirah\templates\page.html",
-       "#{pass}/#{spec.key.downcase}.html" )
+      getGemRoot() + "/lib/almirah/templates/page.html",
+       "#{pass}/build/specifications/#{spec.key.downcase}/#{spec.key.downcase}.html" )
     end
   end
 

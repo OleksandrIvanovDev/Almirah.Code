@@ -19,7 +19,7 @@ class HtmlRender
         @document = document
 
         self.render()
-        # self.saveRenderToFile()
+        self.saveRenderToFile()
     end
 
     def render()
@@ -28,9 +28,11 @@ class HtmlRender
         self.document.docItems.each do |item|
             case item.class.to_s      
             when "Heading"
-                puts item.to_html
+                a = item.to_html
+                self.htmlRows.append a
             when "Paragraph"
-                puts item.to_html
+                a = item.to_html
+                self.htmlRows.append a
             end
         end
     end
