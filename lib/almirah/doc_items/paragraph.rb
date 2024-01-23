@@ -11,4 +11,9 @@ class Paragraph < DocItem
     def getTextWithoutSpaces
         return @text.split.join('-')
     end
+
+    def to_html
+        s = "<p>#{@text}"
+        return s
+    end
 end

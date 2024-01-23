@@ -29,6 +29,8 @@ class HtmlRender
             case item.class.to_s      
             when "Heading"
                 puts item.to_html
+            when "Paragraph"
+                puts item.to_html
             end
         end
     end

@@ -15,5 +15,6 @@ class Heading < Paragraph
         s = "<a name=\"#{itemTextNoSpaces}\"></a>\n\r"
         s += "<h#{headingLevel}> #{@text} <a href=\"\##{itemTextNoSpaces}\">"
         s += "&para;</a></h#{headingLevel}>"
+        return s
     end
 end

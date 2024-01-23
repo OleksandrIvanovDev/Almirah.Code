@@ -34,8 +34,14 @@ class Specification
                     value = res[2]
                     item = Heading.new(value, level)
                     self.docItems.append(item)
-                    #capture the document title
-                    self.title = value
+                    
+                    if level == 1
+                        self.title = value
+                    end    
+                                    
+                else # reqular paragraph
+                    item = Paragraph.new(s)
+                    self.docItems.append(item)
                 end
             end
         end
