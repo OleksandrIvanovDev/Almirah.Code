@@ -29,10 +29,10 @@ class Specification
 
         file_lines.each do |s|
             if s.lstrip != ""
-                if res = /^[#]{1}\s(.*)/.match(s)                
-
-                    value = res[1]
-                    item = Heading.new(value, 1)
+                if res = /^([#]{1,})\s(.*)/.match(s)                
+                    level = res[1].length
+                    value = res[2]
+                    item = Heading.new(value, level)
                     self.docItems.append(item)
                     #capture the document title
                     self.title = value

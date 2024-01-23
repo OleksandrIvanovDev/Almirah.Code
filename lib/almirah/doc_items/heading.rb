@@ -12,7 +12,8 @@ class Heading < Paragraph
     def to_html
         headingLevel = level.to_s
         itemTextNoSpaces = self.getTextWithoutSpaces
-        s = "<a name=\"#{itemTextNoSpaces}\"></a>
-            <h#{headingLevel} >#{@text}<a href=\"\##{itemTextNoSpaces}\">&para;</a></h#{headingLevel}>"
+        s = "<a name=\"#{itemTextNoSpaces}\"></a>\n\r"
+        s += "<h#{headingLevel}> #{@text} <a href=\"\##{itemTextNoSpaces}\">"
+        s += "&para;</a></h#{headingLevel}>"
     end
 end
