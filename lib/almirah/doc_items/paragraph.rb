@@ -13,7 +13,13 @@ class Paragraph < DocItem
     end
 
     def to_html
-        s = "<p>#{@text}"
+        s = ''
+        if @@htmlTableRenderInProgress
+            s += "</table>"
+            @@htmlTableRenderInProgress = false
+        end
+
+        s += "<p>#{@text}"
         return s
     end
 end

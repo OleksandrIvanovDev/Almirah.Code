@@ -33,6 +33,9 @@ class HtmlRender
             when "Paragraph"
                 a = item.to_html
                 self.htmlRows.append a
+            when "ControlledParagraph"
+                a = item.to_html
+                self.htmlRows.append a
             end
         end
     end

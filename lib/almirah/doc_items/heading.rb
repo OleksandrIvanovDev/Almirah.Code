@@ -10,9 +10,14 @@ class Heading < Paragraph
     end
 
     def to_html
+        s = ''
+        if @@htmlTableRenderInProgress
+            s += "</table>"
+            @@htmlTableRenderInProgress = false
+        end
         headingLevel = level.to_s
         itemTextNoSpaces = self.getTextWithoutSpaces
-        s = "<a name=\"#{itemTextNoSpaces}\"></a>\n\r"
+        s += "<a name=\"#{itemTextNoSpaces}\"></a>\n\r"
         s += "<h#{headingLevel}> #{@text} <a href=\"\##{itemTextNoSpaces}\">"
         s += "&para;</a></h#{headingLevel}>"
         return s
