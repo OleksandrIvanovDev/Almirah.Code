@@ -36,6 +36,9 @@ class HtmlRender
             when "ControlledParagraph"
                 a = item.to_html
                 self.htmlRows.append a
+            when "MarkdownTable"
+                a = item.to_html
+                self.htmlRows.append a
             end
         end
     end
