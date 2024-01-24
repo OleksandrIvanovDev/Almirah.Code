@@ -1,5 +1,6 @@
 require "thor"
 require_relative "almirah/specification"
+require_relative "almirah/linker"
 require_relative "almirah/html_render"
 
 class CLI < Thor
@@ -19,12 +20,18 @@ class Almirah
     # Documents
     documentList = Array.new
 
+    # Parse
     Dir.glob( "#{pass}/**/*.md" ).each do |f|
       puts f
       spec = Specification.new(f)
       documentList.append(spec)
     end
 
+    # Link
+    linker = Linker.new
+    linker.link(documentList[0], documentList[1])
+
+    # Render
     FileUtils.remove_dir(pass + "/build", true)
     FileUtils.mkdir_p(pass + "/build/specifications")
     

@@ -1,6 +1,7 @@
 require_relative "doc_items/doc_item"
 require_relative "doc_items/heading"
 require_relative "doc_items/paragraph"
+require_relative "doc_items/blockquote"
 require_relative "doc_items/controlled_paragraph"
 require_relative "doc_items/markdown_table"
 
@@ -10,7 +11,7 @@ class Specification
     attr_accessor :docItems
     attr_accessor :title
     attr_accessor :key
-    attr_accessor :upLinkKey
+    attr_accessor :up_link_key
     attr_accessor :dictionary
     attr_accessor :controlledParagraphs
     attr_accessor :tempMdTable
@@ -25,7 +26,7 @@ class Specification
         @tempMdTable = nil
 
         @key = File.basename(fele_path, File.extname(fele_path)).upcase
-        @upLinkKey = ""
+        @up_link_key = ""
 
         self.parse()
     end
@@ -63,20 +64,19 @@ class Specification
 
                     id = res[1]
                     text = res[2]
+                    item = ControlledParagraph.new( text, id )
+
                     #check if it contains the uplink
-                    tmp = /(.*)\s+>\[(\S*)\]$/.match(text)
+                    if tmp = /(.*)\s+>\[(\S*)\]$/.match(text)
 
-                    if tmp
                         text = tmp[1]
-                        uplink = tmp[2]
+                        up_link = tmp[2]
+                        
+                        item.up_link = up_link
 
-                        item = ControlledParagraph.new( tmp, id )
-
-                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(uplink)
-                            self.upLinkKey = tmp[1]
+                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)
+                            self.up_link_key = tmp[1]
                         end
-                    else
-                        item = ControlledParagraph.new( text, id )
                     end
 
                     self.docItems.append(item)
@@ -106,6 +106,16 @@ class Specification
                             @tempMdTable = MarkdownTable.new(row)
                         end
                     end
+
+                elsif res = /^[>](.*)/.match(s)   #check if blockquote
+
+                    if @tempMdTable
+                        self.docItems.append(@tempMdTable)
+                        @tempMdTable = nil
+                    end 
+
+                    item = Blockquote.new(res[1])
+                    self.docItems.append(item)
 
                 else # Reqular Paragraph
                     if @tempMdTable

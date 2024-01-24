@@ -25,21 +25,9 @@ class HtmlRender
     def render()
         self.htmlRows.append('')
 
-        self.document.docItems.each do |item|
-            case item.class.to_s      
-            when "Heading"
-                a = item.to_html
-                self.htmlRows.append a
-            when "Paragraph"
-                a = item.to_html
-                self.htmlRows.append a
-            when "ControlledParagraph"
-                a = item.to_html
-                self.htmlRows.append a
-            when "MarkdownTable"
-                a = item.to_html
-                self.htmlRows.append a
-            end
+        self.document.docItems.each do |item|    
+            a = item.to_html
+            self.htmlRows.append a
         end
     end
 
