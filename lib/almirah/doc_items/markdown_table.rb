@@ -22,7 +22,7 @@ class MarkdownTable < DocItem
             @@htmlTableRenderInProgress = false
         end
                    
-        s += "<table>\n\r"
+        s += "<table class=\"markdown_table\">\n\r"
         s += "\t<thead>" 
 
         @column_names.each do |h|
