@@ -64,7 +64,6 @@ class Specification
 
                     id = res[1]
                     text = res[2]
-                    item = ControlledParagraph.new( text, id )
 
                     #check if it contains the uplink
                     if tmp = /(.*)\s+>\[(\S*)\]$/.match(text)
@@ -72,12 +71,13 @@ class Specification
                         text = tmp[1]
                         up_link = tmp[2]
                         
-                        item.up_link = up_link
-
                         if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)
                             self.up_link_key = tmp[1]
                         end
                     end
+
+                    item = ControlledParagraph.new( text, id )
+                    item.up_link = up_link
 
                     self.docItems.append(item)
                     self.dictionary[ id.to_s ] = item           #for fast search
