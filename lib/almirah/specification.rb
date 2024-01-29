@@ -4,6 +4,8 @@ require_relative "doc_items/paragraph"
 require_relative "doc_items/blockquote"
 require_relative "doc_items/controlled_paragraph"
 require_relative "doc_items/markdown_table"
+require_relative "doc_items/image"
+require_relative "doc_items/markdown_list"
 
 class Specification
 
@@ -15,6 +17,7 @@ class Specification
     attr_accessor :dictionary
     attr_accessor :controlledParagraphs
     attr_accessor :tempMdTable
+    attr_accessor :tempMdList
 
     def initialize(fele_path)
 
@@ -24,6 +27,7 @@ class Specification
         @controlledParagraphs = Array.new
         @dictionary = Hash.new
         @tempMdTable = nil
+        @tempMdList = nil
 
         @key = File.basename(fele_path, File.extname(fele_path)).upcase
         @up_link_key = ""
@@ -44,6 +48,10 @@ class Specification
                     if @tempMdTable
                         self.docItems.append(@tempMdTable)
                         @tempMdTable = nil
+                    end
+                    if @tempMdList
+                        self.docItems.append(@tempMdList)
+                        @tempMdList = nil
                     end 
 
                     level = res[1].length
@@ -60,6 +68,10 @@ class Specification
                     if @tempMdTable
                         self.docItems.append(@tempMdTable)
                         @tempMdTable = nil
+                    end
+                    if @tempMdList
+                        self.docItems.append(@tempMdList)
+                        @tempMdList = nil
                     end 
 
                     id = res[1]
@@ -83,7 +95,46 @@ class Specification
                     self.dictionary[ id.to_s ] = item           #for fast search
                     self.controlledParagraphs.append(item)      #for fast search
 
+                elsif res = /^[!]\[(.*)\]\((.*)\)/.match(s)     # Image
+
+                    if @tempMdTable
+                        self.docItems.append(@tempMdTable)
+                        @tempMdTable = nil
+                    end
+                    if @tempMdList
+                        self.docItems.append(@tempMdList)
+                        @tempMdList = nil
+                    end
+
+                    img_text = res[1]
+                    img_path = res[2]
+
+                    item = Image.new( img_text, img_path )
+
+                    self.docItems.append(item)
+
+                elsif res = /^(\*\s?)+(.*)/.match(s)   #check if bullet list
+                    
+                    if @tempMdTable
+                        self.docItems.append(@tempMdTable)
+                        @tempMdTable = nil
+                    end
+
+                    row = res[2]
+
+                    if @tempMdList
+                        @tempMdList.addRow(row)
+                    else
+                        item = MarkdownList.new(row)
+                        @tempMdList = item
+                    end
+
                 elsif s[0] == '|'   #check if table
+
+                    if @tempMdList
+                        self.docItems.append(@tempMdList)
+                        @tempMdList = nil
+                    end
 
                     if res = /^[|](-{3,})[|]/.match(s) #check if it is a separator first
 
@@ -112,6 +163,10 @@ class Specification
                     if @tempMdTable
                         self.docItems.append(@tempMdTable)
                         @tempMdTable = nil
+                    end
+                    if @tempMdList
+                        self.docItems.append(@tempMdList)
+                        @tempMdList = nil
                     end 
 
                     item = Blockquote.new(res[1])
@@ -121,7 +176,12 @@ class Specification
                     if @tempMdTable
                         self.docItems.append(@tempMdTable)
                         @tempMdTable = nil
-                    end 
+                    end
+                    if @tempMdList
+                        self.docItems.append(@tempMdList)
+                        @tempMdList = nil
+                    end
+
                     item = Paragraph.new(s)
                     self.docItems.append(item)
                 end

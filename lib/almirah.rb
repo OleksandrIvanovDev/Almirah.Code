@@ -29,14 +29,26 @@ class Almirah
 
     # Link
     linker = Linker.new
-    linker.link(documentList[0], documentList[1])
+    combList = documentList.combination(2)
+    combList.each do |c|
+      linker.link(c[0], c[1])
+    end
 
     # Render
     FileUtils.remove_dir(pass + "/build", true)
     FileUtils.mkdir_p(pass + "/build/specifications")
     
     documentList.each do |spec|
-      FileUtils.mkdir_p(pass + "/build/specifications/" + spec.key.downcase)
+
+      img_src_dir = pass + "/specifications/" + spec.key.downcase + "/img"
+      img_dst_dir = pass + "/build/specifications/" + spec.key.downcase + "/img"
+     
+      FileUtils.mkdir_p(img_dst_dir)
+
+      if File.directory?(img_src_dir)
+        FileUtils.copy_entry( img_src_dir, img_dst_dir )
+      end
+
       HtmlRender.new( spec,
       getGemRoot() + "/lib/almirah/templates/page.html",
        "#{pass}/build/specifications/#{spec.key.downcase}/#{spec.key.downcase}.html" )

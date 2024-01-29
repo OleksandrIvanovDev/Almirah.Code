@@ -1,8 +1,5 @@
 require_relative "specification"
 require_relative "doc_items/doc_item"
-require_relative "doc_items/heading"
-require_relative "doc_items/paragraph"
-require_relative "doc_items/controlled_paragraph"
 
 class HtmlRender
 
