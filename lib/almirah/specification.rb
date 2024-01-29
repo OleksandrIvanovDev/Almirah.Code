@@ -4,6 +4,7 @@ require_relative "doc_items/paragraph"
 require_relative "doc_items/blockquote"
 require_relative "doc_items/controlled_paragraph"
 require_relative "doc_items/markdown_table"
+require_relative "doc_items/image"
 
 class Specification
 
@@ -82,6 +83,20 @@ class Specification
                     self.docItems.append(item)
                     self.dictionary[ id.to_s ] = item           #for fast search
                     self.controlledParagraphs.append(item)      #for fast search
+
+                elsif res = /^[!]\[(.*)\]\((.*)\)/.match(s)     # Image
+
+                    if @tempMdTable
+                        self.docItems.append(@tempMdTable)
+                        @tempMdTable = nil
+                    end 
+
+                    img_text = res[1]
+                    img_path = res[2]
+
+                    item = Image.new( img_text, img_path )
+
+                    self.docItems.append(item)
 
                 elsif s[0] == '|'   #check if table
 
