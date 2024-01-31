@@ -11,6 +11,7 @@ class Specification
 
     attr_accessor :path
     attr_accessor :docItems
+    attr_accessor :headings
     attr_accessor :title
     attr_accessor :key
     attr_accessor :up_link_key
@@ -24,6 +25,7 @@ class Specification
         @path = fele_path
         @title = ""
         @docItems = Array.new
+        @headings = Array.new
         @controlledParagraphs = Array.new
         @dictionary = Hash.new
         @tempMdTable = nil
@@ -58,8 +60,9 @@ class Specification
                     value = res[2]
                     item = Heading.new(value, level)
                     self.docItems.append(item)
-                    
-                    if level == 1
+                    self.headings.append(item)
+
+                    if level == 1 && self.title == ""
                         self.title = value
                     end   
                      

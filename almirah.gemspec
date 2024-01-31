@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "Almirah"
-  s.version     = "0.0.5"
+  s.version     = "0.0.6"
   s.summary     = "Almirah"
   s.description = "The software part of the Almirah system"
   s.authors     = ["Oleksandr Ivanov"]
