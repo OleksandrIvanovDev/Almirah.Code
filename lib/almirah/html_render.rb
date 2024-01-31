@@ -1,5 +1,6 @@
 require_relative "specification"
 require_relative "doc_items/doc_item"
+require_relative "navigation_pane"
 
 class HtmlRender
 
@@ -7,13 +8,15 @@ class HtmlRender
     attr_accessor :htmlRows
     attr_accessor :outputFile
     attr_accessor :document
+    attr_accessor :nav_pane
 
-    def initialize(document, template, outputFile)
+    def initialize(document, nav_pane, template, outputFile)
 
         @template = template
         @outputFile = outputFile
         @htmlRows = Array.new
         @document = document
+        @nav_pane = nav_pane
 
         self.render()
         self.saveRenderToFile()
@@ -40,6 +43,8 @@ class HtmlRender
                 self.htmlRows.each do |r|
                     file.puts r
                 end
+            elsif s.include?('{{NAV_PANE}}')
+                file.puts self.nav_pane.to_html
             else
                 file.puts s
             end

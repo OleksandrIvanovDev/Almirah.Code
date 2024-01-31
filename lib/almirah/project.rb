@@ -1,18 +1,21 @@
 require_relative "doc_items/doc_item"
 require_relative "specification"
 require_relative "html_render"
+require_relative "navigation_pane"
 
 class Project
 
     attr_accessor :specifications
     attr_accessor :project_root_directory
     attr_accessor :gem_root
+    attr_accessor :specifications_dictionary
 
     def initialize(path, gem_root)
         @project_root_directory = path
         @specifications = Array.new
         @gem_root = gem_root
-
+        @specifications_dictionary = Hash.new
+        
         parse_all_documents()
         link_all_specifications()
         render_all_specifications()
@@ -68,6 +71,9 @@ class Project
 
     def render_all_specifications
         
+        # create a sidebar first
+        nav_pane = NavigationPane.new(@specifications)        
+
         pass = @project_root_directory
 
         FileUtils.remove_dir(pass + "/build", true)
@@ -84,7 +90,7 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            HtmlRender.new( spec,
+            HtmlRender.new( spec, nav_pane,
             @gem_root + "/lib/almirah/templates/page.html",
             "#{pass}/build/specifications/#{spec.key.downcase}/#{spec.key.downcase}.html" )
         end
