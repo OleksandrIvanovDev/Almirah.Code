@@ -190,5 +190,14 @@ class Specification
                 end
             end
         end
+        # Finalize non-closed elements
+        if @tempMdTable
+            self.docItems.append(@tempMdTable)
+            @tempMdTable = nil
+        end
+        if @tempMdList
+            self.docItems.append(@tempMdList)
+            @tempMdList = nil
+        end
     end
 end
