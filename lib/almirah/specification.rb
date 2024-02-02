@@ -4,6 +4,7 @@ require_relative "doc_items/paragraph"
 require_relative "doc_items/blockquote"
 require_relative "doc_items/controlled_paragraph"
 require_relative "doc_items/markdown_table"
+require_relative "doc_items/controlled_table"
 require_relative "doc_items/image"
 require_relative "doc_items/markdown_list"
 
@@ -154,7 +155,11 @@ class Specification
                         row = res[1]
 
                         if @tempMdTable
-                            @tempMdTable.addRow(row)
+                            # check if it is a controlled table
+                            unless @tempMdTable.addRow(row)
+                                @tempMdTable = ControlledTable.new(@tempMdTable)
+                                @tempMdTable.addRow(row)
+                            end
                         else
                             #start table from heading
                             @tempMdTable = MarkdownTable.new(row)
