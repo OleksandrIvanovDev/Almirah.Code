@@ -131,28 +131,28 @@ class ControlledTable < DocItem
     def to_html
         s = ''
         if @@htmlTableRenderInProgress
-            s += "</table>"
+            s += "</table>\n"
             @@htmlTableRenderInProgress = false
         end
                    
-        s += "<table class=\"markdown_table\">\n\r"
+        s += "<table class=\"markdown_table\">\n"
         s += "\t<thead>" 
 
         @column_names.each do |h|
             s += " <th>#{h}</th>"
         end
 
-        s += " </thead>\n\r"
+        s += " </thead>\n"
 
         @rows.each do |row|
-            s += "\t<tr>\n\r"
+            s += "\t<tr>\n"
             row.each do |col|
                 s += col.to_html    # "\t\t<td>#{col}</td>\n\r"
             end
-            s += "\t</tr>\n\r"
+            s += "\t</tr>\n"
         end
 
-        s += "</table>\n\r"
+        s += "</table>\n"
 
         return s
     end

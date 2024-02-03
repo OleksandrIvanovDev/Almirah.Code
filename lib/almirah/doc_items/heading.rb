@@ -14,11 +14,11 @@ class Heading < Paragraph
     def to_html
         s = ''
         if @@htmlTableRenderInProgress
-            s += "</table>"
+            s += "</table>\n"
             @@htmlTableRenderInProgress = false
         end
         headingLevel = level.to_s 
-        s += "<a name=\"#{@anchor_id}\"></a>\n\r"
+        s += "<a name=\"#{@anchor_id}\"></a>\n"
         s += "<h#{headingLevel}> #{@text} <a href=\"\##{@anchor_id}\" class=\"heading_anchor\">"
         s += "&para;</a></h#{headingLevel}>"
         return s

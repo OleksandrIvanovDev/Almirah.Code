@@ -11,11 +11,11 @@ class Blockquote < DocItem
     def to_html
         s = ''
         if @@htmlTableRenderInProgress
-            s += "</table>\n\r"
+            s += "</table>\n"
             @@htmlTableRenderInProgress = false
         end
 
-        s += "<div class=\"blockquote\"><p>#{@text}</div>\n\r"
+        s += "<div class=\"blockquote\"><p>#{@text}</div>\n"
         return s
     end
 end

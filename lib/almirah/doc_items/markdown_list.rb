@@ -16,15 +16,15 @@ class MarkdownList < DocItem
     def to_html
         s = ''
         if @@htmlTableRenderInProgress
-            s += "</table>/n/r"
+            s += "</table>\n"
             @@htmlTableRenderInProgress = false
         end
 
-        s += "<ul>\n\r"
+        s += "<ul>\n"
         @rows.each do |r|
-            s += "\t<li>#{r}</li>\n\r"
+            s += "\t<li>#{r}</li>\n"
         end
-        s += "</ul>\n\r"
+        s += "</ul>\n"
 
         return s
     end
