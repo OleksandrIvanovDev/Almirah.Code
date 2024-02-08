@@ -17,7 +17,7 @@ class Image < DocItem
     def to_html
         s = ''
         if @@htmlTableRenderInProgress
-            s += "</table>\n\r"
+            s += "</table>\n"
             @@htmlTableRenderInProgress = false
         end
 

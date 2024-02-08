@@ -1,6 +1,3 @@
-require_relative "specification"
-require_relative "doc_items/doc_item"
-require_relative "navigation_pane"
 
 class HtmlRender
 
@@ -25,7 +22,7 @@ class HtmlRender
     def render()
         self.htmlRows.append('')
 
-        self.document.docItems.each do |item|    
+        self.document.items.each do |item|    
             a = item.to_html
             self.htmlRows.append a
         end
@@ -44,7 +41,9 @@ class HtmlRender
                     file.puts r
                 end
             elsif s.include?('{{NAV_PANE}}')
-                file.puts self.nav_pane.to_html
+                if @nav_pane
+                    file.puts self.nav_pane.to_html
+                end
             else
                 file.puts s
             end
