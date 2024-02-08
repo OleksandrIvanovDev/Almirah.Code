@@ -41,7 +41,9 @@ class HtmlRender
                     file.puts r
                 end
             elsif s.include?('{{NAV_PANE}}')
-                file.puts self.nav_pane.to_html
+                if @nav_pane
+                    file.puts self.nav_pane.to_html
+                end
             else
                 file.puts s
             end

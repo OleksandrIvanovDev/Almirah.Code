@@ -1,6 +1,7 @@
 #
 require_relative "doc_types/base_document"
 require_relative "doc_types/specification"
+require_relative "doc_types/protocol"
 #
 require_relative "doc_items/doc_item"
 require_relative "doc_items/heading"
@@ -21,7 +22,7 @@ class DocFabric
     end
 
     def self.create_protocol(path)
-        doc = Specification.new path
+        doc = Protocol.new path
         DocFabric.parse_document doc
         return doc
     end
@@ -73,13 +74,13 @@ class DocFabric
                     text = res[2]
 
                     #check if it contains the uplink
-                    if tmp = /(.*)\s+>\[(\S*)\]$/.match(text)
+                    if tmp = /(.*)\s+>\[(\S*)\]$/.match(text)           # >[SRS-001]
 
                         text = tmp[1]
                         up_link = tmp[2]
                         
-                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)
-                            doc.up_link_key = tmp[1]
+                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)    # SRS
+                            doc.up_link_doc_id = tmp[1].downcase
                         end
                     end
 
@@ -87,8 +88,8 @@ class DocFabric
                     item.up_link = up_link
 
                     doc.items.append(item)
-                    doc.dictionary[ id.to_s ] = item            #for fast search
-                    doc.controlled_paragraphs.append(item)      #for fast search
+                    doc.dictionary[ id.to_s ] = item       #for fast search
+                    doc.controlled_items.append(item)      #for fast search
 
                 elsif res = /^[!]\[(.*)\]\((.*)\)/.match(s)     # Image
 
@@ -148,7 +149,7 @@ class DocFabric
                         if tempMdTable
                             # check if it is a controlled table
                             unless tempMdTable.addRow(row)
-                                tempMdTable = ControlledTable.new(tempMdTable)
+                                tempMdTable = ControlledTable.new(tempMdTable, doc)
                                 tempMdTable.addRow(row)
                             end
                         else

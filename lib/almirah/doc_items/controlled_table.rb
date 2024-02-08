@@ -1,4 +1,4 @@
-require_relative "doc_item"
+require_relative "controlled_table_row"
 
 
 class ControlledTableColumn
@@ -25,12 +25,13 @@ class TestStepNumberColumn < ControlledTableColumn
     attr_accessor :step_number
     
     def initialize(text)
+        text = text.strip
         @step_number = text.to_i
         @text =  text
     end
 
     def to_html
-        "\t\t<td style='text-align: center;'>#{@text}</td>\n\r"
+        "\t\t<td style=\"text-align: center;\">#{@text}</td>\n\r"
     end
 end 
 
@@ -43,7 +44,7 @@ end
 class TestStepReferenceColumn <  ControlledTableColumn
 
     attr_accessor :up_link
-    attr_accessor :up_link_key
+    attr_accessor :up_link_doc_id
 
     def initialize(text)
         
@@ -60,9 +61,9 @@ class TestStepReferenceColumn <  ControlledTableColumn
 
     def to_html
         if @up_link
-            "\t\t<td class=\"item_id\"><a href=\"./../#{@up_link_doc_id}/#{@up_link_doc_id}.html\" class=\"external\">#{@up_link}</a></td>\n\r"
+            "\t\t<td class=\"item_id\"><a href=\"./../../../specifications/#{@up_link_doc_id}/#{@up_link_doc_id}.html\" class=\"external\">#{@up_link}</a></td>\n\r"
         else
-            "\t\t<td style='text-align: center;'></td>\n\r"
+            "\t\t<td style=\"text-align: center;\"></td>\n\r"
         end
     end
     
@@ -73,17 +74,17 @@ class ControlledTable < DocItem
 
     attr_accessor :column_names
     attr_accessor :rows
-    attr_accessor :up_link_key
+    attr_accessor :parent_doc
 
-    def initialize(markdown_table)
-        @up_link_key = nil
+    def initialize(markdown_table, parent_doc)
+        @parent_doc = parent_doc
         @column_names = markdown_table.column_names
         # copy and re-format existing rows
         @rows = Array.new
 
         markdown_table.rows.each do |r|
             @rows.append(format_columns(r))
-        end   
+        end  
     end
 
     def addRow(row)
@@ -97,32 +98,38 @@ class ControlledTable < DocItem
 
     def format_columns(columns)
 
-        new_row = Array.new
+        new_row = ControlledTableRow.new
 
         columns.each_with_index do | element, index |
 
             if index == 0 # it is expected that test step id is placed in the first columl
                 
                 col = TestStepNumberColumn.new element
-                new_row.append col
+                new_row.columns.append col
+                new_row.id = @parent_doc.id + '.' + col.text
 
             elsif index + 1 == columns.length # it is expected that a link is placed to the last column only
                 
                 col = TestStepReferenceColumn.new element
-                new_row.append col
-                # save uplink key 
-                if col.up_link_key != nil && @up_link_key != nil
-                    @up_link_key = col.up_link_key
-                end
+                new_row.columns.append col
+                # save uplink key but do not rewrite
+                if col.up_link_doc_id != nil 
+                    if @parent_doc.up_link_doc_id == ""
+                        @parent_doc.up_link_doc_id = col.up_link_doc_id
+                    end
+                    # save reference to the test step
+                    new_row.up_link = col.up_link
+                    @parent_doc.controlled_items.append new_row
+                end               
 
             elsif index + 2 == columns.length # it is expected that test step result is placed to the pre-last column only
                 
                 col = TestStepResultColumn.new element
-                new_row.append col
+                new_row.columns.append col
 
             else
                 col = RegualrColumn.new element
-                new_row.append col
+                new_row.columns.append col
             end             
         end
         return new_row
@@ -145,11 +152,7 @@ class ControlledTable < DocItem
         s += " </thead>\n"
 
         @rows.each do |row|
-            s += "\t<tr>\n"
-            row.each do |col|
-                s += col.to_html    # "\t\t<td>#{col}</td>\n\r"
-            end
-            s += "\t</tr>\n"
+            s += row.to_html
         end
 
         s += "</table>\n"

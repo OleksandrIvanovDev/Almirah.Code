@@ -5,12 +5,14 @@ class ControlledParagraph < Paragraph
     attr_accessor :id
     attr_accessor :up_link
     attr_accessor :down_links
+    attr_accessor :coverage_links
 
     def initialize(text, id)
         @text = text
         @id = id
         @up_link = nil
         @down_links = nil
+        @coverage_links = nil
     end
 
     def to_html
@@ -42,9 +44,14 @@ class ControlledParagraph < Paragraph
             s += "\t\t<td class=\"item_id\"></td>\n"
         end
 
-        #s += "\t\t<td></td>\n\r"    # UL
-        #s += "\t\t<td></td>\n\r"    # DL
-        s += "\t\t<td class=\"item_id\"></td>\n"    # COV
+        if @coverage_links
+            if tmp = /^(.+)[.]\d+/.match(@coverage_links[0].id)    # guessing that all the links refer to one document
+                cov_link_doc_name = tmp[1].downcase
+            end
+            s += "\t\t<td class=\"item_id\"><a href=\"./../../tests/protocols/#{cov_link_doc_name}/#{cov_link_doc_name}.html\" class=\"external\">#{@coverage_links.length}</a></td>\n"
+        else
+            s += "\t\t<td class=\"item_id\"></td>\n"
+        end
         s += "\t</tr>\n"
         return s
     end 

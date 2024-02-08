@@ -42,7 +42,7 @@ class MarkdownTable < DocItem
             s += "\t<tr>\n"
             row.each do |col|
                 if col.to_i > 0 && col.to_i.to_s == col  # autoalign cells with numbers
-                    s += "\t\t<td style='text-align: center;>#{col}</td>\n"
+                    s += "\t\t<td style=\"text-align: center;\">#{col}</td>\n"
                 else
                     s += "\t\t<td>#{col}</td>\n"
                 end
