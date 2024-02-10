@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+    body {
+        font-family: Verdana, sans-serif;
+        font-size: 12px;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        min-width: 900px;
+    }
+    #main {
+        flex-grow: 2;
+        display: flex;
+        flex-direction: row;
+    }
+    #content {
+        flex-grow: 1;
+        background-color: #fff;
+        margin-top: 30px;
+        padding: 10px 16px 10px 16px;
+        overflow-x: auto;
+    }
+    #content h1, h2, h3, h4, h5, h6 {
+        color: #555;
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        padding: 2px 10px 1px 0px;
+        margin: 0 0 10px 0;
+    }
+    h1 {
+        font-size: 2em;
+    }
+    h2 {
+        font-size: 1.8em;
+    }
+    h3 {
+        font-size: 1.5em;
+    }
+    h4 {
+        font-size: 1.2em;
+        border: none;
+        font-weight: bold;
+    }
+    h5 {
+        font-size: 1em;
+    }
+    h6 {
+        font-size: 1em; color: #8e8e8e;
+    }
+    a.heading_anchor { 
+        display: none;
+        margin-left: 6px;
+        text-decoration: none;
+    }
+    table.markdown_table{
+        border: 1px solid #bbb;
+        border-collapse: collapse;
+        padding: 4px;
+        margin-bottom: 4px;        
+        overflow: hidden;
+    }
+    table.markdown_table th{
+        border: 1px solid #bbb; 
+        padding: 4px;
+        display: table-cell;
+        vertical-align: inherit;
+        background-color:#EEEEEE;
+    }
+    table.markdown_table td{
+        border: 1px solid #bbb; 
+        padding: 4px;
+        display: table-cell;
+        vertical-align: inherit;
+    }
+    table.controlled{
+        border: 1px solid #e4e4e4;
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 4px;
+        border-spacing: 0px;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    table.controlled th {
+        background-color:#e1f1fa;
+        padding: 4px;
+        white-space:nowrap;
+        font-weight:normal;
+        border: 1px solid #bbb;
+    }
+    table.controlled td {
+        text-align:center;
+        vertical-align:middle;
+        padding-right:10px;
+        border: 1px solid #bbb;
+    }
+    table.controlled tr:first-child th {
+        border-top: 0;
+    }
+    table.controlled tr:last-child td {
+        border-bottom: 0;
+    }
+    table.controlled tr td:first-child,
+    table.controlled tr th:first-child {
+        border-left: 0;
+    }
+    table.controlled tr td:last-child,
+    table.controlled tr th:last-child {
+        border-right: 0;
+    }
+    table.controlled td.item_id {
+        width: 3%;
+        text-align: center;
+    }
+    table.controlled td.item_text{
+        text-align: left;
+    }
+    table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
+    table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
+    table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,
+    table.controlled:not(.odd-even) tbody tr:nth-child(even):hover { background-color:#ffffdd; }
+    a, a:link, a:visited {
+        color: #169;
+        text-decoration: none;
+    }
+    div.blockquote {
+        display: block;
+        background:#f9f9fb;
+        border-left: 3px double #bbb;
+        font-style: italic;
+        padding: 4px 1em 4px 4px;
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
+    #nav_pane{
+        flex-shrink: 0;
+        padding: 16px 8px 2px 8px;
+        background: #EEEEEE;
+        border-left: 1px solid #ddd;
+        position: fixed;
+        height: 100%;       /* 100% Full-height */
+        visibility: hidden;
+    }
+    @media screen and (min-width: 0px) and (max-width: 1089px) {#nav_pane{width: 22%;}}
+    @media screen and (min-width: 1090px) and (max-width: 1279px) {#nav_pane{width: 240px;}}
+    @media screen and (min-width: 1280px) and (max-width: 1599px) {#nav_pane{width: 280px;}}
+    @media screen and (min-width: 1600px) and (max-width: 1919px) {#nav_pane{width: 320px;}}
+    @media screen and (min-width: 1920px) and (max-width: 2559px) {#nav_pane{width: 360px;}}
+    @media screen and (min-width: 2560px) {#nav_pane{width: 380px;}}
+    #top_nav{
+        background-color: #169;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;    
+    }
+    #top_nav a {
+        float: left;
+        color: white;
+        text-align: center;
+        padding: 4px 6px;
+        text-decoration: none;
+        font-size: 1.5em;
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+    }
+    #top_nav a:hover {
+        background-color: black;
+        color:  white;
+    }
+    #top_nav a.active {
+        background-color: #169;
+        color: white;
+    }
+
+</style>
+<script>
+function openNav() {
+  document.getElementById("nav_pane").style.visibility = "visible";
+  console.log("Mouse In")
+}
+
+function closeNav() {
+  document.getElementById("nav_pane").style.visibility = "hidden";
+  console.log("Mouse Out");
+}
+</script>
+</head>
+<body>
+    <div id="top_nav">
+        <a href="javascript:void(0)" onclick="openNav()"><span><i class="fa fa-bars" aria-hidden="true"></i></span>&nbsp;Navigation</a>
+        <a href="javascript:void(0)"> About</a>
+    </div>
+    <div id="main">
+        <div id="nav_pane">
+            {{NAV_PANE}}
+        </div>
+        <div id="content" href="javascript:void(0)" onclick="closeNav()">
+            {{CONTENT}}
+        </div>
+    </div>
+</body>
+
