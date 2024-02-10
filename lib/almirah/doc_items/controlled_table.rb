@@ -6,7 +6,7 @@ class ControlledTableColumn
     attr_accessor :text
     
     def initialize(text)
-        @text = text
+        @text = text.strip
     end
 
     def to_html
@@ -38,6 +38,15 @@ end
 
 class TestStepResultColumn <  ControlledTableColumn
 
+    def to_html
+        if @text.downcase == "pass"
+            "\t\t<td style=\"background-color: #cfc;\">#{@text}</td>\n\r"
+        elsif @text.downcase == "fail"
+            "\t\t<td style=\"background-color: #fcc;\">#{@text}</td>\n\r"
+        else
+            "\t\t<td>#{@text}</td>\n\r"
+        end
+    end
 end
 
 

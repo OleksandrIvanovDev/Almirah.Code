@@ -17,24 +17,48 @@ class Project
         @gem_root = gem_root
         @specifications_dictionary = Hash.new
         
-        FileUtils.remove_dir(@project_root_directory + "/build", true)
-
-        parse_all_documents()
-        link_all_specifications()
-        link_all_protocols()
-        render_all_specifications()
-        render_all_protocols()       
+        FileUtils.remove_dir(@project_root_directory + "/build", true)      
     end
 
-    def parse_all_documents
-        
+    def specifications_and_protocols
+
+        parse_all_specifications
+        parse_all_protocols
+        link_all_specifications
+        link_all_protocols
+        render_all_specifications
+        render_all_protocols
+    end
+
+    def specifications_and_results( test_run )
+
+        parse_all_specifications
+        parse_test_run test_run
+        link_all_specifications
+        link_all_protocols
+        render_all_specifications
+        render_all_protocols
+    end
+
+    def parse_all_specifications        
         Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
             puts "Spec: " + f
             doc = DocFabric.create_specification(f)
             @specifications.append(doc)
         end
+    end
+
+    def parse_all_protocols
         Dir.glob( "#{@project_root_directory}/tests/protocols/**/*.md" ).each do |f|
             puts "Prot: " + f
+            doc = DocFabric.create_protocol(f)
+            @protocols.append(doc)
+        end
+    end
+
+    def parse_test_run( test_run )
+        Dir.glob( "#{@project_root_directory}/tests/runs/#{test_run}/**/*.md" ).each do |f|
+            puts "Run: " + f
             doc = DocFabric.create_protocol(f)
             @protocols.append(doc)
         end
