@@ -102,12 +102,9 @@ class Project
                 
                 unless topItem.down_links
                     topItem.down_links = Array.new
+                    top_document.items_with_downlinks_number += 1   # for statistics
                 end
                 topItem.down_links.append(item)
-
-                #if tmp = /^([a-zA-Z]+)[-]\d+/.match(item.id)
-                #    top_document.downlinkKey = tmp[1].upcase
-                #end
             end
         end
     end
@@ -125,6 +122,7 @@ class Project
                 
                 unless topItem.coverage_links
                     topItem.coverage_links = Array.new
+                    top_document.items_with_coverage_number += 1    # for statistics
                 end
                 topItem.coverage_links.append(item)
             end
@@ -141,6 +139,8 @@ class Project
         FileUtils.mkdir_p(pass + "/build/specifications")
     
         @specifications.each do |doc|
+
+            doc.to_console
 
             img_src_dir = pass + "/specifications/" + doc.id + "/img"
             img_dst_dir = pass + "/build/specifications/" + doc.id + "/img"
