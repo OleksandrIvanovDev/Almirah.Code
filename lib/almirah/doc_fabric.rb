@@ -85,11 +85,23 @@ class DocFabric
                     end
 
                     item = ControlledParagraph.new( text, id )
-                    item.up_link = up_link
+                    if up_link
+                         item.up_link = up_link
+                         doc.items_with_uplinks_number += 1     #for statistics
+                    end
 
                     doc.items.append(item)
                     doc.dictionary[ id.to_s ] = item       #for fast search
                     doc.controlled_items.append(item)      #for fast search
+
+                    #for statistics
+                    n = /\d+/.match(id)[0].to_i
+                    if n == doc.last_used_id_number
+                        doc.duplicated_ids_number += 1
+                    elsif n > doc.last_used_id_number
+                        doc.last_used_id = id
+                        doc.last_used_id_number = n
+                    end
 
                 elsif res = /^[!]\[(.*)\]\((.*)\)/.match(s)     # Image
 
