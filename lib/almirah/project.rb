@@ -1,5 +1,6 @@
 require_relative "doc_fabric"
 require_relative "navigation_pane"
+require_relative "doc_types/traceability"
 
 class Project
 
@@ -104,6 +105,9 @@ class Project
                 topItem.down_links.append(item)
             end
         end
+        # create treceability document
+        trx = Traceability.new top_document, bottom_document
+        @specifications.append trx
     end
 
     def link_protocol_to_spec(protocol, specification)
