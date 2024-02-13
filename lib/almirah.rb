@@ -18,11 +18,11 @@ class Almirah
 
   attr_accessor :project
 
-  def initialize project_folder
-    @project = Project.new project_folder, getGemRoot
+  def initialize(project_folder)
+    @project = Project.new project_folder
   end
 
-  def getGemRoot
+  def getGemRoot()
     File.expand_path './..', File.dirname(__FILE__)
   end
 
@@ -30,7 +30,7 @@ class Almirah
     @project.specifications_and_results test_run
   end
 
-  def default
+  def default()
     @project.specifications_and_protocols
   end
 
