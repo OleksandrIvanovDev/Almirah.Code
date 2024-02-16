@@ -108,6 +108,7 @@ class ControlledTable < DocItem
     def format_columns(columns)
 
         new_row = ControlledTableRow.new
+        new_row.parent_doc = @parent_doc
 
         columns.each_with_index do | element, index |
 

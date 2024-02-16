@@ -1,12 +1,12 @@
 require_relative "base_document"
 
-class Traceability < BaseDocument
+class Coverage < BaseDocument
 
     attr_accessor :top_doc
     attr_accessor :bottom_doc
     attr_accessor :items
 
-    def initialize(top_doc, bottom_doc)
+    def initialize(top_doc)
 
         @top_doc = top_doc
         @bottom_doc = bottom_doc
@@ -14,8 +14,8 @@ class Traceability < BaseDocument
         @items = Array.new
         @headings = Array.new
 
-        @id = top_doc.id + "-" + bottom_doc.id
-        @title = "Traceability Matrix: " + @id
+        @id = top_doc.id + "-" + "tests"
+        @title = "Coverage Matrix: " + @id
     end
 
     def to_console
@@ -29,7 +29,7 @@ class Traceability < BaseDocument
         html_rows.append('')
         s = "<h1>#{@title}</h1>\n"
         s += "<table class=\"controlled\">\n"
-        s += "\t<thead> <th>#</th> <th style='font-weight: bold;'>#{@top_doc.title}</th> <th>#</th> <th style='font-weight: bold;'>#{@bottom_doc.title}</th> </thead>\n"
+        s += "\t<thead> <th>#</th> <th style='font-weight: bold;'>#{@top_doc.title}</th> <th>#</th> <th style='font-weight: bold;'>Test CaseId.StepId</th> </thead>\n"
         html_rows.append s
 
         sorted_items = @top_doc.controlled_items.sort_by { |w| w.id }
@@ -46,18 +46,27 @@ class Traceability < BaseDocument
 
     def render_table_row(top_item)
         s = ""
-        if top_item.down_links
-            if top_item.down_links.length > 1
+        if top_item.coverage_links
+            if top_item.coverage_links.length > 1
                 id_color = "style='background-color: #fff8c5;'"
             else
                 id_color = ""
             end 
-            top_item.down_links.each do |bottom_item|
+            top_item.coverage_links.each do |bottom_item|
                 s += "\t<tr>\n"
                 s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html\" class=\"external\">#{top_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
-                s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html\" class=\"external\">#{bottom_item.id}</a></td>\n"
-                s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_item.text}</td>\n"
+                
+                if bottom_item.columns[-2].text.downcase == "pass"
+                    test_step_color = "style='background-color: #cfc;'"
+                elsif bottom_item.columns[-2].text.downcase == "fail"
+                    test_step_color = "style='background-color: #fcc;'"
+                else
+                    test_step_color = ""
+                end
+
+                s += "\t\t<td class=\"item_id\" #{test_step_color}><a href=\"./../../tests/protocols/#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_item.columns[1].text}</td>\n"
                 s += "\t</tr>\n"
             end
         else

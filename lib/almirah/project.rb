@@ -1,6 +1,7 @@
 require_relative "doc_fabric"
 require_relative "navigation_pane"
 require_relative "doc_types/traceability"
+require_relative "doc_types/coverage"
 
 class Project
 
@@ -128,6 +129,9 @@ class Project
                 topItem.coverage_links.append(item)
             end
         end
+        # create coverage document
+        trx = Coverage.new top_document
+        @specifications.append trx
     end
 
     def render_all_specifications
