@@ -8,7 +8,7 @@ class ControlledParagraph < Paragraph
     attr_accessor :coverage_links
 
     def initialize(text, id)
-        @text = text
+        @text = text.strip
         @id = id
         @up_link = nil
         @down_links = nil
@@ -23,14 +23,14 @@ class ControlledParagraph < Paragraph
             @@htmlTableRenderInProgress = true
         end
         s += "\t<tr>\n"
-        s += "\t\t<td class=\"item_id\"> <a name=\"#{@id}\"></a>#{@id} </td>\n"
+        s += "\t\t<td class=\"item_id\"> <a name=\"#{@id}\" id=\"#{@id}\" href=\"##{@id}\">#{@id}</a></td>\n"
         s += "\t\t<td class=\"item_text\">#{@text}</td>\n"
 
         if @up_link
             if tmp = /^([a-zA-Z]+)[-]\d+/.match(@up_link)
                 up_link_doc_name = tmp[1].downcase
             end
-            s += "\t\t<td class=\"item_id\"><a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html\" class=\"external\">#{@up_link}</a></td>\n"
+            s += "\t\t<td class=\"item_id\"><a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link}\" class=\"external\">#{@up_link}</a></td>\n"
         else
             s += "\t\t<td class=\"item_id\"></td>\n"
         end

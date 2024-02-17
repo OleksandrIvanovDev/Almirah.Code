@@ -54,15 +54,15 @@ class Traceability < BaseDocument
             end 
             top_item.down_links.each do |bottom_item|
                 s += "\t<tr>\n"
-                s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html\" class=\"external\">#{top_item.id}</a></td>\n"
+                s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
-                s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_item.text}</td>\n"
                 s += "\t</tr>\n"
             end
         else
             s += "\t<tr>\n"
-            s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html\" class=\"external\">#{top_item.id}</a></td>\n"
+            s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
             s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
             s += "\t\t<td class=\"item_id\"></td>\n"
             s += "\t\t<td class=\"item_text\" style='width: 42%;'></td>\n"

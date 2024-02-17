@@ -163,7 +163,7 @@ class Project
     def render_all_protocols
         
         # create a sidebar first
-        #nav_pane = NavigationPane.new(@specifications)        
+        nav_pane = NavigationPane.new(@specifications)        
 
         pass = @project_root_directory
 
@@ -181,7 +181,7 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nil, "#{pass}/build/tests/protocols/" )
+            doc.to_html( nav_pane, "#{pass}/build/tests/protocols/" )
         end
     end
 end

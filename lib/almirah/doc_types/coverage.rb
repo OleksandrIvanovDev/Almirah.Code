@@ -48,13 +48,13 @@ class Coverage < BaseDocument
         s = ""
         if top_item.coverage_links
             if top_item.coverage_links.length > 1
-                id_color = "style='background-color: #fff8c5;'"
+                id_color = "" # "style='background-color: #fff8c5;'" # disabled for now
             else
                 id_color = ""
             end 
             top_item.coverage_links.each do |bottom_item|
                 s += "\t<tr>\n"
-                s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html\" class=\"external\">#{top_item.id}</a></td>\n"
+                s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
                 
                 if bottom_item.columns[-2].text.downcase == "pass"
@@ -65,13 +65,13 @@ class Coverage < BaseDocument
                     test_step_color = ""
                 end
 
-                s += "\t\t<td class=\"item_id\" #{test_step_color}><a href=\"./../../tests/protocols/#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                s += "\t\t<td class=\"item_id\" #{test_step_color}><a href=\"./../../tests/protocols/#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_item.columns[1].text}</td>\n"
                 s += "\t</tr>\n"
             end
         else
             s += "\t<tr>\n"
-            s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html\" class=\"external\">#{top_item.id}</a></td>\n"
+            s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
             s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
             s += "\t\t<td class=\"item_id\"></td>\n"
             s += "\t\t<td class=\"item_text\" style='width: 42%;'></td>\n"
