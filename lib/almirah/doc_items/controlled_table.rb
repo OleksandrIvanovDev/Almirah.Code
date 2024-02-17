@@ -23,15 +23,17 @@ end
 class TestStepNumberColumn < ControlledTableColumn
 
     attr_accessor :step_number
+    attr_accessor :row_id
     
     def initialize(text)
         text = text.strip
         @step_number = text.to_i
         @text =  text
+        @row_id = ""
     end
 
     def to_html
-        "\t\t<td style=\"text-align: center;\">#{@text}</td>\n\r"
+        "\t\t<td style=\"text-align: center;\"><a name=\"#{@row_id}\" id=\"#{@row_id}\" href=\"##{@row_id}\">#{@text}</a></td>\n\r"
     end
 end 
 
@@ -70,7 +72,7 @@ class TestStepReferenceColumn <  ControlledTableColumn
 
     def to_html
         if @up_link
-            "\t\t<td class=\"item_id\"><a href=\"./../../../specifications/#{@up_link_doc_id}/#{@up_link_doc_id}.html\" class=\"external\">#{@up_link}</a></td>\n\r"
+            "\t\t<td class=\"item_id\"><a href=\"./../../../specifications/#{@up_link_doc_id}/#{@up_link_doc_id}.html##{@up_link}\" class=\"external\">#{@up_link}</a></td>\n\r"
         else
             "\t\t<td style=\"text-align: center;\"></td>\n\r"
         end
@@ -83,7 +85,6 @@ class ControlledTable < DocItem
 
     attr_accessor :column_names
     attr_accessor :rows
-    attr_accessor :parent_doc
 
     def initialize(markdown_table, parent_doc)
         @parent_doc = parent_doc
@@ -108,6 +109,7 @@ class ControlledTable < DocItem
     def format_columns(columns)
 
         new_row = ControlledTableRow.new
+        new_row.parent_doc = @parent_doc
 
         columns.each_with_index do | element, index |
 
@@ -116,6 +118,7 @@ class ControlledTable < DocItem
                 col = TestStepNumberColumn.new element
                 new_row.columns.append col
                 new_row.id = @parent_doc.id + '.' + col.text
+                col.row_id = new_row.id
 
             elsif index + 1 == columns.length # it is expected that a link is placed to the last column only
                 

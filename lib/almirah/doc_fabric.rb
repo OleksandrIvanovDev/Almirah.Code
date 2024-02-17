@@ -52,6 +52,7 @@ class DocFabric
                     level = res[1].length
                     value = res[2]
                     item = Heading.new(value, level)
+                    item.parent_doc = doc
                     doc.items.append(item)
                     doc.headings.append(item)
 
@@ -85,6 +86,7 @@ class DocFabric
                     end
 
                     item = ControlledParagraph.new( text, id )
+                    item.parent_doc = doc
                     if up_link
                          item.up_link = up_link
                          doc.items_with_uplinks_number += 1     #for statistics
@@ -118,6 +120,7 @@ class DocFabric
                     img_path = res[2]
 
                     item = Image.new( img_text, img_path )
+                    item.parent_doc = doc
 
                     doc.items.append(item)
 
@@ -134,6 +137,7 @@ class DocFabric
                         tempMdList.addRow(row)
                     else
                         item = MarkdownList.new(row)
+                        item.parent_doc = doc
                         tempMdList = item
                     end
 
@@ -151,6 +155,7 @@ class DocFabric
                         else
                             #separator out of table scope consider it just as a regular paragraph
                             item = Paragraph.new(s)
+                            item.parent_doc = doc
                             doc.items.append(item)
                         end
 
@@ -162,11 +167,13 @@ class DocFabric
                             # check if it is a controlled table
                             unless tempMdTable.addRow(row)
                                 tempMdTable = ControlledTable.new(tempMdTable, doc)
+                                tempMdTable.parent_doc = doc
                                 tempMdTable.addRow(row)
                             end
                         else
                             #start table from heading
                             tempMdTable = MarkdownTable.new(row)
+                            tempMdTable.parent_doc = doc
                         end
                     end
 
@@ -182,6 +189,7 @@ class DocFabric
                     end 
 
                     item = Blockquote.new(res[1])
+                    item.parent_doc = doc
                     doc.items.append(item)
 
                 else # Reqular Paragraph
@@ -195,6 +203,7 @@ class DocFabric
                     end
 
                     item = Paragraph.new(s)
+                    item.parent_doc = doc
                     doc.items.append(item)
                 end
             end

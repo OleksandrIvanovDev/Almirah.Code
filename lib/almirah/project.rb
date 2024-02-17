@@ -1,20 +1,19 @@
 require_relative "doc_fabric"
-require_relative "html_render"
 require_relative "navigation_pane"
+require_relative "doc_types/traceability"
+require_relative "doc_types/coverage"
 
 class Project
 
     attr_accessor :specifications
     attr_accessor :protocols
     attr_accessor :project_root_directory
-    attr_accessor :gem_root
     attr_accessor :specifications_dictionary
 
-    def initialize(path, gem_root)
+    def initialize(path)
         @project_root_directory = path
         @specifications = Array.new
         @protocols = Array.new
-        @gem_root = gem_root
         @specifications_dictionary = Hash.new
         
         FileUtils.remove_dir(@project_root_directory + "/build", true)      
@@ -107,6 +106,9 @@ class Project
                 topItem.down_links.append(item)
             end
         end
+        # create treceability document
+        trx = Traceability.new top_document, bottom_document
+        @specifications.append trx
     end
 
     def link_protocol_to_spec(protocol, specification)
@@ -127,6 +129,9 @@ class Project
                 topItem.coverage_links.append(item)
             end
         end
+        # create coverage document
+        trx = Coverage.new top_document
+        @specifications.append trx
     end
 
     def render_all_specifications
@@ -151,16 +156,14 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            HtmlRender.new( doc, nav_pane,
-            @gem_root + "/lib/almirah/templates/page.html",
-            "#{pass}/build/specifications/#{doc.id}/#{doc.id}.html" )
+            doc.to_html( nav_pane, "#{pass}/build/specifications/" )
         end
     end
 
     def render_all_protocols
         
         # create a sidebar first
-        #nav_pane = NavigationPane.new(@specifications)        
+        nav_pane = NavigationPane.new(@specifications)        
 
         pass = @project_root_directory
 
@@ -178,9 +181,7 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            HtmlRender.new( doc, nil,
-            @gem_root + "/lib/almirah/templates/page.html",
-            "#{pass}/build/tests/protocols/#{doc.id}/#{doc.id}.html" )
+            doc.to_html( nav_pane, "#{pass}/build/tests/protocols/" )
         end
     end
 end
