@@ -44,7 +44,8 @@ class MarkdownTable < DocItem
                 if col.to_i > 0 && col.to_i.to_s == col  # autoalign cells with numbers
                     s += "\t\t<td style=\"text-align: center;\">#{col}</td>\n"
                 else
-                    s += "\t\t<td>#{col}</td>\n"
+                    f_text = format_string(col)
+                    s += "\t\t<td>#{f_text}</td>\n"
                 end
             end
             s += "\t</tr>\n"

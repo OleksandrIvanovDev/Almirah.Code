@@ -124,7 +124,7 @@ class DocFabric
 
                     doc.items.append(item)
 
-                elsif res = /^(\*\s?)+(.*)/.match(s)   #check if bullet list
+                elsif res = /^(\*\s?)(.*)/.match(s)   #check if bullet list
                     
                     if tempMdTable
                         doc.items.append tempMdTable

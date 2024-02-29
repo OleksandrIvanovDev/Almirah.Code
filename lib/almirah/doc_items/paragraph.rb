@@ -19,7 +19,7 @@ class Paragraph < DocItem
             @@htmlTableRenderInProgress = false
         end
 
-        s += "<p>#{@text}"
+        s += "<p>" + format_string(@text)
         return s
     end
 end

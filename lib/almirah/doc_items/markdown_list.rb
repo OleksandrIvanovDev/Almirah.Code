@@ -22,7 +22,8 @@ class MarkdownList < DocItem
 
         s += "<ul>\n"
         @rows.each do |r|
-            s += "\t<li>#{r}</li>\n"
+            f_text = format_string(r)
+            s += "\t<li>#{f_text}</li>\n"
         end
         s += "</ul>\n"
 
