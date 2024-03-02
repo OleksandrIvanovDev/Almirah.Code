@@ -9,7 +9,7 @@ class Paragraph < DocItem
     end
 
     def getTextWithoutSpaces
-        return @text.split.join('-')
+        return @text.split.join('-').downcase
     end
 
     def to_html

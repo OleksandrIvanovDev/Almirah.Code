@@ -77,13 +77,21 @@ class Specification < BaseDocument
 
     def adjust_internal_links(line, specifications)
         # check if there are internal links to md files and replace them
-        if res = /<a\shref="(.*)"\sclass="external">.*<\/a>/.match(line)
-            if res = /(\w*)[.]md/.match(res[1])
+        if tmp = /<a\shref="(.*)"\sclass="external">.*<\/a>/.match(line)
+            if res = /(\w*)[.]md/.match(tmp[1])
                 id = res[1].downcase
+                res = /(\w*)[.]md(#.*)/.match(tmp[1])
+                
                 specifications.each do |spec|
                     if spec.id.downcase == id
-                        line.sub!(/<a\shref="(.*)"\sclass="external">/,
-                        "<a href=\".\\..\\#{id}\\#{id}.html\" class=\"external\">")
+                        if res && res.length > 2
+                            anchor = res[2]
+                            line.sub!(/<a\shref="(.*)"\sclass="external">/,
+                            "<a href=\".\\..\\#{id}\\#{id}.html#{anchor}\" class=\"external\">")
+                        else
+                            line.sub!(/<a\shref="(.*)"\sclass="external">/,
+                            "<a href=\".\\..\\#{id}\\#{id}.html\" class=\"external\">")
+                        end
                         break
                     end
                 end
