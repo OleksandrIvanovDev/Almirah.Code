@@ -124,7 +124,7 @@ class DocFabric
 
                     doc.items.append(item)
 
-                elsif res = /^(\*\s?)(.*)/.match(s)   #check if bullet list
+                elsif res = /^(\*\s?)(.*)/.match(s)   #check if unordered list start
                     
                     if tempMdTable
                         doc.items.append tempMdTable
@@ -136,7 +136,26 @@ class DocFabric
                     if tempMdList
                         tempMdList.addRow(row)
                     else
-                        item = MarkdownList.new(row)
+                        item = MarkdownList.new(false)
+                        item.addRow(s)
+                        item.parent_doc = doc
+                        tempMdList = item
+                    end
+
+                elsif res = /^\d[.]\s(.*)/.match(s)   #check if ordered list start
+                    
+                    if tempMdTable
+                        doc.items.append tempMdTable
+                        tempMdTable = nil
+                    end
+
+                    row = res[1]
+
+                    if tempMdList
+                        tempMdList.addRow(row)
+                    else
+                        item = MarkdownList.new(true)
+                        item.addRow(s)
                         item.parent_doc = doc
                         tempMdList = item
                     end
@@ -198,13 +217,23 @@ class DocFabric
                         tempMdTable = nil
                     end
                     if tempMdList
-                        doc.items.append tempMdList
-                        tempMdList = nil
+                        if MarkdownList.unordered_list_item?(s) || MarkdownList.ordered_list_item?(s)
+                            tempMdList.addRow(s)
+                            next
+                        else
+                            doc.items.append tempMdList
+                            tempMdList = nil
+                        end
                     end
 
                     item = Paragraph.new(s)
                     item.parent_doc = doc
                     doc.items.append(item)
+                end
+            else
+                if tempMdList   # lists are separated by emty line from each other
+                    doc.items.append tempMdList
+                    tempMdList = nil
                 end
             end
         end
