@@ -8,7 +8,7 @@ class Heading < Paragraph
     def initialize(text, level)
         @text = text
         @level = level
-        @anchor_id = self.getTextWithoutSpaces()
+        @anchor_id = getTextWithoutSpaces()
     end
 
     def to_html

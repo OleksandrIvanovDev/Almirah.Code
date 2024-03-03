@@ -1,7 +1,7 @@
 require_relative "controlled_table_row"
+require_relative "text_line"
 
-
-class ControlledTableColumn
+class ControlledTableColumn < TextLine
 
     attr_accessor :text
     
@@ -10,7 +10,8 @@ class ControlledTableColumn
     end
 
     def to_html
-        "\t\t<td>#{@text}</td>\n\r"
+        f_text = format_string(@text)
+        "\t\t<td>#{f_text}</td>\n\r"
     end
 end
 
@@ -41,12 +42,13 @@ end
 class TestStepResultColumn <  ControlledTableColumn
 
     def to_html
+        f_text = format_string(@text)
         if @text.downcase == "pass"
-            "\t\t<td style=\"background-color: #cfc;\">#{@text}</td>\n\r"
+            "\t\t<td style=\"background-color: #cfc;\">#{f_text}</td>\n\r"
         elsif @text.downcase == "fail"
-            "\t\t<td style=\"background-color: #fcc;\">#{@text}</td>\n\r"
+            "\t\t<td style=\"background-color: #fcc;\">#{f_text}</td>\n\r"
         else
-            "\t\t<td>#{@text}</td>\n\r"
+            "\t\t<td>#{f_text}</td>\n\r"
         end
     end
 end

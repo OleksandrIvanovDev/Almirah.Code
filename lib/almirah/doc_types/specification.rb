@@ -67,11 +67,37 @@ class Specification < BaseDocument
 
         @items.each do |item|    
             a = item.to_html
+            a = adjust_internal_links(a, nav_pane.specifications)
             html_rows.append a
         end
 
         self.save_html_to_file(html_rows, nav_pane, output_file_path)
         
+    end
+
+    def adjust_internal_links(line, specifications)
+        # check if there are internal links to md files and replace them
+        if tmp = /<a\shref="(.*)"\sclass="external">.*<\/a>/.match(line)
+            if res = /(\w*)[.]md/.match(tmp[1])
+                id = res[1].downcase
+                res = /(\w*)[.]md(#.*)/.match(tmp[1])
+                
+                specifications.each do |spec|
+                    if spec.id.downcase == id
+                        if res && res.length > 2
+                            anchor = res[2]
+                            line.sub!(/<a\shref="(.*)"\sclass="external">/,
+                            "<a href=\".\\..\\#{id}\\#{id}.html#{anchor}\" class=\"external\">")
+                        else
+                            line.sub!(/<a\shref="(.*)"\sclass="external">/,
+                            "<a href=\".\\..\\#{id}\\#{id}.html\" class=\"external\">")
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        return line
     end
 
 end

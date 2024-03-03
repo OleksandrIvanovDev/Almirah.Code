@@ -22,9 +22,10 @@ class ControlledParagraph < Paragraph
             s += "\t<thead> <th>#</th> <th>Text</th> <th>UL</th> <th>DL</th> <th>COV</th> </thead>\n"
             @@htmlTableRenderInProgress = true
         end
+        f_text = format_string(@text)
         s += "\t<tr>\n"
         s += "\t\t<td class=\"item_id\"> <a name=\"#{@id}\" id=\"#{@id}\" href=\"##{@id}\">#{@id}</a></td>\n"
-        s += "\t\t<td class=\"item_text\">#{@text}</td>\n"
+        s += "\t\t<td class=\"item_text\">#{f_text}</td>\n"
 
         if @up_link
             if tmp = /^([a-zA-Z]+)[-]\d+/.match(@up_link)

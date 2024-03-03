@@ -9,7 +9,7 @@ class Paragraph < DocItem
     end
 
     def getTextWithoutSpaces
-        return @text.split.join('-')
+        return @text.split.join('-').downcase
     end
 
     def to_html
@@ -19,7 +19,7 @@ class Paragraph < DocItem
             @@htmlTableRenderInProgress = false
         end
 
-        s += "<p>#{@text}"
+        s += "<p>" + format_string(@text)
         return s
     end
 end
