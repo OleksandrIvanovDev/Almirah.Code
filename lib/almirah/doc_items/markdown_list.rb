@@ -21,7 +21,6 @@ class MarkdownList < DocItem
     end
 
     def addRow(raw_text)
-        puts raw_text
         pos = calculate_text_position(raw_text)
         row = raw_text[pos..-1]
 
@@ -40,7 +39,7 @@ class MarkdownList < DocItem
                 #cannot be there
             else
                 nested_list.text = prev_row
-                puts "Length: " + prev_lists_stack_item.rows.length.to_s
+                #puts "Length: " + prev_lists_stack_item.rows.length.to_s
                 prev_lists_stack_item.rows[-1] = nested_list
             end
             
@@ -58,9 +57,10 @@ class MarkdownList < DocItem
     end
 
     def calculate_indent_position(s)
+        s.downcase
         pos = 0
         s.each_char do |c|
-            if non_blank?(c)
+            if c != ' ' && c != '\t'
                 break
             end
             pos += 1
@@ -68,10 +68,16 @@ class MarkdownList < DocItem
         return pos
     end
     def calculate_text_position(s)
+        s.downcase
         pos = 0
+        space_detected = false
         s.each_char do |c|
-            if letter?(c)
-                break
+            if space_detected
+                if c != ' ' && c != '\t'
+                    break
+                end
+            elsif c == ' ' || c == '\t'
+                space_detected = true
             end
             pos += 1
         end
@@ -127,6 +133,7 @@ class MarkdownList < DocItem
                 s += "</li>\n"
             else
                 f_text = format_string(r)
+                #puts f_text
                 s += "\t<li>#{f_text}</li>\n"
             end
         end

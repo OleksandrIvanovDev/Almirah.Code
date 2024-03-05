@@ -19,7 +19,7 @@ class ControlledParagraph < Paragraph
         s = ''
         unless @@htmlTableRenderInProgress                    
             s += "<table class=\"controlled\">\n"
-            s += "\t<thead> <th>#</th> <th>Text</th> <th>UL</th> <th>DL</th> <th>COV</th> </thead>\n"
+            s += "\t<thead> <th>#</th> <th></th> <th>UL</th> <th>DL</th> <th>COV</th> </thead>\n"
             @@htmlTableRenderInProgress = true
         end
         f_text = format_string(@text)

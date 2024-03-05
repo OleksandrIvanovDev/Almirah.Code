@@ -40,9 +40,13 @@ class Project
         render_all_protocols
     end
 
-    def parse_all_specifications        
+    def parse_all_specifications
+        # do a lasy pass first to get the list of documents id
         Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
-            puts "Spec: " + f
+            DocFabric.add_lazy_doc_id(f)
+        end
+        # parse documents in the second pass
+        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
             doc = DocFabric.create_specification(f)
             @specifications.append(doc)
         end
@@ -90,7 +94,6 @@ class Project
             top_document = doc_B
             bottom_document = doc_A
         else
-            puts "No Links"
             return # no links
         end
         

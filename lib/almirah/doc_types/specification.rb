@@ -67,7 +67,7 @@ class Specification < BaseDocument
 
         @items.each do |item|    
             a = item.to_html
-            a = adjust_internal_links(a, nav_pane.specifications)
+            #a = adjust_internal_links(a, nav_pane.specifications)
             html_rows.append a
         end
 
