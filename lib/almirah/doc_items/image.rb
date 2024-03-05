@@ -21,7 +21,7 @@ class Image < DocItem
             @@htmlTableRenderInProgress = false
         end
 
-        s += "<img src=\"#{@path}\" alt=\"#{@text}\">"
+        s += "<p style=\"margin-top: 15px;\"><img src=\"#{@path}\" alt=\"#{@text}\">"
         return s
     end
 end
