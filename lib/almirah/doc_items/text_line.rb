@@ -72,6 +72,7 @@ class TextLine
                 if state == 'square_bracket_right_detected'
                     prev_state, state = change_state(c, state, 'brace_left_detected')
                 else
+                    result += c
                 end
             elsif c == ')'
                 if state == 'brace_left_detected'
@@ -84,6 +85,7 @@ class TextLine
                     result += link(link_text, link_url)
 
                 else
+                    result += c
                 end
             else
                 if state == 'default'
