@@ -128,9 +128,9 @@ class ControlledTable < DocItem
                 new_row.columns.append col
                 # save uplink key but do not rewrite
                 if col.up_link_doc_id != nil 
-                    if @parent_doc.up_link_doc_id == ""
-                        @parent_doc.up_link_doc_id = col.up_link_doc_id
-                    end
+                    
+                    @parent_doc.up_link_doc_id[ col.up_link_doc_id.to_s ] = col.up_link_doc_id
+
                     # save reference to the test step
                     new_row.up_link = col.up_link
                     @parent_doc.controlled_items.append new_row

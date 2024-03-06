@@ -16,7 +16,7 @@ class Protocol < BaseDocument
         #@dictionary = Hash.new
 
         @id = File.basename(fele_path, File.extname(fele_path)).downcase
-        @up_link_doc_id = ""
+        @up_link_doc_id = Hash.new
     end
 
     def to_html(nav_pane, output_file_path)

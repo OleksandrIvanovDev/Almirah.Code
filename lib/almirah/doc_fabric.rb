@@ -99,7 +99,7 @@ class DocFabric
                         up_link = tmp[2]
                         
                         if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)    # SRS
-                            doc.up_link_doc_id = tmp[1].downcase
+                            doc.up_link_doc_id[ tmp[1].downcase.to_s ] = tmp[1].downcase       # multiple documents could be up-linked                            
                         end
                     end
 

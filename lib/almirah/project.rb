@@ -72,6 +72,7 @@ class Project
         combList = @specifications.combination(2)
         combList.each do |c|
             link_two_specifications(c[0], c[1])
+            # puts "Link: #{c[0].id} - #{c[1].id}"
         end
     end
 
@@ -87,16 +88,16 @@ class Project
 
     def link_two_specifications(doc_A, doc_B)
 
-        if doc_A.id == doc_B.up_link_doc_id
+        if doc_B.up_link_doc_id.has_key?(doc_A.id.to_s)
             top_document = doc_A
             bottom_document = doc_B
-        elsif doc_B.id == doc_A.up_link_doc_id
+        elsif doc_A.up_link_doc_id.has_key?(doc_B.id.to_s)
             top_document = doc_B
             bottom_document = doc_A
         else
             return # no links
         end
-        
+        puts "Link: #{doc_A.id} - #{doc_B.id}" 
         bottom_document.controlled_items.each do |item|
 
             if top_document.dictionary.has_key?(item.up_link.to_s)
