@@ -40,7 +40,11 @@ class ControlledParagraph < Paragraph
             if tmp = /^([a-zA-Z]+)[-]\d+/.match(@down_links[0].id)    # guessing that all the links refer to one document
                 down_link_doc_name = tmp[1].downcase
             end
-            s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html\" class=\"external\">#{@down_links.length}</a></td>\n"
+            if @down_links.length == 1
+                s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html##{@down_links[0].id}\" class=\"external\">#{@down_links[0].id}</a></td>\n"
+            else
+                s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html\" class=\"external\">#{@down_links.length}</a></td>\n"
+            end
         else
             s += "\t\t<td class=\"item_id\"></td>\n"
         end
