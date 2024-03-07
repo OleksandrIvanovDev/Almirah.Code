@@ -73,7 +73,7 @@ class MarkdownList < DocItem
         space_detected = false
         s.each_char do |c|
             if space_detected
-                if c != ' ' && c != '\t'
+                if c != ' ' && c != '\t' && c != '*' && c != '.' && !numeric?(c)
                     break
                 end
             elsif c == ' ' || c == '\t'
