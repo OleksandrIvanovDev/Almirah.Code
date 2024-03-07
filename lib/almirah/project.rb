@@ -112,7 +112,7 @@ class Project
             end
         end
         # create treceability document
-        trx = Traceability.new top_document, bottom_document
+        trx = Traceability.new top_document, bottom_document, false
         @specifications.append trx
     end
 
