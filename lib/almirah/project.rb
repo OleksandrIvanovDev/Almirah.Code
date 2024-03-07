@@ -3,20 +3,29 @@ require_relative "doc_fabric"
 require_relative "navigation_pane"
 require_relative "doc_types/traceability"
 require_relative "doc_types/coverage"
+require_relative "doc_types/index"
 
 class Project
 
     attr_accessor :specifications
     attr_accessor :protocols
+    attr_accessor :traceability_matrices
+    attr_accessor :coverage_matrices
     attr_accessor :project_root_directory
     attr_accessor :specifications_dictionary
+    attr_accessor :index
+    attr_accessor :project
 
     def initialize(path)
         @project_root_directory = path
         @specifications = Array.new
         @protocols = Array.new
+        @traceability_matrices = Array.new
+        @coverage_matrices = Array.new
         @specifications_dictionary = Hash.new
-        
+        @index = nil
+        @project = self
+
         FileUtils.remove_dir(@project_root_directory + "/build", true)      
     end
 
@@ -26,8 +35,12 @@ class Project
         parse_all_protocols
         link_all_specifications
         link_all_protocols
-        render_all_specifications
+        create_index
+        render_all_specifications(@specifications)
+        render_all_specifications(@traceability_matrices)
+        render_all_specifications(@coverage_matrices)
         render_all_protocols
+        render_index
     end
 
     def specifications_and_results( test_run )
@@ -36,8 +49,12 @@ class Project
         parse_test_run test_run
         link_all_specifications
         link_all_protocols
-        render_all_specifications
+        create_index
+        render_all_specifications(@specifications)
+        render_all_specifications(@traceability_matrices)
+        render_all_specifications(@coverage_matrices)
         render_all_protocols
+        render_index
     end
 
     def parse_all_specifications
@@ -97,7 +114,7 @@ class Project
         else
             return # no links
         end
-        puts "Link: #{doc_A.id} - #{doc_B.id}" 
+        #puts "Link: #{doc_A.id} - #{doc_B.id}" 
         bottom_document.controlled_items.each do |item|
 
             if top_document.dictionary.has_key?(item.up_link.to_s)
@@ -113,7 +130,7 @@ class Project
         end
         # create treceability document
         trx = Traceability.new top_document, bottom_document, false
-        @specifications.append trx
+        @traceability_matrices.append trx
     end
 
     def link_protocol_to_spec(protocol, specification)
@@ -136,19 +153,23 @@ class Project
         end
         # create coverage document
         trx = Coverage.new top_document
-        @specifications.append trx
+        @coverage_matrices.append trx
     end
 
-    def render_all_specifications
+    def create_index
+        @index = Index.new( @project )
+    end
+
+    def render_all_specifications(spec_list)
         
         # create a sidebar first
-        nav_pane = NavigationPane.new(@specifications)        
+        # nav_pane = NavigationPane.new(@specifications)        
 
         pass = @project_root_directory
 
         FileUtils.mkdir_p(pass + "/build/specifications")
     
-        @specifications.each do |doc|
+        spec_list.each do |doc|
 
             doc.to_console
 
@@ -161,14 +182,14 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nav_pane, "#{pass}/build/specifications/" )
+            doc.to_html( nil, "#{pass}/build/specifications/" )
         end
     end
 
     def render_all_protocols
         
         # create a sidebar first
-        nav_pane = NavigationPane.new(@specifications)        
+        # nav_pane = NavigationPane.new(@specifications)        
 
         pass = @project_root_directory
 
@@ -186,7 +207,17 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nav_pane, "#{pass}/build/tests/protocols/" )
+            doc.to_html( nil, "#{pass}/build/tests/protocols/" )
         end
+    end
+
+    def render_index    
+
+        path = @project_root_directory
+
+        doc = @index
+        doc.to_console
+
+        doc.to_html("#{path}/build/")
     end
 end
