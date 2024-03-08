@@ -96,7 +96,7 @@ class Project
     def link_all_protocols
         @protocols.each do |p|
             @specifications.each do |s|
-                if s.id == p.up_link_doc_id
+                if p.up_link_doc_id.has_key?(s.id.to_s)
                     link_protocol_to_spec(p,s)
                 end
             end

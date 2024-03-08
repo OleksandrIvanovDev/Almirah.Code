@@ -54,7 +54,7 @@ class Index < BaseDocument
         end
         html_rows.append "</table>\n"
 
-        # Matrices
+        # Traceability Matrices
         s = "<h2>Traceability Matrices</h2>\n"
         s += "<table class=\"controlled\">\n"
         s += "\t<thead>\n"
@@ -75,6 +75,28 @@ class Index < BaseDocument
             html_rows.append s
         end
         html_rows.append "</table>\n"
+
+        # Coverage Matrices
+        if @project.coverage_matrices.length > 0
+            s = "<h2>Coverage Matrices</h2>\n"
+            s += "<table class=\"controlled\">\n"
+            s += "\t<thead>\n"
+            s += "\t\t<th>Title</th>\n"
+            s += "\t\t<th>Specification Covered</th>\n"
+            s += "</thead>\n"
+            html_rows.append s
+
+            sorted_items = @project.coverage_matrices.sort_by { |w| w.id }
+
+            sorted_items.each do |doc|
+                s = "\t<tr>\n"
+                s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
+                s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>#{doc.top_doc.title}</td>\n"
+                s += "</tr>\n"
+                html_rows.append s
+            end
+            html_rows.append "</table>\n"
+        end
 
         self.save_html_to_file(html_rows, nil, output_file_path)
         
