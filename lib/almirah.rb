@@ -2,8 +2,8 @@ require "thor"
 require_relative "almirah/project"
 
 class CLI < Thor
-  desc "please <project_folder>", "say <project_folder>"
   option :results
+  desc "please <project_folder>", "say <project_folder>"
     def please(project_folder)
       a = Almirah.new project_folder
       if options[:results]
@@ -12,6 +12,12 @@ class CLI < Thor
         a.default
       end
     end
+
+  desc "transform <project_folder>", "say <project_folder>"
+  def transform(project_folder)
+    a = Almirah.new project_folder
+    a.transform "docx"
+  end
 end
 
 class Almirah
@@ -28,6 +34,10 @@ class Almirah
 
   def results( test_run )
     @project.specifications_and_results test_run
+  end
+
+  def transform( file_extension )
+    @project.transform file_extension
   end
 
   def default()

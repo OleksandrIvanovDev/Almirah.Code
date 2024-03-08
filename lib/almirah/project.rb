@@ -57,6 +57,26 @@ class Project
         render_index
     end
 
+    def transform( file_extension )
+        transform_all_specifications file_extension 
+    end
+
+    def transform_all_specifications( file_extension )
+
+        path = @project_root_directory
+
+        # find all specifications
+        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
+            puts f
+            # make a copy with another extention to preserve the content
+            f_directory = File.dirname(f)
+            f_name = File.basename(f, File.extname(f)).downcase + "._md"
+            FileUtils.copy_file( f, "#{f_directory}/#{f_name}")
+            # transform the original one
+            # but do nothing for now - TODO
+        end
+    end
+
     def parse_all_specifications
         # do a lasy pass first to get the list of documents id
         Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
