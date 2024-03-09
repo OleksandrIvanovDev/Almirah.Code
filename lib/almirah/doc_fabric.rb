@@ -3,6 +3,7 @@ require_relative "doc_types/base_document"
 require_relative "doc_types/specification"
 require_relative "doc_types/protocol"
 #
+require_relative "doc_items/text_line"
 require_relative "doc_items/doc_item"
 require_relative "doc_items/heading"
 require_relative "doc_items/paragraph"
@@ -14,6 +15,12 @@ require_relative "doc_items/image"
 require_relative "doc_items/markdown_list"
 
 class DocFabric
+
+    def self.add_lazy_doc_id(path)
+        if res = /(\w+)[.]md$/.match(path)
+            TextLine.add_lazy_doc_id(res[1])
+        end
+    end
 
     def self.create_specification(path)
         doc = Specification.new path
@@ -59,7 +66,18 @@ class DocFabric
                     if level == 1 && doc.title == ""
                         doc.title = value
                     end   
-                        
+                elsif res = /^\%\s(.*)/.match(s)     # Pandoc Document Title
+
+                    title = res[1]
+                    item = Heading.new(title, 1)
+                    item.parent_doc = doc
+                    doc.items.append(item)
+                    doc.headings.append(item)
+
+                    if doc.title == ""
+                        doc.title = title
+                    end 
+                    
                 elsif res = /^\[(\S*)\]\s+(.*)/.match(s)     # Controlled Paragraph
 
                     if tempMdTable
@@ -81,7 +99,7 @@ class DocFabric
                         up_link = tmp[2]
                         
                         if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)    # SRS
-                            doc.up_link_doc_id = tmp[1].downcase
+                            doc.up_link_doc_id[ tmp[1].downcase.to_s ] = tmp[1].downcase       # multiple documents could be up-linked                            
                         end
                     end
 
@@ -134,7 +152,7 @@ class DocFabric
                     row = res[2]
 
                     if tempMdList
-                        tempMdList.addRow(row)
+                        tempMdList.addRow(s)
                     else
                         item = MarkdownList.new(false)
                         item.addRow(s)
@@ -152,7 +170,7 @@ class DocFabric
                     row = res[1]
 
                     if tempMdList
-                        tempMdList.addRow(row)
+                        tempMdList.addRow(s)
                     else
                         item = MarkdownList.new(true)
                         item.addRow(s)
