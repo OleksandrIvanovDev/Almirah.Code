@@ -25,7 +25,11 @@ class BaseDocument
         file_data = file.readlines
         file.close
 
-        output_file_path += "#{@id}/#{@id}.html"
+        if @id == 'index'
+            output_file_path += "#{@id}.html"
+        else
+            output_file_path += "#{@id}/#{@id}.html"
+        end
         file = File.open( output_file_path, "w" )
         file_data.each do |s|
             if s.include?('{{CONTENT}}')

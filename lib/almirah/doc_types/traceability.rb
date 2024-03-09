@@ -5,16 +5,23 @@ class Traceability < BaseDocument
     attr_accessor :top_doc
     attr_accessor :bottom_doc
     attr_accessor :items
+    attr_accessor :is_agregated
 
-    def initialize(top_doc, bottom_doc)
+    def initialize(top_doc, bottom_doc, is_agregated)
 
         @top_doc = top_doc
         @bottom_doc = bottom_doc
+        @is_agregated = is_agregated
 
         @items = Array.new
         @headings = Array.new
 
-        @id = top_doc.id + "-" + bottom_doc.id
+        if @is_agregated 
+            @id = top_doc.id + "-all"
+        else
+            @id = top_doc.id + "-" + bottom_doc.id
+        end
+
         @title = "Traceability Matrix: " + @id
     end
 
@@ -46,24 +53,49 @@ class Traceability < BaseDocument
 
     def render_table_row(top_item)
         s = ""
+        top_f_text = top_item.format_string( top_item.text )
+
         if top_item.down_links
-            if top_item.down_links.length > 1
-                id_color = "style='background-color: #fff8c5;'"
+
+            if @is_agregated
+
+                if top_item.down_links.length > 1
+                    id_color = "style='background-color: #fff8c5;'"
+                else
+                    id_color = ""
+                end
+
+                top_item.down_links.each do |bottom_item|
+                    bottom_f_text = bottom_item.format_string( bottom_item.text )
+                    s += "\t<tr>\n"
+                    s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_f_text}</td>\n"
+                    s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_f_text}</td>\n"
+                    s += "\t</tr>\n"
+                end
+
             else
-                id_color = ""
-            end 
-            top_item.down_links.each do |bottom_item|
-                s += "\t<tr>\n"
-                s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
-                s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
-                s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
-                s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_item.text}</td>\n"
-                s += "\t</tr>\n"
+                top_item.down_links.each do |bottom_item|
+
+                    id_color = ""
+
+                    if bottom_item.parent_doc.id == @bottom_doc.id
+
+                        bottom_f_text = bottom_item.format_string( bottom_item.text )
+                        s += "\t<tr>\n"
+                        s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
+                        s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_f_text}</td>\n"
+                        s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                        s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_f_text}</td>\n"
+                        s += "\t</tr>\n"
+                    end
+                end
             end
         else
             s += "\t<tr>\n"
             s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
-            s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_item.text}</td>\n"
+            s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_f_text}</td>\n"
             s += "\t\t<td class=\"item_id\"></td>\n"
             s += "\t\t<td class=\"item_text\" style='width: 42%;'></td>\n"
             s += "\t</tr>\n"

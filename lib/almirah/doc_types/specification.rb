@@ -30,7 +30,7 @@ class Specification < BaseDocument
         @last_used_id_number = 0
 
         @id = File.basename(fele_path, File.extname(fele_path)).downcase
-        @up_link_doc_id = ""
+        @up_link_doc_id = Hash.new
     end
 
     def to_console
@@ -67,7 +67,7 @@ class Specification < BaseDocument
 
         @items.each do |item|    
             a = item.to_html
-            a = adjust_internal_links(a, nav_pane.specifications)
+            #a = adjust_internal_links(a, nav_pane.specifications)
             html_rows.append a
         end
 

@@ -19,7 +19,7 @@ class ControlledParagraph < Paragraph
         s = ''
         unless @@htmlTableRenderInProgress                    
             s += "<table class=\"controlled\">\n"
-            s += "\t<thead> <th>#</th> <th>Text</th> <th>UL</th> <th>DL</th> <th>COV</th> </thead>\n"
+            s += "\t<thead> <th>#</th> <th></th> <th>UL</th> <th>DL</th> <th>COV</th> </thead>\n"
             @@htmlTableRenderInProgress = true
         end
         f_text = format_string(@text)
@@ -40,7 +40,11 @@ class ControlledParagraph < Paragraph
             if tmp = /^([a-zA-Z]+)[-]\d+/.match(@down_links[0].id)    # guessing that all the links refer to one document
                 down_link_doc_name = tmp[1].downcase
             end
-            s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html\" class=\"external\">#{@down_links.length}</a></td>\n"
+            if @down_links.length == 1
+                s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html##{@down_links[0].id}\" class=\"external\">#{@down_links[0].id}</a></td>\n"
+            else
+                s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html\" class=\"external\">#{@down_links.length}</a></td>\n"
+            end
         else
             s += "\t\t<td class=\"item_id\"></td>\n"
         end

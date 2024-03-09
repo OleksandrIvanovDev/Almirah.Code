@@ -3,20 +3,29 @@ require_relative "doc_fabric"
 require_relative "navigation_pane"
 require_relative "doc_types/traceability"
 require_relative "doc_types/coverage"
+require_relative "doc_types/index"
 
 class Project
 
     attr_accessor :specifications
     attr_accessor :protocols
+    attr_accessor :traceability_matrices
+    attr_accessor :coverage_matrices
     attr_accessor :project_root_directory
     attr_accessor :specifications_dictionary
+    attr_accessor :index
+    attr_accessor :project
 
     def initialize(path)
         @project_root_directory = path
         @specifications = Array.new
         @protocols = Array.new
+        @traceability_matrices = Array.new
+        @coverage_matrices = Array.new
         @specifications_dictionary = Hash.new
-        
+        @index = nil
+        @project = self
+
         FileUtils.remove_dir(@project_root_directory + "/build", true)      
     end
 
@@ -26,8 +35,12 @@ class Project
         parse_all_protocols
         link_all_specifications
         link_all_protocols
-        render_all_specifications
+        create_index
+        render_all_specifications(@specifications)
+        render_all_specifications(@traceability_matrices)
+        render_all_specifications(@coverage_matrices)
         render_all_protocols
+        render_index
     end
 
     def specifications_and_results( test_run )
@@ -36,13 +49,41 @@ class Project
         parse_test_run test_run
         link_all_specifications
         link_all_protocols
-        render_all_specifications
+        create_index
+        render_all_specifications(@specifications)
+        render_all_specifications(@traceability_matrices)
+        render_all_specifications(@coverage_matrices)
         render_all_protocols
+        render_index
     end
 
-    def parse_all_specifications        
+    def transform( file_extension )
+        transform_all_specifications file_extension 
+    end
+
+    def transform_all_specifications( file_extension )
+
+        path = @project_root_directory
+
+        # find all specifications
         Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
-            puts "Spec: " + f
+            puts f
+            # make a copy with another extention to preserve the content
+            f_directory = File.dirname(f)
+            f_name = File.basename(f, File.extname(f)).downcase + "._md"
+            FileUtils.copy_file( f, "#{f_directory}/#{f_name}")
+            # transform the original one
+            # but do nothing for now - TODO
+        end
+    end
+
+    def parse_all_specifications
+        # do a lasy pass first to get the list of documents id
+        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
+            DocFabric.add_lazy_doc_id(f)
+        end
+        # parse documents in the second pass
+        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
             doc = DocFabric.create_specification(f)
             @specifications.append(doc)
         end
@@ -68,13 +109,14 @@ class Project
         combList = @specifications.combination(2)
         combList.each do |c|
             link_two_specifications(c[0], c[1])
+            # puts "Link: #{c[0].id} - #{c[1].id}"
         end
     end
 
     def link_all_protocols
         @protocols.each do |p|
             @specifications.each do |s|
-                if s.id == p.up_link_doc_id
+                if p.up_link_doc_id.has_key?(s.id.to_s)
                     link_protocol_to_spec(p,s)
                 end
             end
@@ -83,17 +125,16 @@ class Project
 
     def link_two_specifications(doc_A, doc_B)
 
-        if doc_A.id == doc_B.up_link_doc_id
+        if doc_B.up_link_doc_id.has_key?(doc_A.id.to_s)
             top_document = doc_A
             bottom_document = doc_B
-        elsif doc_B.id == doc_A.up_link_doc_id
+        elsif doc_A.up_link_doc_id.has_key?(doc_B.id.to_s)
             top_document = doc_B
             bottom_document = doc_A
         else
-            puts "No Links"
             return # no links
         end
-        
+        #puts "Link: #{doc_A.id} - #{doc_B.id}" 
         bottom_document.controlled_items.each do |item|
 
             if top_document.dictionary.has_key?(item.up_link.to_s)
@@ -108,8 +149,8 @@ class Project
             end
         end
         # create treceability document
-        trx = Traceability.new top_document, bottom_document
-        @specifications.append trx
+        trx = Traceability.new top_document, bottom_document, false
+        @traceability_matrices.append trx
     end
 
     def link_protocol_to_spec(protocol, specification)
@@ -132,19 +173,23 @@ class Project
         end
         # create coverage document
         trx = Coverage.new top_document
-        @specifications.append trx
+        @coverage_matrices.append trx
     end
 
-    def render_all_specifications
+    def create_index
+        @index = Index.new( @project )
+    end
+
+    def render_all_specifications(spec_list)
         
         # create a sidebar first
-        nav_pane = NavigationPane.new(@specifications)        
+        # nav_pane = NavigationPane.new(@specifications)        
 
         pass = @project_root_directory
 
         FileUtils.mkdir_p(pass + "/build/specifications")
     
-        @specifications.each do |doc|
+        spec_list.each do |doc|
 
             doc.to_console
 
@@ -157,14 +202,14 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nav_pane, "#{pass}/build/specifications/" )
+            doc.to_html( nil, "#{pass}/build/specifications/" )
         end
     end
 
     def render_all_protocols
         
         # create a sidebar first
-        nav_pane = NavigationPane.new(@specifications)        
+        # nav_pane = NavigationPane.new(@specifications)        
 
         pass = @project_root_directory
 
@@ -182,7 +227,17 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nav_pane, "#{pass}/build/tests/protocols/" )
+            doc.to_html( nil, "#{pass}/build/tests/protocols/" )
         end
+    end
+
+    def render_index    
+
+        path = @project_root_directory
+
+        doc = @index
+        doc.to_console
+
+        doc.to_html("#{path}/build/")
     end
 end
