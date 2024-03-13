@@ -105,6 +105,7 @@ class DocFabric
 
                     item = ControlledParagraph.new( text, id )
                     item.parent_doc = doc
+                    item.parent_heading = doc.headings[-1]
                     if up_link
                          item.up_link = up_link
                          doc.items_with_uplinks_number += 1     #for statistics

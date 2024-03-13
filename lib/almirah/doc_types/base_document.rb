@@ -40,6 +40,8 @@ class BaseDocument
                 if nav_pane
                     file.puts nav_pane.to_html
                 end
+            elsif s.include?('{{DOCUMENT_TITLE}}')
+                file.puts s.gsub! '{{DOCUMENT_TITLE}}', @title
             else
                 file.puts s
             end
