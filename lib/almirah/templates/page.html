@@ -203,6 +203,17 @@ function closeNav() {
   document.getElementById("nav_pane").style.visibility = "hidden";
   console.log("Mouse Out");
 }
+
+window.onload = (event) => {
+  for (var i = 0, n = document.images.length; i < n; i++) 
+  {
+    elem = document.images[i];
+    if (elem.width > 640)
+    {
+        elem.style.width = "640px";
+    }
+  }
+};
 </script>
 </head>
 <body>
