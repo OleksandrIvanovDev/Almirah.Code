@@ -214,6 +214,13 @@ window.onload = (event) => {
     }
   }
 };
+
+function downlink_OnClick(clicked){
+    clicked.style.display = 'none';
+    id_parts = clicked.id.split("_");
+    required_id = "DLS_" + id_parts[1];
+    document.getElementById(required_id).style.display = 'block';
+}
 </script>
 </head>
 <body>
