@@ -43,7 +43,16 @@ class ControlledParagraph < Paragraph
             if @down_links.length == 1
                 s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html##{@down_links[0].id}\" class=\"external\">#{@down_links[0].id}</a></td>\n"
             else
-                s += "\t\t<td class=\"item_id\"><a href=\"./../#{down_link_doc_name}/#{down_link_doc_name}.html\" class=\"external\">#{@down_links.length}</a></td>\n"
+                s += "\t\t<td class=\"item_id\">"
+                s += "<div id=\"DL_#{@id}\" style=\"display: block;\">"
+                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\">#{@down_links.length}</a>"
+                s += "</div>"
+                s += "<div id=\"DLS_#{@id}\" style=\"display: none;\">"
+                @down_links.each do |lnk|
+                    s += "\t\t\t<a href=\"./../#{lnk.parent_doc.id}/#{lnk.parent_doc.id}.html##{lnk.id}\" class=\"external\">#{lnk.id}</a>\n<br>"
+                end
+                s += "</div>"
+                s += "</td>\n"
             end
         else
             s += "\t\t<td class=\"item_id\"></td>\n"

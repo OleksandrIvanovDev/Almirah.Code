@@ -36,7 +36,10 @@ class Traceability < BaseDocument
         html_rows.append('')
         s = "<h1>#{@title}</h1>\n"
         s += "<table class=\"controlled\">\n"
-        s += "\t<thead> <th>#</th> <th style='font-weight: bold;'>#{@top_doc.title}</th> <th>#</th> <th style='font-weight: bold;'>#{@bottom_doc.title}</th> </thead>\n"
+        s += "\t<thead> <th>#</th> <th style='font-weight: bold;'>#{@top_doc.title}</th> "
+        s += "<th>#</th> <th style='font-weight: bold;'>#{@bottom_doc.title}</th> "
+        s += "<th style='font-weight: bold;'>Document Section</th>"
+        s += "</thead>\n"
         html_rows.append s
 
         sorted_items = @top_doc.controlled_items.sort_by { |w| w.id }
@@ -67,11 +70,13 @@ class Traceability < BaseDocument
 
                 top_item.down_links.each do |bottom_item|
                     bottom_f_text = bottom_item.format_string( bottom_item.text )
+                    document_section = bottom_item.parent_heading.get_section_info
                     s += "\t<tr>\n"
                     s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
-                    s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_f_text}</td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
                     s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
-                    s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_f_text}</td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{bottom_f_text}</td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
                     s += "\t</tr>\n"
                 end
 
@@ -83,11 +88,14 @@ class Traceability < BaseDocument
                     if bottom_item.parent_doc.id == @bottom_doc.id
 
                         bottom_f_text = bottom_item.format_string( bottom_item.text )
+                        document_section = bottom_item.parent_heading.get_section_info
+
                         s += "\t<tr>\n"
                         s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
-                        s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_f_text}</td>\n"
+                        s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
                         s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
-                        s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_f_text}</td>\n"
+                        s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{bottom_f_text}</td>\n"
+                        s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
                         s += "\t</tr>\n"
                     end
                 end
@@ -95,9 +103,10 @@ class Traceability < BaseDocument
         else
             s += "\t<tr>\n"
             s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
-            s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{top_f_text}</td>\n"
+            s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
             s += "\t\t<td class=\"item_id\"></td>\n"
-            s += "\t\t<td class=\"item_text\" style='width: 42%;'></td>\n"
+            s += "\t\t<td class=\"item_text\" style='width: 34%;'></td>\n"
+            s += "\t\t<td class=\"item_text\" style='width: 16%;'></td>\n"
             s += "\t</tr>\n"
         end
         return s

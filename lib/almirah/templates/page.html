@@ -174,6 +174,15 @@
         font-size: 1.5em;
         font-family: "Trebuchet MS", Verdana, sans-serif;
     }
+    #top_nav a.split {
+        float: right;
+        color: white;
+        text-align: center;
+        padding: 4px 6px;
+        text-decoration: none;
+        font-size: 1.5em;
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+    }
     #top_nav a:hover {
         background-color: black;
         color:  white;
@@ -194,12 +203,31 @@ function closeNav() {
   document.getElementById("nav_pane").style.visibility = "hidden";
   console.log("Mouse Out");
 }
+
+window.onload = (event) => {
+  for (var i = 0, n = document.images.length; i < n; i++) 
+  {
+    elem = document.images[i];
+    if (elem.width > 640)
+    {
+        elem.style.width = "640px";
+    }
+  }
+};
+
+function downlink_OnClick(clicked){
+    clicked.style.display = 'none';
+    id_parts = clicked.id.split("_");
+    required_id = "DLS_" + id_parts[1];
+    document.getElementById(required_id).style.display = 'block';
+}
 </script>
 </head>
 <body>
     <div id="top_nav">
         <a href="./../../index.html"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>
         <!--a href="javascript:void(0)"> About</a-->
+        <a class="split">{{DOCUMENT_TITLE}}</a>
     </div>
     <div id="main">
         <div id="nav_pane">
