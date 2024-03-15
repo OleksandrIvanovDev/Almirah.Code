@@ -112,14 +112,18 @@ class DocFabric
                     end
 
                     doc.items.append(item)
-                    doc.dictionary[ id.to_s ] = item       #for fast search
+                    #for statistics
+                    if doc.dictionary.has_key?( id.to_s )
+                        doc.duplicated_ids_number += 1
+                        doc.duplicates_list.append(item)
+                    else
+                        doc.dictionary[ id.to_s ] = item       #for fast search
+                    end
                     doc.controlled_items.append(item)      #for fast search
 
                     #for statistics
                     n = /\d+/.match(id)[0].to_i
-                    if n == doc.last_used_id_number
-                        doc.duplicated_ids_number += 1
-                    elsif n > doc.last_used_id_number
+                    if n > doc.last_used_id_number
                         doc.last_used_id = id
                         doc.last_used_id_number = n
                     end

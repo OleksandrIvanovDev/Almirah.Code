@@ -47,7 +47,21 @@ class Index < BaseDocument
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.items_with_uplinks_number.to_s}</td>\n"
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.items_with_downlinks_number.to_s}</td>\n"
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.items_with_coverage_number.to_s}</td>\n"
-            s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.duplicated_ids_number.to_s}</td>\n"
+            
+            if doc.duplicated_ids_number >0
+                s += "\t\t<td class=\"item_id\" style='width: 7%; background-color: #fcc;'>"
+                s += "<div id=\"DL_#{doc.id}\" style=\"display: block;\">"
+                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\">#{doc.duplicated_ids_number.to_s}</a>"
+                s += "</div>"
+                s += "<div id=\"DLS_#{doc.id}\" style=\"display: none;\">"
+                doc.duplicates_list.each do |lnk|
+                    s += "\t\t\t<a href=\"./specifications/#{doc.id}/#{doc.id}.html##{lnk.id}\" class=\"external\">#{lnk.id}</a>\n<br>"
+                end
+                s += "</div>"
+                s += "</td>\n"
+            else
+                s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.duplicated_ids_number.to_s}</td>\n"
+            end
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.last_used_id.to_s}</td>\n"
             s += "</tr>\n"
             html_rows.append s
