@@ -91,25 +91,57 @@ class DocFabric
 
                     id = res[1]
                     text = res[2]
+                    up_links = nil
 
-                    #check if it contains the uplink
-                    if tmp = /(.*)\s+>\[(\S*)\]$/.match(text)           # >[SRS-001]
-
-                        text = tmp[1]
-                        up_link = tmp[2]
-                        
-                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link)    # SRS
-                            doc.up_link_doc_id[ tmp[1].downcase.to_s ] = tmp[1].downcase       # multiple documents could be up-linked                            
+                    #check if it contains the uplink (one or many)
+                    #TODO: check this regular expression
+                    first_pos = text.length # for trailing commas
+                    tmp =  text.scan( /(>\[(?>[^\[\]]|\g<0>)*\])/ )           # >[SRS-001], >[SYS-002]
+                    if tmp.length >0
+                        up_links = Array.new
+                        tmp.each do |ul|
+                            up_links.append(ul[0])
+                            # try to find the real end of text
+                            pos = text.index(ul[0])
+                            if pos < first_pos
+                                first_pos = pos
+                            end
+                            # remove uplink from text
+                            text = text.split(ul[0]).join("")
+                            puts "Uplink for #{id}: " + ul[0]
+                        end
+                        # remove trailing commas and spaces
+                        if text.length > first_pos
+                            first_pos -= 1
+                            text = text[0..first_pos].strip
                         end
                     end
 
+                    # since we already know id and text 
                     item = ControlledParagraph.new( text, id )
+
+                    if up_links
+                        up_links.each do |ul|
+                            if tmp = />\[(\S*)\]$/.match(ul)                    # >[SRS-001]
+                                up_link_id = tmp[1]
+
+                                unless item.up_link_ids
+                                    item.up_link_ids = Array.new
+                                end
+
+                                item.up_link_ids.append(up_link_id)      
+                                doc.items_with_uplinks_number += 1     #for statistics
+                                    
+                                if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link_id) # SRS
+                                    doc.up_link_doc_id[ tmp[1].downcase.to_s ] = tmp[1].downcase       # multiple documents could be up-linked                            
+                                end
+                            end
+                        end
+                    end
+
+                    
                     item.parent_doc = doc
                     item.parent_heading = doc.headings[-1]
-                    if up_link
-                         item.up_link = up_link
-                         doc.items_with_uplinks_number += 1     #for statistics
-                    end
 
                     doc.items.append(item)
                     #for statistics
