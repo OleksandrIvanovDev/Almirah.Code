@@ -58,25 +58,32 @@ class DocFabric
 
                     level = res[1].length
                     value = res[2]
+
+                    if level == 1 && doc.title == ""
+                        doc.title = value
+                        Heading.reset_global_section_number()
+                    end 
+
                     item = Heading.new(value, level)
                     item.parent_doc = doc
                     doc.items.append(item)
                     doc.headings.append(item)
-
-                    if level == 1 && doc.title == ""
-                        doc.title = value
-                    end   
+  
                 elsif res = /^\%\s(.*)/.match(s)     # Pandoc Document Title
 
                     title = res[1]
+
+                    if doc.title == ""
+                        doc.title = title
+                        Heading.reset_global_section_number()
+                    end 
+
                     item = Heading.new(title, 1)
                     item.parent_doc = doc
                     doc.items.append(item)
                     doc.headings.append(item)
 
-                    if doc.title == ""
-                        doc.title = title
-                    end 
+                    Heading.reset_global_section_number()   # Pandoc Document Title is not a section, so it shall not be taken into account in numbering
                     
                 elsif res = /^\[(\S*)\]\s+(.*)/.match(s)     # Controlled Paragraph
 
@@ -108,7 +115,6 @@ class DocFabric
                             end
                             # remove uplink from text
                             text = text.split(ul[0]).join("")
-                            puts "Uplink for #{id}: " + ul[0]
                         end
                         # remove trailing commas and spaces
                         if text.length > first_pos
