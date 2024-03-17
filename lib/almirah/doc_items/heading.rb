@@ -13,7 +13,7 @@ class Heading < Paragraph
         @level = level
         @anchor_id = getTextWithoutSpaces()
 
-        if @@global_section_number = ""
+        if @@global_section_number == ""
             @@global_section_number = "1"
             for n in 1..(level-1) do
                 @@global_section_number += ".1"
@@ -58,5 +58,9 @@ class Heading < Paragraph
         s += "<h#{headingLevel}> #{@text} <a href=\"\##{@anchor_id}\" class=\"heading_anchor\">"
         s += "&para;</a></h#{headingLevel}>"
         return s
+    end
+
+    def self.reset_global_section_number
+        @@global_section_number = ""
     end
 end

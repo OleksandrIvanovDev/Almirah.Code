@@ -137,15 +137,20 @@ class Project
         #puts "Link: #{doc_A.id} - #{doc_B.id}" 
         bottom_document.controlled_items.each do |item|
 
-            if top_document.dictionary.has_key?(item.up_link.to_s)
+            if item.up_link_ids
+                item.up_link_ids.each do |up_lnk|
 
-                topItem = top_document.dictionary[item.up_link.to_s]
-                
-                unless topItem.down_links
-                    topItem.down_links = Array.new
-                    top_document.items_with_downlinks_number += 1   # for statistics
+                    if top_document.dictionary.has_key?(up_lnk.to_s)
+
+                        topItem = top_document.dictionary[up_lnk.to_s]
+                        
+                        unless topItem.down_links
+                            topItem.down_links = Array.new
+                            top_document.items_with_downlinks_number += 1   # for statistics
+                        end
+                        topItem.down_links.append(item)
+                    end
                 end
-                topItem.down_links.append(item)
             end
         end
         # create treceability document
