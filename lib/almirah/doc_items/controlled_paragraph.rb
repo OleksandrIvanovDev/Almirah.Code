@@ -3,14 +3,14 @@ require_relative "paragraph"
 class ControlledParagraph < Paragraph
 
     attr_accessor :id
-    attr_accessor :up_link
+    attr_accessor :up_link_ids
     attr_accessor :down_links
     attr_accessor :coverage_links
 
     def initialize(text, id)
         @text = text.strip
         @id = id
-        @up_link = nil
+        @up_link_ids = nil
         @down_links = nil
         @coverage_links = nil
     end
@@ -27,11 +27,27 @@ class ControlledParagraph < Paragraph
         s += "\t\t<td class=\"item_id\"> <a name=\"#{@id}\" id=\"#{@id}\" href=\"##{@id}\">#{@id}</a></td>\n"
         s += "\t\t<td class=\"item_text\">#{f_text}</td>\n"
 
-        if @up_link
-            if tmp = /^([a-zA-Z]+)[-]\d+/.match(@up_link)
-                up_link_doc_name = tmp[1].downcase
+        if @up_link_ids
+            if @up_link_ids.length == 1
+                if tmp = /^([a-zA-Z]+)[-]\d+/.match(@up_link_ids[0])
+                    up_link_doc_name = tmp[1].downcase
+                end
+                s += "\t\t<td class=\"item_id\"><a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" class=\"external\">#{@up_link_ids[0]}</a></td>\n"
+            else
+                s += "\t\t<td class=\"item_id\">"
+                s += "<div id=\"DL_#{@id}\" style=\"display: block;\">"
+                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\">#{@up_link_ids.length}</a>"
+                s += "</div>"
+                s += "<div id=\"DLS_#{@id}\" style=\"display: none;\">"
+                @up_link_ids.each do |lnk|
+                    if tmp = /^([a-zA-Z]+)[-]\d+/.match(lnk)
+                        up_link_doc_name = tmp[1].downcase
+                    end
+                    s += "\t\t\t<a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" class=\"external\">#{lnk}</a>\n<br>"
+                end
+                s += "</div>"
+                s += "</td>\n"
             end
-            s += "\t\t<td class=\"item_id\"><a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link}\" class=\"external\">#{@up_link}</a></td>\n"
         else
             s += "\t\t<td class=\"item_id\"></td>\n"
         end

@@ -5,11 +5,13 @@ class Specification < BaseDocument
     attr_accessor :up_link_doc_id
     attr_accessor :dictionary
     attr_accessor :controlled_items
+    attr_accessor :todo_blocks
 
     attr_accessor :items_with_uplinks_number
     attr_accessor :items_with_downlinks_number
     attr_accessor :items_with_coverage_number
     attr_accessor :duplicated_ids_number
+    attr_accessor :duplicates_list
     attr_accessor :last_used_id
     attr_accessor :last_used_id_number
 
@@ -21,6 +23,8 @@ class Specification < BaseDocument
         @headings = Array.new
         @controlled_items = Array.new
         @dictionary = Hash.new
+        @duplicates_list = Array.new
+        @todo_blocks = Array.new
 
         @items_with_uplinks_number = 0
         @items_with_downlinks_number = 0
