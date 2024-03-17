@@ -34,6 +34,7 @@ class Index < BaseDocument
         s += "\t\t<th>Items<br>w/ Downlinks</th>\n"
         s += "\t\t<th>Covered<br>by Tests</th>\n"
         s += "\t\t<th>Duplicated<br>ids</th>\n"
+        s += "\t\t<th>TODOs</th>\n"
         s += "\t\t<th>Last Used<br>id</th>\n"
         s += "</thead>\n"
         html_rows.append s
@@ -62,6 +63,12 @@ class Index < BaseDocument
             else
                 s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.duplicated_ids_number.to_s}</td>\n"
             end
+            if doc.todo_blocks.length >0
+                color = "background-color: #fcc;"
+            else
+                color = ""
+            end
+            s += "\t\t<td class=\"item_id\" style='width: 7%; #{color}'>#{doc.todo_blocks.length.to_s}</td>\n"
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.last_used_id.to_s}</td>\n"
             s += "</tr>\n"
             html_rows.append s

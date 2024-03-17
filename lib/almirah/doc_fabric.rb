@@ -8,6 +8,7 @@ require_relative "doc_items/doc_item"
 require_relative "doc_items/heading"
 require_relative "doc_items/paragraph"
 require_relative "doc_items/blockquote"
+require_relative "doc_items/todo_block"
 require_relative "doc_items/controlled_paragraph"
 require_relative "doc_items/markdown_table"
 require_relative "doc_items/controlled_table"
@@ -271,6 +272,24 @@ class DocFabric
                     item = Blockquote.new(res[1])
                     item.parent_doc = doc
                     doc.items.append(item)
+                
+                elsif res = /^TODO\:(.*)/.match(s)   #check if TODO block
+
+                    if tempMdTable
+                        doc.items.append tempMdTable
+                        tempMdTable = nil
+                    end
+                    if tempMdList
+                        doc.items.append tempMdList
+                        tempMdList = nil
+                    end 
+
+                    text = "**TODO**: " + res[1]
+
+                    item = TodoBlock.new(text)
+                    item.parent_doc = doc
+                    doc.items.append(item)
+                    doc.todo_blocks.append(item)
 
                 else # Reqular Paragraph
                     if tempMdTable
