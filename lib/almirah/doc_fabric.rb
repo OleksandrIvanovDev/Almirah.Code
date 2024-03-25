@@ -128,6 +128,7 @@ class DocFabric
                     item = ControlledParagraph.new( text, id )
 
                     if up_links
+                        doc.items_with_uplinks_number += 1     #for statistics
                         up_links.each do |ul|
                             if tmp = />\[(\S*)\]$/.match(ul)                    # >[SRS-001]
                                 up_link_id = tmp[1]
@@ -137,7 +138,6 @@ class DocFabric
                                 end
 
                                 item.up_link_ids.append(up_link_id)      
-                                doc.items_with_uplinks_number += 1     #for statistics
                                     
                                 if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link_id) # SRS
                                     doc.up_link_doc_id[ tmp[1].downcase.to_s ] = tmp[1].downcase       # multiple documents could be up-linked                            
