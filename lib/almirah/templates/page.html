@@ -264,11 +264,15 @@
         text-decoration: none;
         cursor: pointer;
     }
-    /*@media only screen and (max-width: 700px){
-        .modal_image {
-            width: 100%;
-        }
-    }*/
+    #footer {
+        clear: both;
+        border-top: 1px solid #bbb;
+        font-size: 0.9em;
+        color: #aaa;
+        padding: 5px;
+        text-align:center;
+        background:#fff;
+    }
 </style>
 <script>
 function openNav() {
@@ -344,6 +348,9 @@ function modal_close_OnClick(clicked){
         <span class="modal_close_btn" href="javascript:void(0)" onclick="modal_close_OnClick(this)">&times;</span>
         <img class="modal_image" id="modal_image_id">
         <div id="modal_image_caption"></div>
+    </div>
+    <div id="footer">
+        Powered by <a target="_blank" rel="noopener" href="https://www.almirah.site/">Almirah Framework</a>
     </div>
 </body>
 
