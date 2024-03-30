@@ -21,7 +21,8 @@ class Image < DocItem
             @@htmlTableRenderInProgress = false
         end
 
-        s += "<p style=\"margin-top: 15px;\"><img src=\"#{@path}\" alt=\"#{@text}\">"
+        s += "<p style=\"margin-top: 15px;\"><img src=\"#{@path}\" alt=\"#{@text}\" "
+        s += "href=\"javascript:void(0)\" onclick=\"image_OnClick(this)\">"
         return s
     end
 end
