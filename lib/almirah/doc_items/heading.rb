@@ -27,16 +27,21 @@ class Heading < Paragraph
                 a[-1] = (a[-1].to_i() +1).to_s
                 @@global_section_number = a.join(".")
 
-            elsif previous_level < level
+            elsif level > previous_level
 
                 a = @@global_section_number.split(".")
                 a.push("1")
                 @@global_section_number = a.join(".")
             
-            else # previous_level > level
+            else # level < previous_level
 
                 a = @@global_section_number.split(".")
-                a.pop
+                delta = previous_level - level
+                a.pop(delta)
+                @@global_section_number = a.join(".")
+                # increment
+                a = @@global_section_number.split(".")
+                a[-1] = (a[-1].to_i() +1).to_s
                 @@global_section_number = a.join(".")
             end
         end
