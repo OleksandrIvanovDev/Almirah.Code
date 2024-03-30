@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<title>{{DOCUMENT_TITLE}}</title>
 <!-- CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <style>
@@ -230,11 +231,18 @@ function downlink_OnClick(clicked){
     required_id = "DLS_" + id_parts[1];
     document.getElementById(required_id).style.display = 'block';
 }
+
+function navigate_to_home(){
+    if (document.title != "Document Index")
+    {
+        window.location.href = "./../../index.html";
+    }
+}
 </script>
 </head>
 <body>
     <div id="top_nav">
-        <a href="./../../index.html"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>
+        <a href="javascript:void(0)" onclick="navigate_to_home()"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>
         <!--a href="javascript:void(0)"> About</a-->
         <a class="split">{{DOCUMENT_TITLE}}</a>
     </div>
