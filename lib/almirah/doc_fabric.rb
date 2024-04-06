@@ -14,6 +14,7 @@ require_relative "doc_items/markdown_table"
 require_relative "doc_items/controlled_table"
 require_relative "doc_items/image"
 require_relative "doc_items/markdown_list"
+require_relative "doc_items/doc_footer"
 
 class DocFabric
 
@@ -326,5 +327,9 @@ class DocFabric
             doc.items.append tempMdList
             tempMdList = nil
         end
+        # Add footer to close opened tables if any
+        item = DocFooter.new
+        item.parent_doc = doc
+        doc.items.append(item)
     end
 end
