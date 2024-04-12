@@ -70,14 +70,27 @@ class MarkdownList < DocItem
     def calculate_text_position(s)
         s.downcase
         pos = 0
-        space_detected = false
+        state = 'looking_for_list_item_marker'
         s.each_char do |c|
-            if space_detected
-                if c != ' ' && c != '\t' && c != '*' && c != '.' && !numeric?(c)
+            if state == 'looking_for_list_item_marker'
+                if c == '*'
+                    state = 'looking_for_space'
+                elsif numeric?(c)
+                    state = 'looking_for_dot'
+                end
+            elsif state == 'looking_for_dot'
+                if c == '.'
+                    state = 'looking_for_space'
+                end
+            elsif state == 'looking_for_space'
+                if c == ' ' || c == '\t'
+                    state = 'looking_for_non_space'
+                end
+            elsif state == 'looking_for_non_space'
+                if c != ' ' || c != '\t'
+                    state = 'list_item_text_pos_found'
                     break
                 end
-            elsif c == ' ' || c == '\t'
-                space_detected = true
             end
             pos += 1
         end
