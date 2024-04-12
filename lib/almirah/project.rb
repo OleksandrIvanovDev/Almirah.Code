@@ -182,6 +182,13 @@ class Project
                             top_document.items_with_downlinks_number += 1   # for statistics
                         end
                         topItem.down_links.append(item)
+                    else
+                        # check if there is a non existing link with the right doc_id
+                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_lnk) # SRS
+                            if tmp[1].downcase == top_document.id.downcase
+                                bottom_document.wrong_links_hash[ up_lnk ] = item
+                            end
+                        end
                     end
                 end
             end
