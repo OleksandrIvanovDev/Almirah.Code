@@ -155,7 +155,7 @@ class TextLine
     def link(link_text, link_url)
 
         # define default result first
-        result = "<a href=\"#{link_url}\" class=\"external\">#{link_text}</a>"
+        result = "<a target=\"_blank\" rel=\"noopener\" href=\"#{link_url}\" class=\"external\">#{link_text}</a>"
 
         lazy_doc_id, anchor = nil, nil
 
