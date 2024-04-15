@@ -189,7 +189,7 @@ class DocFabric
 
                     doc.items.append(item)
 
-                elsif res = /^(\*\s?)(.*)/.match(s)   #check if unordered list start
+                elsif res = /^(\*\s+)(.*)/.match(s)   #check if unordered list start
                     
                     if tempMdTable
                         doc.items.append tempMdTable
