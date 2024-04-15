@@ -47,7 +47,9 @@ class MarkdownList < DocItem
 
         elsif pos < @@lists_stack[-1].indent_position
 
-            @@lists_stack.pop
+            while pos < @@lists_stack[-1].indent_position
+                @@lists_stack.pop
+            end
             @@lists_stack[-1].rows.append(row)
 
         else
