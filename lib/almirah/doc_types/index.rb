@@ -34,6 +34,7 @@ class Index < BaseDocument
         s += "\t\t<th>Items<br>w/ Downlinks</th>\n"
         s += "\t\t<th>Covered<br>by Tests</th>\n"
         s += "\t\t<th>Duplicated<br>ids</th>\n"
+        s += "\t\t<th>Wrong<br>links</th>\n"
         s += "\t\t<th>TODOs</th>\n"
         s += "\t\t<th>Last Used<br>id</th>\n"
         s += "</thead>\n"
@@ -63,6 +64,22 @@ class Index < BaseDocument
             else
                 s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.duplicated_ids_number.to_s}</td>\n"
             end
+
+            if doc.wrong_links_hash.length >0
+                s += "\t\t<td class=\"item_id\" style='width: 7%; background-color: #fcc;'>"
+                s += "<div id=\"DL_#{doc.id}wl\" style=\"display: block;\">"
+                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\">#{doc.wrong_links_hash.length.to_s}</a>"
+                s += "</div>"
+                s += "<div id=\"DLS_#{doc.id}wl\" style=\"display: none;\">"
+                doc.wrong_links_hash.each do |wrong_lnk, item|
+                    s += "\t\t\t<a href=\"./specifications/#{doc.id}/#{doc.id}.html##{item.id}\" class=\"external\">#{wrong_lnk}</a>\n<br>"
+                end
+                s += "</div>"
+                s += "</td>\n"
+            else
+                s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.wrong_links_hash.length.to_s}</td>\n"
+            end
+
             if doc.todo_blocks.length >0
                 color = "background-color: #fcc;"
             else
