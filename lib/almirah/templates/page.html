@@ -145,6 +145,15 @@
         margin-top: 4px;
         margin-bottom: 4px;
     }
+    code {
+        display: block;
+        background:#ffffee;
+        border-left: 3px double #bbb;
+        font-family: Consolas, Menlo, "Liberation Mono", Courier, monospace;
+        padding: 4px 1em 4px 4px;
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
     div.todoblock {
         display: block;
         background:#fcc;
@@ -341,16 +350,16 @@ function modal_close_OnClick(clicked){
         </div>
         <div id="content" href="javascript:void(0)" onclick="closeNav()">
             {{CONTENT}}
-        </div>
-    </div>
+        </div><!-- content -->
+    </div><!-- main -->
+    <div id="footer">
+        Powered by <a target="_blank" rel="noopener" href="https://www.almirah.site/">Almirah Framework</a>
+    </div><!-- footer -->
     <!-- The modal window for image zoom -->
     <div id="image_modal_div" class="modal">
         <span class="modal_close_btn" href="javascript:void(0)" onclick="modal_close_OnClick(this)">&times;</span>
         <img class="modal_image" id="modal_image_id">
         <div id="modal_image_caption"></div>
-    </div>
-    <div id="footer">
-        Powered by <a target="_blank" rel="noopener" href="https://www.almirah.site/">Almirah Framework</a>
     </div>
 </body>
 

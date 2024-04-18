@@ -8,12 +8,14 @@ require_relative "doc_items/doc_item"
 require_relative "doc_items/heading"
 require_relative "doc_items/paragraph"
 require_relative "doc_items/blockquote"
+require_relative "doc_items/code_block"
 require_relative "doc_items/todo_block"
 require_relative "doc_items/controlled_paragraph"
 require_relative "doc_items/markdown_table"
 require_relative "doc_items/controlled_table"
 require_relative "doc_items/image"
 require_relative "doc_items/markdown_list"
+require_relative "doc_items/doc_footer"
 
 class DocFabric
 
@@ -39,6 +41,7 @@ class DocFabric
 
         tempMdTable = nil
         tempMdList = nil
+        tempCodeBlock = nil
 
         file = File.open( doc.path )
         file_lines = file.readlines     
@@ -186,7 +189,7 @@ class DocFabric
 
                     doc.items.append(item)
 
-                elsif res = /^(\*\s?)(.*)/.match(s)   #check if unordered list start
+                elsif res = /^(\*\s+)(.*)/.match(s)   #check if unordered list start
                     
                     if tempMdTable
                         doc.items.append tempMdTable
@@ -272,6 +275,32 @@ class DocFabric
                     item = Blockquote.new(res[1])
                     item.parent_doc = doc
                     doc.items.append(item)
+
+                elsif res = /^```(\w*)/.match(s)   #check if code block
+
+                    if tempMdTable
+                        doc.items.append tempMdTable
+                        tempMdTable = nil
+                    end
+                    if tempMdList
+                        doc.items.append tempMdList
+                        tempMdList = nil
+                    end 
+
+                    suggested_format = ""
+                    if res.length == 2
+                        suggested_format = res[1]
+                    end
+
+                    if tempCodeBlock
+                        # close already opened block
+                        doc.items.append(tempCodeBlock)
+                        tempCodeBlock = nil
+                    else
+                        #start code block
+                        tempCodeBlock = CodeBlock.new(suggested_format)
+                        tempCodeBlock.parent_doc = doc
+                    end
                 
                 elsif res = /^TODO\:(.*)/.match(s)   #check if TODO block
 
@@ -305,10 +334,13 @@ class DocFabric
                             tempMdList = nil
                         end
                     end
-
-                    item = Paragraph.new(s)
-                    item.parent_doc = doc
-                    doc.items.append(item)
+                    if tempCodeBlock
+                        tempCodeBlock.code_lines.append(s)
+                    else
+                        item = Paragraph.new(s)
+                        item.parent_doc = doc
+                        doc.items.append(item)
+                    end
                 end
             else
                 if tempMdList   # lists are separated by emty line from each other
@@ -326,5 +358,13 @@ class DocFabric
             doc.items.append tempMdList
             tempMdList = nil
         end
+        if tempCodeBlock
+            doc.items.append tempCodeBlock
+            tempCodeBlock = nil
+        end
+        # Add footer to close opened tables if any
+        item = DocFooter.new
+        item.parent_doc = doc
+        doc.items.append(item)
     end
 end

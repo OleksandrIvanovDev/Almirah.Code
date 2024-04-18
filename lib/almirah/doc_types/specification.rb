@@ -6,6 +6,7 @@ class Specification < BaseDocument
     attr_accessor :dictionary
     attr_accessor :controlled_items
     attr_accessor :todo_blocks
+    attr_accessor :wrong_links_hash
 
     attr_accessor :items_with_uplinks_number
     attr_accessor :items_with_downlinks_number
@@ -25,6 +26,7 @@ class Specification < BaseDocument
         @dictionary = Hash.new
         @duplicates_list = Array.new
         @todo_blocks = Array.new
+        @wrong_links_hash = Hash.new
 
         @items_with_uplinks_number = 0
         @items_with_downlinks_number = 0

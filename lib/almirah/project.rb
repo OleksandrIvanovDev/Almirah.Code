@@ -35,6 +35,7 @@ class Project
         parse_all_protocols
         link_all_specifications
         link_all_protocols
+        check_wrong_specification_referenced
         create_index
         render_all_specifications(@specifications)
         render_all_specifications(@traceability_matrices)
@@ -49,6 +50,7 @@ class Project
         parse_test_run test_run
         link_all_specifications
         link_all_protocols
+        check_wrong_specification_referenced
         create_index
         render_all_specifications(@specifications)
         render_all_specifications(@traceability_matrices)
@@ -123,6 +125,37 @@ class Project
         end
     end
 
+    def check_wrong_specification_referenced
+
+        available_specification_ids = Hash.new
+
+        @specifications.each do |s|
+            available_specification_ids[ s.id.to_s.downcase ] = s
+        end
+
+        @specifications.each do |s|
+            s.up_link_doc_id.each do |key, value|
+                unless available_specification_ids.has_key?(key)
+                    # now key points to the doc_id that does not exist
+                    wrong_doc_id = key
+                    # find the item that reference to it
+                    s.controlled_items.each do |item|
+                        unless item.up_link_ids.nil?
+                            item.up_link_ids.each do |up_link_id|
+                                if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_link_id) # SRS
+                                    if tmp[1].downcase == wrong_doc_id
+                                        # we got it finally!
+                                        s.wrong_links_hash[ up_link_id.to_s ] = item
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     def link_two_specifications(doc_A, doc_B)
 
         if doc_B.up_link_doc_id.has_key?(doc_A.id.to_s)
@@ -149,6 +182,13 @@ class Project
                             top_document.items_with_downlinks_number += 1   # for statistics
                         end
                         topItem.down_links.append(item)
+                    else
+                        # check if there is a non existing link with the right doc_id
+                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_lnk) # SRS
+                            if tmp[1].downcase == top_document.id.downcase
+                                bottom_document.wrong_links_hash[ up_lnk ] = item
+                            end
+                        end
                     end
                 end
             end
