@@ -12,7 +12,7 @@
         color: #333;
         margin: 0;
         padding: 0;
-        min-width: 900px;
+        min-width: 9main00px;
     }
     #main {
         flex-grow: 2;
@@ -303,6 +303,11 @@ window.onload = (event) => {
         elem.style.width = "640px";
     }
   }
+  // Scroll a bit to make navigated anchor visible 
+  window.scrollBy({ 
+    top: -40,
+    behavior: "smooth"
+    });
 };
 
 function downlink_OnClick(clicked){
