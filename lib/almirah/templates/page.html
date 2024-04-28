@@ -303,11 +303,13 @@ window.onload = (event) => {
         elem.style.width = "640px";
     }
   }
-  // Scroll a bit to make navigated anchor visible 
-  window.scrollBy({ 
-    top: -40,
-    behavior: "smooth"
-    });
+  // Scroll a bit to make navigated anchor visible
+  setTimeout(function() {
+        window.scrollBy({ 
+        top: -40,
+        behavior: "smooth"
+        });
+    }, 200);
 };
 
 function downlink_OnClick(clicked){
@@ -321,6 +323,8 @@ function navigate_to_home(){
     if (document.title != "Document Index")
     {
         window.location.href = "./../../index.html";
+    }else{
+        window.location.href = "./index.html";
     }
 }
 
