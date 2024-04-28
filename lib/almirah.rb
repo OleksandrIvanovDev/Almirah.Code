@@ -7,9 +7,9 @@ class CLI < Thor
     def please(project_folder)
       a = Almirah.new project_folder
       if options[:results]
-        a.results options[:results]
+        a.results( options[:results], false )
       else
-        a.default
+        a.default(false)
       end
     end
 
@@ -17,6 +17,17 @@ class CLI < Thor
   def transform(project_folder)
     a = Almirah.new project_folder
     a.transform "docx"
+  end
+
+  option :results
+  desc "server <project_folder>", "say <project_folder>"
+  def server(project_folder)
+    a = Almirah.new project_folder
+    if options[:results]
+      a.results( options[:results], true )
+    else
+      a.default(true)
+    end
   end
 end
 
@@ -32,7 +43,8 @@ class Almirah
     File.expand_path './..', File.dirname(__FILE__)
   end
 
-  def results( test_run )
+  def results( test_run, on_server )
+    @project.on_server = on_server
     @project.specifications_and_results test_run
   end
 
@@ -40,7 +52,8 @@ class Almirah
     @project.transform file_extension
   end
 
-  def default()
+  def default(on_server)
+    @project.on_server = on_server
     @project.specifications_and_protocols
   end
 

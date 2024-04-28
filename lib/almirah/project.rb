@@ -15,6 +15,7 @@ class Project
     attr_accessor :specifications_dictionary
     attr_accessor :index
     attr_accessor :project
+    attr_accessor :on_server
 
     def initialize(path)
         @project_root_directory = path
@@ -25,6 +26,7 @@ class Project
         @specifications_dictionary = Hash.new
         @index = nil
         @project = self
+        @on_server = false
 
         FileUtils.remove_dir(@project_root_directory + "/build", true)      
     end

@@ -57,7 +57,7 @@ class Traceability < BaseDocument
     def render_table_row(top_item)
         s = ""
         top_f_text = top_item.format_string( top_item.text )
-
+        
         if top_item.down_links
 
             if @is_agregated
@@ -81,6 +81,7 @@ class Traceability < BaseDocument
                 end
 
             else
+                top_item_rendered = false
                 top_item.down_links.each do |bottom_item|
 
                     id_color = ""
@@ -97,7 +98,17 @@ class Traceability < BaseDocument
                         s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{bottom_f_text}</td>\n"
                         s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
                         s += "\t</tr>\n"
+                        top_item_rendered = true
                     end
+                end
+                unless top_item_rendered
+                    s += "\t<tr>\n"
+                    s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
+                    s += "\t\t<td class=\"item_id\"></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 34%;'></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 16%;'></td>\n"
+                    s += "\t</tr>\n"
                 end
             end
         else
