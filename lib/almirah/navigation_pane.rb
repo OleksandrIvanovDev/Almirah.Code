@@ -3,20 +3,25 @@ class NavigationPane
 
     attr_accessor :specifications
 
-    def initialize(specifications)
-        @specifications = specifications
+    def initialize(specification)
+        @doc = specification
     end
 
-    def to_html        
+    def to_html
+        if  @doc.dom
+            return @doc.dom.section_tree_to_html()
+        else
+            return ''
+        end
+
         s = "<ul class=\"fa-ul\">\n"
-        @specifications.each do |spec|
-            s += "\t<li><span class=\"fa-li\"><i class=\"fa fa-folder-open-o\"> </i></span> #{spec.id}\n"
-                s += "\t\t<ul class=\"fa-ul\">\n"
-                s += "\t\t\t<li><span class=\"fa-li\"><i class=\"fa fa-plus-square-o\"> </i></span>\n"
-                s += "\t\t\t\t<a href=\".\\..\\#{spec.id }\\#{spec.id }.html\">#{spec.title}</a>\n"
-                s += "\t\t\t</li>\n"
-                s += "\t\t</ul>\n"
-            s += "\t</li>\n"
+        if @doc.headings && @doc.headings.length > 0
+            @doc.headings.each do |heading|
+                s += "\t<li><span class=\"fa-li\"><i class=\"fa fa-plus-square-o\"> </i></span>\n"
+                s += "\t\t<a href=\"\##{heading.anchor_id}\">#{heading.text}</a>\n"
+                    
+                s += "\t</li>\n"
+            end
         end
         s += "</ul>\n"
     end

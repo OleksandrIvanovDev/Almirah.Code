@@ -11,45 +11,51 @@ class Heading < Paragraph
     def initialize(text, level)
         @text = text
         @level = level
-        @anchor_id = getTextWithoutSpaces()
 
-        if @@global_section_number == ""
-            @@global_section_number = "1"
-            for n in 1..(level-1) do
-                @@global_section_number += ".1"
-            end
-        else
-            previous_level = @@global_section_number.split(".").length
+        if level != 0 # skip Doc Title
+            if @@global_section_number == ""
+                @@global_section_number = "1"
+                for n in 1..(level-1) do
+                    @@global_section_number += ".1"
+                end
+            else
+                previous_level = @@global_section_number.split(".").length
 
-            if previous_level == level
+                if previous_level == level
 
-                a = @@global_section_number.split(".")
-                a[-1] = (a[-1].to_i() +1).to_s
-                @@global_section_number = a.join(".")
+                    a = @@global_section_number.split(".")
+                    a[-1] = (a[-1].to_i() +1).to_s
+                    @@global_section_number = a.join(".")
 
-            elsif level > previous_level
+                elsif level > previous_level
 
-                a = @@global_section_number.split(".")
-                a.push("1")
-                @@global_section_number = a.join(".")
-            
-            else # level < previous_level
+                    a = @@global_section_number.split(".")
+                    a.push("1")
+                    @@global_section_number = a.join(".")
+                
+                else # level < previous_level
 
-                a = @@global_section_number.split(".")
-                delta = previous_level - level
-                a.pop(delta)
-                @@global_section_number = a.join(".")
-                # increment
-                a = @@global_section_number.split(".")
-                a[-1] = (a[-1].to_i() +1).to_s
-                @@global_section_number = a.join(".")
+                    a = @@global_section_number.split(".")
+                    delta = previous_level - level
+                    a.pop(delta)
+                    @@global_section_number = a.join(".")
+                    # increment
+                    a = @@global_section_number.split(".")
+                    a[-1] = (a[-1].to_i() +1).to_s
+                    @@global_section_number = a.join(".")
+                end
             end
         end
         @section_number = @@global_section_number
+        @anchor_id = get_anchor_text()
     end
 
     def get_section_info
         s = @section_number + " " + @text
+    end
+
+    def get_anchor_text()
+        s = @section_number + "-" + getTextWithoutSpaces()
     end
 
     def to_html
@@ -58,10 +64,15 @@ class Heading < Paragraph
             s += "</table>\n"
             @@htmlTableRenderInProgress = false
         end
-        headingLevel = level.to_s 
+        heading_level = level.to_s
+        heading_text = get_section_info()
+        if level == 0
+            heading_level = 1.to_s  # Render Doc Title as a regular h1
+            heading_text = @text    # Doc Title does not have a section number
+        end 
         s += "<a name=\"#{@anchor_id}\"></a>\n"
-        s += "<h#{headingLevel}> #{@text} <a href=\"\##{@anchor_id}\" class=\"heading_anchor\">"
-        s += "&para;</a></h#{headingLevel}>"
+        s += "<h#{heading_level}> #{heading_text} <a href=\"\##{@anchor_id}\" class=\"heading_anchor\">"
+        s += "&para;</a></h#{heading_level}>"
         return s
     end
 
