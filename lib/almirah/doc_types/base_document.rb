@@ -6,6 +6,7 @@ class BaseDocument
     attr_accessor :headings
     attr_accessor :title
     attr_accessor :id
+    attr_accessor :dom
 
     def initialize(fele_path)
 
@@ -14,6 +15,7 @@ class BaseDocument
         @headings = Array.new
         @title = ""
         @id = ""
+        @dom = nil
     end
 
     def save_html_to_file html_rows, nav_pane, output_file_path
@@ -37,7 +39,7 @@ class BaseDocument
                     file.puts r
                 end
             elsif s.include?('{{NAV_PANE}}')
-                if nav_pane
+                if nav_pane 
                     file.puts nav_pane.to_html
                 end
             elsif s.include?('{{DOCUMENT_TITLE}}')

@@ -227,10 +227,7 @@ class Project
         @index = Index.new( @project )
     end
 
-    def render_all_specifications(spec_list)
-        
-        # create a sidebar first
-        # nav_pane = NavigationPane.new(@specifications)        
+    def render_all_specifications(spec_list)     
 
         pass = @project_root_directory
 
@@ -249,7 +246,9 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nil, "#{pass}/build/specifications/" )
+            # create a sidebar first
+            nav_pane = NavigationPane.new(doc) 
+            doc.to_html( nav_pane, "#{pass}/build/specifications/" )
         end
     end
 
