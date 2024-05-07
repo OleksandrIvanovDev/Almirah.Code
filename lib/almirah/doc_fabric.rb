@@ -17,6 +17,8 @@ require_relative "doc_items/image"
 require_relative "doc_items/markdown_list"
 require_relative "doc_items/doc_footer"
 
+require_relative "dom/document"
+
 class DocFabric
 
     def self.add_lazy_doc_id(path)
@@ -65,6 +67,7 @@ class DocFabric
 
                     if level == 1 && doc.title == ""
                         doc.title = value
+                        level = 0 # Doc Title is a Root
                         Heading.reset_global_section_number()
                     end 
 
@@ -82,7 +85,7 @@ class DocFabric
                         Heading.reset_global_section_number()
                     end 
 
-                    item = Heading.new(title, 1)
+                    item = Heading.new(title, 0)
                     item.parent_doc = doc
                     doc.items.append(item)
                     doc.headings.append(item)
@@ -366,5 +369,9 @@ class DocFabric
         item = DocFooter.new
         item.parent_doc = doc
         doc.items.append(item)
+        # Build dom
+        if doc.is_a?(Specification)
+            doc.dom = Document.new(doc.headings)
+        end
     end
 end

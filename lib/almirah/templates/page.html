@@ -173,14 +173,30 @@
     #modal_image_id{
         cursor: default;
     } 
+    #closed_nav_pane{
+        padding: 0px;
+        background: #169;
+        border: 0px;
+        position: fixed;
+        width: 5px;
+        height: 100%;       /* 100% Full-height */
+        visibility: visible;
+        cursor: pointer;
+    }
+    #closed_nav_pane:hover{
+        width: 10px;
+    }
     #nav_pane{
         flex-shrink: 0;
-        padding: 16px 8px 2px 8px;
+        padding: 32px 8px 8px 8px;
         background: #EEEEEE;
-        border-left: 1px solid #ddd;
+        border: 1px solid #ddd;
         position: fixed;
         height: 100%;       /* 100% Full-height */
         visibility: hidden;
+        z-index: 1;
+        overflow-y: auto;
+        cursor: pointer;
     }
     @media screen and (min-width: 0px) and (max-width: 1089px) {#nav_pane{width: 22%;}}
     @media screen and (min-width: 1090px) and (max-width: 1279px) {#nav_pane{width: 240px;}}
@@ -188,12 +204,13 @@
     @media screen and (min-width: 1600px) and (max-width: 1919px) {#nav_pane{width: 320px;}}
     @media screen and (min-width: 1920px) and (max-width: 2559px) {#nav_pane{width: 360px;}}
     @media screen and (min-width: 2560px) {#nav_pane{width: 380px;}}
+
     #top_nav{
         background-color: #169;
         overflow: hidden;
         position: fixed;
         width: 100%;    
-        z-index: 1;
+        z-index: 2;
     }
     #top_nav a {
         float: left;
@@ -286,12 +303,10 @@
 <script>
 function openNav() {
   document.getElementById("nav_pane").style.visibility = "visible";
-  console.log("Mouse In")
 }
 
 function closeNav() {
   document.getElementById("nav_pane").style.visibility = "hidden";
-  console.log("Mouse Out");
 }
 
 window.onload = (event) => {
@@ -304,12 +319,12 @@ window.onload = (event) => {
     }
   }
   // Scroll a bit to make navigated anchor visible
-  setTimeout(function() {
-        window.scrollBy({ 
-        top: -40,
-        behavior: "smooth"
-        });
-    }, 200);
+  //setTimeout(function() {
+  //      window.scrollBy({ 
+  //      top: -40,
+  //      behavior: "smooth"
+  //      });
+  //  }, 200);
 };
 
 function downlink_OnClick(clicked){
@@ -350,11 +365,12 @@ function modal_close_OnClick(clicked){
 <body>
     <div id="top_nav">
         <a href="javascript:void(0)" onclick="navigate_to_home()"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>
-        <!--a href="javascript:void(0)"> About</a-->
         <a class="split">{{DOCUMENT_TITLE}}</a>
     </div>
     <div id="main">
-        <div id="nav_pane">
+        <div id="closed_nav_pane" href="javascript:void(0)" onclick="openNav()">
+        </div>
+        <div id="nav_pane" onclick="closeNav()">
             {{NAV_PANE}}
         </div>
         <div id="content" href="javascript:void(0)" onclick="closeNav()">
