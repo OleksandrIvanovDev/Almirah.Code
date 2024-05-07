@@ -39,7 +39,7 @@ class BaseDocument
                     file.puts r
                 end
             elsif s.include?('{{NAV_PANE}}')
-                if nav_pane and 
+                if nav_pane 
                     file.puts nav_pane.to_html
                 end
             elsif s.include?('{{DOCUMENT_TITLE}}')
