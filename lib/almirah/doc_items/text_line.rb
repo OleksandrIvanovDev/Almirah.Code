@@ -189,6 +189,7 @@ class TextLineBuilder
                 # try to find closing part
                 is_found = false
                 tii = ti + 1
+                ti_starting_position = ti
                 while tii < tl
                     case token_list[tii].class.name 
                     when "SquareBracketRightAndParentheseLeft" 
@@ -206,6 +207,8 @@ class TextLineBuilder
                             tiii += 1
                         end
                         break
+                    when "SquareBracketRight"
+                        break
                     end 
                     tii += 1
                 end
@@ -213,7 +216,7 @@ class TextLineBuilder
                     result += @builder_context.link(restore(sub_list_url_text), restore(sub_list_url_address))
                 else
                     result += "["
-                    ti += 1
+                    ti = ti_starting_position + 1
                 end
            
             when "TextLineToken", "ParentheseLeft", "ParentheseRight", "SquareBracketLeft", "SquareBracketRight"

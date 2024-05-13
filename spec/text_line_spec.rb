@@ -77,4 +77,34 @@ describe 'TextLine' do
     expect(ret_val).to eq("<a target=\"_blank\" rel=\"noopener\" href=\"world_url\" class=\"external\">World</a>" +
     + " <a target=\"_blank\" rel=\"noopener\" href=\"world_url2\" class=\"external\">World2</a>")
   end
+
+  it 'returns string that consists of [text in square bracket] [URL](formatted) (text in parenthes)' do
+    obj = TextLine.new
+    ret_val = obj.format_string("[text in square bracket] [World](world_url) (text in parenthes)")
+    expect(ret_val).to eq("[text in square bracket] <a target=\"_blank\" rel=\"noopener\" href=\"world_url\" class=\"external\">World</a> (text in parenthes)")
+  end
+
+  it 'returns string that consists of [text in square bracket][URL](formatted)(text in parenthes) with no spaces' do
+    obj = TextLine.new
+    ret_val = obj.format_string("[text in square bracket][World](world_url)(text in parenthes)")
+    expect(ret_val).to eq("[text in square bracket]<a target=\"_blank\" rel=\"noopener\" href=\"world_url\" class=\"external\">World</a>(text in parenthes)")
+  end
+
+  it 'returns string that consists of (text in parenthes)[URL](formatted)[text in square bracket] with no spaces' do
+    obj = TextLine.new
+    ret_val = obj.format_string("(text in parenthes)[World](world_url)[text in square bracket]")
+    expect(ret_val).to eq("(text in parenthes)<a target=\"_blank\" rel=\"noopener\" href=\"world_url\" class=\"external\">World</a>[text in square bracket]")
+  end
+
+  it 'returns string that consists of **(text in parenthes)[URL](formatted)** *[text in square bracket]*' do
+    obj = TextLine.new
+    ret_val = obj.format_string("**(text in parenthes)[World](world_url)** *[text in square bracket]*")
+    expect(ret_val).to eq("<b>(text in parenthes)<a target=\"_blank\" rel=\"noopener\" href=\"world_url\" class=\"external\">World</a></b> <i>[text in square bracket]</i>")
+  end
+
+  it 'returns string that consists of **a***b* with no spaces' do
+    obj = TextLine.new
+    ret_val = obj.format_string("**a***b*")
+    expect(ret_val).to eq("**a***b*")
+  end
 end
