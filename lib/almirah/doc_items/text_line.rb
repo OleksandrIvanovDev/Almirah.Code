@@ -150,6 +150,8 @@ class TextLineBuilder
         while ti < tl
             case token_list[ti].class.name
             when "ItalicToken"
+                is_found = false
+                ti_starting_position = ti
                 # try to find closing part
                 tii = ti + 1
                 while tii < tl
@@ -157,11 +159,18 @@ class TextLineBuilder
                         sub_list = token_list[(ti+1)..(tii-1)]
                         result += @builder_context.italic(restore(sub_list))
                         ti = tii +1
+                        is_found = true
                         break
                     end 
                     tii += 1 
                 end
+                unless is_found
+                    result += "*"
+                    ti = ti_starting_position + 1
+                end
             when "BoldToken"
+                is_found = false
+                ti_starting_position = ti
                 # try to find closing part
                 tii = ti + 1
                 while tii < tl
@@ -169,11 +178,18 @@ class TextLineBuilder
                         sub_list = token_list[(ti+1)..(tii-1)]
                         result += @builder_context.bold(restore(sub_list))
                         ti = tii +1
+                        is_found = true
                         break
                     end 
                     tii += 1 
                 end
+                unless is_found
+                    result += "**"
+                    ti = ti_starting_position + 1
+                end
             when "BoldAndItalicToken"
+                is_found = false
+                ti_starting_position = ti
                 # try to find closing part
                 tii = ti + 1
                 while tii < tl
@@ -181,9 +197,14 @@ class TextLineBuilder
                         sub_list = token_list[(ti+1)..(tii-1)]
                         result += @builder_context.bold_and_italic(restore(sub_list))
                         ti = tii +1
+                        is_found = true
                         break
                     end 
                     tii += 1 
+                end
+                unless is_found
+                    result += "***"
+                    ti = ti_starting_position + 1
                 end
             when "SquareBracketLeft"
                 # try to find closing part

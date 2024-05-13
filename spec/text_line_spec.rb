@@ -107,4 +107,22 @@ describe 'TextLine' do
     ret_val = obj.format_string("**a***b*")
     expect(ret_val).to eq("**a***b*")
   end
+
+  it 'returns string that consists of *a***b* with no spaces' do
+    obj = TextLine.new
+    ret_val = obj.format_string("*a***b*")
+    expect(ret_val).to eq("<i>a***b</i>")
+  end
+
+  it 'returns string that consists of **a**b* with no spaces' do
+    obj = TextLine.new
+    ret_val = obj.format_string("**a**b*")
+    expect(ret_val).to eq("<b>a</b>b*")
+  end
+
+  it 'returns string that consists of ***a***b***c*** with no spaces' do
+    obj = TextLine.new
+    ret_val = obj.format_string("***a***b***c***")
+    expect(ret_val).to eq("<b><i>a</i></b>b<b><i>c</i></b>")
+  end
 end
