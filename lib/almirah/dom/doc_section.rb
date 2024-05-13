@@ -12,7 +12,7 @@ class DocSection
 
     def to_html
         s = ''
-        s += "\t<li><span class=\"fa-li\"><i class=\"fa fa-plus-square-o\"> </i></span>"
+        s += "\t<li><span class=\"fa-li\"><i class=\"fa fa-sticky-note-o\"> </i></span>"
         s += "<a href=\"\#" + @heading.anchor_id.to_s + "\">" + @heading.get_section_info + "</a>\n"
         if @sections.length >0
             s += "\t\t<ul class=\"fa-ul\">\n"
