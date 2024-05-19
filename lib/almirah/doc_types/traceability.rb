@@ -6,12 +6,14 @@ class Traceability < BaseDocument
     attr_accessor :bottom_doc
     attr_accessor :items
     attr_accessor :is_agregated
+    attr_accessor :traced_items
 
     def initialize(top_doc, bottom_doc, is_agregated)
 
         @top_doc = top_doc
         @bottom_doc = bottom_doc
         @is_agregated = is_agregated
+        @traced_items = {}
 
         @items = Array.new
         @headings = Array.new
@@ -37,7 +39,11 @@ class Traceability < BaseDocument
         s = "<h1>#{@title}</h1>\n"
         s += "<table class=\"controlled\">\n"
         s += "\t<thead> <th>#</th> <th style='font-weight: bold;'>#{@top_doc.title}</th> "
-        s += "<th>#</th> <th style='font-weight: bold;'>#{@bottom_doc.title}</th> "
+        if @bottom_doc
+            s += "<th>#</th> <th style='font-weight: bold;'>#{@bottom_doc.title}</th> "
+        else
+            s += "<th>#</th> <th style='font-weight: bold;'>All References</th> "
+        end
         s += "<th style='font-weight: bold;'>Document Section</th>"
         s += "</thead>\n"
         html_rows.append s
@@ -57,26 +63,35 @@ class Traceability < BaseDocument
     def render_table_row(top_item)
         s = ""
         top_f_text = top_item.format_string( top_item.text )
-        
+        id_color = ""
+
         if top_item.down_links
 
             if @is_agregated
-
-                if top_item.down_links.length > 1
-                    id_color = "style='background-color: #fff8c5;'"
-                else
-                    id_color = ""
-                end
+                
+                top_item_rendered = false
 
                 top_item.down_links.each do |bottom_item|
+                    id_color = "style='background-color: ##{bottom_item.parent_doc.color};'"
                     bottom_f_text = bottom_item.format_string( bottom_item.text )
                     document_section = bottom_item.parent_heading.get_section_info
                     s += "\t<tr>\n"
-                    s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
+                    s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
                     s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
-                    s += "\t\t<td class=\"item_id\"><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                    s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
                     s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{bottom_f_text}</td>\n"
                     s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
+                    s += "\t</tr>\n"
+                    top_item_rendered = true
+                    @traced_items[top_item.id.to_s.downcase] = top_item
+                end
+                unless top_item_rendered
+                    s += "\t<tr>\n"
+                    s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
+                    s += "\t\t<td class=\"item_id\"></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 34%;'></td>\n"
+                    s += "\t\t<td class=\"item_text\" style='width: 16%;'></td>\n"
                     s += "\t</tr>\n"
                 end
 
@@ -99,6 +114,7 @@ class Traceability < BaseDocument
                         s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
                         s += "\t</tr>\n"
                         top_item_rendered = true
+                        @traced_items[top_item.id.to_s.downcase] = top_item
                     end
                 end
                 unless top_item_rendered

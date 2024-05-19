@@ -1,4 +1,5 @@
 require 'fileutils'
+require 'YAML'
 require_relative "doc_fabric"
 require_relative "navigation_pane"
 require_relative "doc_types/traceability"
@@ -15,7 +16,7 @@ class Project
     attr_accessor :specifications_dictionary
     attr_accessor :index
     attr_accessor :project
-    attr_accessor :on_server
+    attr_accessor :project_configuration
 
     def initialize(path)
         @project_root_directory = path
@@ -26,9 +27,19 @@ class Project
         @specifications_dictionary = Hash.new
         @index = nil
         @project = self
-        @on_server = false
+        @project_configuration = {}
+        load_project_file()
+        FileUtils.remove_dir(@project_root_directory + "/build", true)
+    end
 
-        FileUtils.remove_dir(@project_root_directory + "/build", true)      
+    def load_project_file
+        begin
+            @project_configuration = YAML.load_file(@project_root_directory + '/project.yml') 
+        rescue Psych::SyntaxError => e
+            puts "YAML syntax error: #{e.message}"
+          rescue Errno::ENOENT
+            puts "Project file not found: project.yml"
+        end
     end
 
     def specifications_and_protocols
@@ -90,6 +101,7 @@ class Project
         Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
             doc = DocFabric.create_specification(f)
             @specifications.append(doc)
+            @specifications_dictionary[doc.id.to_s.downcase] = doc
         end
     end
 
@@ -114,6 +126,18 @@ class Project
         combList.each do |c|
             link_two_specifications(c[0], c[1])
             # puts "Link: #{c[0].id} - #{c[1].id}"
+        end
+        # separatelly create design inputs treceability
+        if (@project_configuration.key? 'specifications') and (@project_configuration['specifications'].key? 'input')
+            @project_configuration['specifications']['input'].each do |i|
+                if @specifications_dictionary.has_key? i.to_s.downcase
+                    document = @specifications_dictionary[i.to_s.downcase]
+                    if document
+                        trx = Traceability.new document, nil, true
+                        @traceability_matrices.append trx
+                    end
+                end
+            end
         end
     end
 
