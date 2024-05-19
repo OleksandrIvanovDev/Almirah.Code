@@ -44,7 +44,7 @@ class Index < BaseDocument
 
         sorted_items.each do |doc|
             s = "\t<tr>\n"
-            s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
+            s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\"><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.color};'> </i>&nbsp#{doc.title}</a></td>\n"
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.controlled_items.length.to_s}</td>\n"
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.items_with_uplinks_number.to_s}</td>\n"
             s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.items_with_downlinks_number.to_s}</td>\n"
@@ -103,12 +103,27 @@ class Index < BaseDocument
         html_rows.append s
 
         sorted_items = @project.traceability_matrices.sort_by { |w| w.id }
+        # buble-up design inputs
+        design_inputs = [] 
+        others = []
+        sorted_items.each do |doc|
+            if doc.bottom_doc
+                others.append doc
+            else
+                design_inputs.append doc
+            end
+        end
+        sorted_items = design_inputs + others
 
         sorted_items.each do |doc|
             s = "\t<tr>\n"
             s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
-            s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>#{doc.top_doc.title}</td>\n"
-            s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>#{doc.bottom_doc.title}</td>\n"
+            s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>&nbsp#{doc.top_doc.title}</td>\n"
+            if doc.bottom_doc
+                s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.bottom_doc.color};'> </i>&nbsp#{doc.bottom_doc.title}</td>\n"
+            else
+                s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-circle-o\"'> </i>&nbspAll References</td>\n"
+            end
             s += "</tr>\n"
             html_rows.append s
         end

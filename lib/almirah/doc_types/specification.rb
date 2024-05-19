@@ -15,6 +15,7 @@ class Specification < BaseDocument
     attr_accessor :duplicates_list
     attr_accessor :last_used_id
     attr_accessor :last_used_id_number
+    attr_accessor :color
 
     def initialize(fele_path)
 
@@ -34,6 +35,8 @@ class Specification < BaseDocument
         @duplicated_ids_number = 0
         @last_used_id = ""
         @last_used_id_number = 0
+
+        @color = 'bbb'
 
         @id = File.basename(fele_path, File.extname(fele_path)).downcase
         @up_link_doc_id = Hash.new
