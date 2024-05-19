@@ -6,12 +6,14 @@ class Traceability < BaseDocument
     attr_accessor :bottom_doc
     attr_accessor :items
     attr_accessor :is_agregated
+    attr_accessor :traced_items
 
     def initialize(top_doc, bottom_doc, is_agregated)
 
         @top_doc = top_doc
         @bottom_doc = bottom_doc
         @is_agregated = is_agregated
+        @traced_items = {}
 
         @items = Array.new
         @headings = Array.new
@@ -81,6 +83,7 @@ class Traceability < BaseDocument
                     s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
                     s += "\t</tr>\n"
                     top_item_rendered = true
+                    @traced_items[top_item.id.to_s.downcase] = top_item
                 end
                 unless top_item_rendered
                     s += "\t<tr>\n"
@@ -111,6 +114,7 @@ class Traceability < BaseDocument
                         s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{document_section}</td>\n"
                         s += "\t</tr>\n"
                         top_item_rendered = true
+                        @traced_items[top_item.id.to_s.downcase] = top_item
                     end
                 end
                 unless top_item_rendered

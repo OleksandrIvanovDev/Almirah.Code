@@ -97,6 +97,7 @@ class Index < BaseDocument
         s += "<table class=\"controlled\">\n"
         s += "\t<thead>\n"
         s += "\t\t<th>Title</th>\n"
+        s += "\t\t<th>Coverage</th>\n"
         s += "\t\t<th>Top Document</th>\n"
         s += "\t\t<th>Bottom Document</th>\n"
         s += "</thead>\n"
@@ -117,7 +118,9 @@ class Index < BaseDocument
 
         sorted_items.each do |doc|
             s = "\t<tr>\n"
+            coverage = doc.traced_items.length.to_f / doc.top_doc.controlled_items.length.to_f * 100.0
             s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
+            s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n"
             s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>&nbsp#{doc.top_doc.title}</td>\n"
             if doc.bottom_doc
                 s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.bottom_doc.color};'> </i>&nbsp#{doc.bottom_doc.title}</td>\n"
