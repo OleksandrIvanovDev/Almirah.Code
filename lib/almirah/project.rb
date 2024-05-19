@@ -1,5 +1,5 @@
 require 'fileutils'
-require 'YAML'
+require 'yaml'
 require_relative "doc_fabric"
 require_relative "navigation_pane"
 require_relative "doc_types/traceability"
