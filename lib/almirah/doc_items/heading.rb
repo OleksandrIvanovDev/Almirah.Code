@@ -76,6 +76,17 @@ class Heading < Paragraph
         return s
     end
 
+    def get_html_link
+        if (@parent_doc.instance_of? Specification)
+            heading_text = get_section_info()
+            s = "<a href= class=\"external\">#{heading_text}</a>"
+        end
+    end
+
+    def get_url
+        "./specifications/#{parent_doc.id}/#{parent_doc.id}.html\##{@anchor_id}"
+    end
+
     def self.reset_global_section_number
         @@global_section_number = ""
     end

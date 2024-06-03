@@ -6,8 +6,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Oleksandr Ivanov"]
   s.email       = "oleksandr.ivanov.development@gmail.com"
   s.homepage    = "http://almirah.site"
-  s.files       = Dir['lib/**/*.rb'] 
-  s.files.append("lib/almirah/templates/page.html")
+  s.files       = Dir['lib/**/*.rb'] + Dir['lib/**/*.html'] + Dir['lib/**/*.js'] + Dir['lib/**/*.css']
   s.license      = "MIT"
   s.executables  << "almirah" 
 end

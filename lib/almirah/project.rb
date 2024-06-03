@@ -27,6 +27,21 @@ class Project
         @index = nil
         @project = self
         FileUtils.remove_dir(@configuration.project_root_directory + "/build", true)
+        copy_resources
+    end
+
+    def copy_resources
+        # scripts
+        gem_root = File.expand_path './../..', File.dirname(__FILE__)
+        src_folder =  gem_root + "/lib/almirah/templates/scripts"
+        dst_folder = @configuration.project_root_directory + "/build/scripts"
+        FileUtils.mkdir_p(dst_folder)
+        FileUtils.copy_entry( src_folder, dst_folder )
+        # css
+        src_folder =  gem_root + "/lib/almirah/templates/css"
+        dst_folder = @configuration.project_root_directory + "/build/css"
+        FileUtils.mkdir_p(dst_folder)
+        FileUtils.copy_entry( src_folder, dst_folder )
     end
 
     def specifications_and_protocols

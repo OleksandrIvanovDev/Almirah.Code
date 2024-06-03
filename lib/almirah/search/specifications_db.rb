@@ -15,7 +15,12 @@ class SpecificationsDb
         @specifications.each do |sp|
             sp.items.each do |i|
                 if (i.instance_of? Paragraph) or (i.instance_of? ControlledParagraph)
-                    e = {"document" => i.parent_doc.title, "text" => i.text}
+                    e = {"document" => i.parent_doc.title, \
+                        "doc_color" => i.parent_doc.color, \
+                        "text" => i.text, \
+                        "heading_url" => i.parent_heading.get_url(), \
+                        "heading_text" => i.parent_heading.get_section_info()
+                    }
                     @data.append e
                 end
             end

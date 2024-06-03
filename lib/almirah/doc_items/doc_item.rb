@@ -8,6 +8,10 @@ class DocItem < TextLine
     @parent_heading = nil
 
     @@htmlTableRenderInProgress = false
+
+    def get_url
+        ''
+    end
 end
 
 
