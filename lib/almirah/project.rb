@@ -1,10 +1,10 @@
 require 'fileutils'
-require 'yaml'
 require_relative "doc_fabric"
 require_relative "navigation_pane"
 require_relative "doc_types/traceability"
 require_relative "doc_types/coverage"
 require_relative "doc_types/index"
+require_relative "search/specifications_db"
 
 class Project
 
@@ -12,14 +12,13 @@ class Project
     attr_accessor :protocols
     attr_accessor :traceability_matrices
     attr_accessor :coverage_matrices
-    attr_accessor :project_root_directory
     attr_accessor :specifications_dictionary
     attr_accessor :index
     attr_accessor :project
-    attr_accessor :project_configuration
+    attr_accessor :configuration
 
-    def initialize(path)
-        @project_root_directory = path
+    def initialize(configuration)
+        @configuration = configuration
         @specifications = Array.new
         @protocols = Array.new
         @traceability_matrices = Array.new
@@ -27,19 +26,22 @@ class Project
         @specifications_dictionary = Hash.new
         @index = nil
         @project = self
-        @project_configuration = {}
-        load_project_file()
-        FileUtils.remove_dir(@project_root_directory + "/build", true)
+        FileUtils.remove_dir(@configuration.project_root_directory + "/build", true)
+        copy_resources
     end
 
-    def load_project_file
-        begin
-            @project_configuration = YAML.load_file(@project_root_directory + '/project.yml') 
-        rescue Psych::SyntaxError => e
-            puts "YAML syntax error: #{e.message}"
-          rescue Errno::ENOENT
-            puts "Project file not found: project.yml"
-        end
+    def copy_resources
+        # scripts
+        gem_root = File.expand_path './../..', File.dirname(__FILE__)
+        src_folder =  gem_root + "/lib/almirah/templates/scripts"
+        dst_folder = @configuration.project_root_directory + "/build/scripts"
+        FileUtils.mkdir_p(dst_folder)
+        FileUtils.copy_entry( src_folder, dst_folder )
+        # css
+        src_folder =  gem_root + "/lib/almirah/templates/css"
+        dst_folder = @configuration.project_root_directory + "/build/css"
+        FileUtils.mkdir_p(dst_folder)
+        FileUtils.copy_entry( src_folder, dst_folder )
     end
 
     def specifications_and_protocols
@@ -55,6 +57,7 @@ class Project
         render_all_specifications(@coverage_matrices)
         render_all_protocols
         render_index
+        create_search_data
     end
 
     def specifications_and_results( test_run )
@@ -70,6 +73,7 @@ class Project
         render_all_specifications(@coverage_matrices)
         render_all_protocols
         render_index
+        create_search_data
     end
 
     def transform( file_extension )
@@ -78,10 +82,10 @@ class Project
 
     def transform_all_specifications( file_extension )
 
-        path = @project_root_directory
+        path = @configuration.project_root_directory
 
         # find all specifications
-        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
+        Dir.glob( "#{path}/specifications/**/*.md" ).each do |f|
             puts f
             # make a copy with another extention to preserve the content
             f_directory = File.dirname(f)
@@ -93,12 +97,13 @@ class Project
     end
 
     def parse_all_specifications
+        path = @configuration.project_root_directory
         # do a lasy pass first to get the list of documents id
-        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
+        Dir.glob( "#{path}/specifications/**/*.md" ).each do |f|
             DocFabric.add_lazy_doc_id(f)
         end
         # parse documents in the second pass
-        Dir.glob( "#{@project_root_directory}/specifications/**/*.md" ).each do |f|
+        Dir.glob( "#{path}/specifications/**/*.md" ).each do |f|
             doc = DocFabric.create_specification(f)
             @specifications.append(doc)
             @specifications_dictionary[doc.id.to_s.downcase] = doc
@@ -106,7 +111,8 @@ class Project
     end
 
     def parse_all_protocols
-        Dir.glob( "#{@project_root_directory}/tests/protocols/**/*.md" ).each do |f|
+        path = @configuration.project_root_directory
+        Dir.glob( "#{path}/tests/protocols/**/*.md" ).each do |f|
             puts "Prot: " + f
             doc = DocFabric.create_protocol(f)
             @protocols.append(doc)
@@ -114,7 +120,8 @@ class Project
     end
 
     def parse_test_run( test_run )
-        Dir.glob( "#{@project_root_directory}/tests/runs/#{test_run}/**/*.md" ).each do |f|
+        path = @configuration.project_root_directory
+        Dir.glob( "#{path}/tests/runs/#{test_run}/**/*.md" ).each do |f|
             puts "Run: " + f
             doc = DocFabric.create_protocol(f)
             @protocols.append(doc)
@@ -128,14 +135,12 @@ class Project
             # puts "Link: #{c[0].id} - #{c[1].id}"
         end
         # separatelly create design inputs treceability
-        if (@project_configuration.key? 'specifications') and (@project_configuration['specifications'].key? 'input')
-            @project_configuration['specifications']['input'].each do |i|
-                if @specifications_dictionary.has_key? i.to_s.downcase
-                    document = @specifications_dictionary[i.to_s.downcase]
-                    if document
-                        trx = Traceability.new document, nil, true
-                        @traceability_matrices.append trx
-                    end
+        @configuration.get_design_inputs.each do |i|
+            if @specifications_dictionary.has_key? i.to_s.downcase
+                document = @specifications_dictionary[i.to_s.downcase]
+                if document
+                    trx = Traceability.new document, nil, true
+                    @traceability_matrices.append trx
                 end
             end
         end
@@ -253,16 +258,16 @@ class Project
 
     def render_all_specifications(spec_list)     
 
-        pass = @project_root_directory
+        path = @configuration.project_root_directory
 
-        FileUtils.mkdir_p(pass + "/build/specifications")
+        FileUtils.mkdir_p(path + "/build/specifications")
     
         spec_list.each do |doc|
 
             doc.to_console
 
-            img_src_dir = pass + "/specifications/" + doc.id + "/img"
-            img_dst_dir = pass + "/build/specifications/" + doc.id + "/img"
+            img_src_dir = path + "/specifications/" + doc.id + "/img"
+            img_dst_dir = path + "/build/specifications/" + doc.id + "/img"
      
             FileUtils.mkdir_p(img_dst_dir)
 
@@ -272,7 +277,7 @@ class Project
 
             # create a sidebar first
             nav_pane = NavigationPane.new(doc) 
-            doc.to_html( nav_pane, "#{pass}/build/specifications/" )
+            doc.to_html( nav_pane, "#{path}/build/specifications/" )
         end
     end
 
@@ -281,15 +286,14 @@ class Project
         # create a sidebar first
         # nav_pane = NavigationPane.new(@specifications)        
 
-        pass = @project_root_directory
+        path = @configuration.project_root_directory
 
-        # FileUtils.remove_dir(pass + "/build/tests", true)
-        FileUtils.mkdir_p(pass + "/build/tests/protocols")
+        FileUtils.mkdir_p(path + "/build/tests/protocols")
     
         @protocols.each do |doc|
 
-            img_src_dir = pass + "/tests/protocols/" + doc.id + "/img"
-            img_dst_dir = pass + "/build/tests/protocols/" + doc.id + "/img"
+            img_src_dir = path + "/tests/protocols/" + doc.id + "/img"
+            img_dst_dir = path + "/build/tests/protocols/" + doc.id + "/img"
      
             FileUtils.mkdir_p(img_dst_dir)
 
@@ -297,17 +301,24 @@ class Project
                 FileUtils.copy_entry( img_src_dir, img_dst_dir )
             end
 
-            doc.to_html( nil, "#{pass}/build/tests/protocols/" )
+            doc.to_html( nil, "#{path}/build/tests/protocols/" )
         end
     end
 
-    def render_index    
+    def render_index
 
-        path = @project_root_directory
+        path = @configuration.project_root_directory
 
         doc = @index
         doc.to_console
 
         doc.to_html("#{path}/build/")
+    end
+
+    def create_search_data
+        db = SpecificationsDb.new @specifications 
+        data_path = @configuration.project_root_directory + "/build/data"
+        FileUtils.mkdir_p(data_path)
+        db.save(data_path)
     end
 end

@@ -1,5 +1,6 @@
 require "thor"
 require_relative "almirah/project"
+require_relative "almirah/project_configuration"
 
 class CLI < Thor
   option :results
@@ -25,7 +26,8 @@ class Almirah
   attr_accessor :project
 
   def initialize(project_folder)
-    @project = Project.new project_folder
+    config = ProjectConfiguration.new project_folder
+    @project = Project.new config
   end
 
   def getGemRoot()

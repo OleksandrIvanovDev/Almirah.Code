@@ -188,6 +188,7 @@ class DocFabric
 
           item = Image.new(img_text, img_path)
           item.parent_doc = doc
+          item.parent_heading = doc.headings[-1]
 
           doc.items.append(item)
 
@@ -224,6 +225,7 @@ class DocFabric
             item = MarkdownList.new(true)
             item.addRow(s)
             item.parent_doc = doc
+            item.parent_heading = doc.headings[-1]
             temp_md_list = item
           end
 
@@ -242,6 +244,7 @@ class DocFabric
               # separator out of table scope consider it just as a regular paragraph
               item = Paragraph.new(s)
               item.parent_doc = doc
+              item.parent_heading = doc.headings[-1]
               doc.items.append(item)
             end
 
@@ -276,6 +279,7 @@ class DocFabric
 
           item = Blockquote.new(res[1])
           item.parent_doc = doc
+          item.parent_heading = doc.headings[-1]
           doc.items.append(item)
 
         elsif res = /^```(\w*)/.match(s) # check if code block
@@ -317,6 +321,7 @@ class DocFabric
 
           item = TodoBlock.new(text)
           item.parent_doc = doc
+          item.parent_heading = doc.headings[-1]
           doc.items.append(item)
           doc.todo_blocks.append(item)
 
@@ -339,6 +344,7 @@ class DocFabric
           else
             item = Paragraph.new(s)
             item.parent_doc = doc
+            item.parent_heading = doc.headings[-1]
             doc.items.append(item)
           end
         end

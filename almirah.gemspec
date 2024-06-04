@@ -1,13 +1,12 @@
 Gem::Specification.new do |s|
   s.name        = "Almirah"
-  s.version     = "0.1.9"
+  s.version     = "0.2.0"
   s.summary     = "Almirah"
   s.description = "The software part of the Almirah framework"
   s.authors     = ["Oleksandr Ivanov"]
   s.email       = "oleksandr.ivanov.development@gmail.com"
   s.homepage    = "http://almirah.site"
-  s.files       = Dir['lib/**/*.rb'] 
-  s.files.append("lib/almirah/templates/page.html")
+  s.files       = Dir['lib/**/*.rb'] + Dir['lib/**/*.html'] + Dir['lib/**/*.js'] + Dir['lib/**/*.css']
   s.license      = "MIT"
   s.executables  << "almirah" 
 end
