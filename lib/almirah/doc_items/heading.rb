@@ -8,7 +8,8 @@ class Heading < Paragraph
 
     @@global_section_number = ""
 
-    def initialize(text, level)
+    def initialize(doc, text, level)
+        @parent_doc = doc
         @text = text
         @level = level
 

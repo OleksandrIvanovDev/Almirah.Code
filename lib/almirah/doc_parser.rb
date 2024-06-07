@@ -40,8 +40,7 @@ class DocParser
             Heading.reset_global_section_number
           end
 
-          item = Heading.new(value, level)
-          item.parent_doc = doc
+          item = Heading.new(doc, value, level)
           doc.items.append(item)
           doc.headings.append(item)
 
@@ -54,8 +53,7 @@ class DocParser
             Heading.reset_global_section_number
           end
 
-          item = Heading.new(title, 0)
-          item.parent_doc = doc
+          item = Heading.new(doc, title, 0)
           doc.items.append(item)
           doc.headings.append(item)
 
