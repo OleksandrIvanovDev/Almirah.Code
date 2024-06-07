@@ -17,6 +17,8 @@ class DocParser
     temp_md_table = nil
     temp_md_list = nil
     temp_code_block = nil
+    # restart section numbering for each new document
+    Heading.reset_global_section_number
 
     text_lines.each do |s|
       if s.lstrip != ''
@@ -36,8 +38,6 @@ class DocParser
 
           if level == 1 && doc.title == ''
             doc.title = value
-            #level = 0 # Doc Title is a Root
-            Heading.reset_global_section_number
           end
 
           item = Heading.new(doc, value, level)
@@ -50,14 +50,11 @@ class DocParser
 
           if doc.title == ''
             doc.title = title
-            Heading.reset_global_section_number
           end
 
           item = Heading.new(doc, title, 0)
           doc.items.append(item)
           doc.headings.append(item)
-
-          Heading.reset_global_section_number # Pandoc Document Title is not a section, so it shall not be taken into account in numbering
 
         elsif res = /^\[(\S*)\]\s+(.*)/.match(s) # Controlled Paragraph
 

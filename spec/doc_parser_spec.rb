@@ -119,4 +119,39 @@ describe 'DocParser' do
         expect(doc.headings[1]).to eq(doc.items[1])
         expect(doc.headings.length).to eq 2
       end
+
+      it 'Recognizes Heading1 as a document title for two documents but with correct section number' do
+        input_lines = []
+        input_lines << "# Heading Level 1"
+        doc = Specification.new("C:/srs.md")
+        doc2 = Specification.new("C:/arch.md")
+        
+        DocParser.parse(doc, input_lines)
+        DocParser.parse(doc2, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(Heading)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+
+        expect(doc2.items.length).to eq 2
+        expect(doc2.items[0]).to be_instance_of(Heading)
+        expect(doc2.items[1]).to be_instance_of(DocFooter)
+        # Consider first heading as a document title
+        expect(doc.title).to eq "Heading Level 1"
+        expect(doc2.title).to eq "Heading Level 1"
+        # But only pandoc title formal is level 0 section (not numbered)
+        expect(doc.items[0].level).to eq 1 
+        expect(doc.items[0].text).to eq "Heading Level 1"
+        expect(doc2.items[0].level).to eq 1 
+        expect(doc2.items[0].text).to eq "Heading Level 1"
+        # parent doc
+        expect(doc.items[0].parent_doc).to eq(doc)
+        expect(doc2.items[0].parent_doc).to eq(doc2)
+        # headings
+        expect(doc.headings[0]).to eq(doc.items[0])
+        expect(doc2.headings[0]).to eq(doc2.items[0])
+        # section number
+        expect(doc.headings[0].section_number).to eq "1"
+        expect(doc2.headings[0].section_number).to eq "1"
+      end
 end
