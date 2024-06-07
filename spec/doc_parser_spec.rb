@@ -9,19 +9,22 @@ describe 'DocParser' do
       expect(doc.items.length).to eq 2
       expect(doc.items[0]).to be_instance_of(Heading)
       expect(doc.items[1]).to be_instance_of(DocFooter)
-      # Consider first heading as a document title and document root with level 0
+      # Consider first heading as a document title
       expect(doc.title).to eq "Heading Level 1"
-      expect(doc.items[0].level).to eq 0 
+      # But only pandoc title formal is level 0 section (not numbered)
+      expect(doc.items[0].level).to eq 1 
       expect(doc.items[0].text).to eq "Heading Level 1"
       # parent doc
       expect(doc.items[0].parent_doc).to eq(doc)
       # headings
       expect(doc.headings[0]).to eq(doc.items[0])
+      # section number
+      expect(doc.headings[0].section_number).to eq "1"
     end
 
     it 'Recognizes pandoc document title' do
         input_lines = []
-        input_lines << "% Heading Level 1"
+        input_lines << "% Heading Level 0"
         doc = Specification.new("C:/srs.md")
         
         DocParser.parse(doc, input_lines)
@@ -29,10 +32,11 @@ describe 'DocParser' do
         expect(doc.items.length).to eq 2
         expect(doc.items[0]).to be_instance_of(Heading)
         expect(doc.items[1]).to be_instance_of(DocFooter)
-        # Consider first heading as a document title and document root with level 0
-        expect(doc.title).to eq "Heading Level 1"
+        # Consider first heading as a document title
+        expect(doc.title).to eq "Heading Level 0"
+        # But only pandoc title formal is level 0 section (not numbered)
         expect(doc.items[0].level).to eq 0 
-        expect(doc.items[0].text).to eq "Heading Level 1"
+        expect(doc.items[0].text).to eq "Heading Level 0"
         # parent doc
         expect(doc.items[0].parent_doc).to eq(doc)
         # headings
@@ -49,8 +53,9 @@ describe 'DocParser' do
         expect(doc.items.length).to eq 2
         expect(doc.items[0]).to be_instance_of(Heading)
         expect(doc.items[1]).to be_instance_of(DocFooter)
-        # Consider first heading as a document title and document root with level 0
+        # Consider first heading as a document title
         expect(doc.title).to eq ""
+        # But only pandoc title formal is level 0 section (not numbered)
         expect(doc.items[0].level).to eq 2 
         expect(doc.items[0].text).to eq "Heading Level 2"
         # parent doc
@@ -71,9 +76,10 @@ describe 'DocParser' do
         expect(doc.items[0]).to be_instance_of(Heading)
         expect(doc.items[1]).to be_instance_of(Heading)
         expect(doc.items[2]).to be_instance_of(DocFooter)
-        # Consider first heading as a document title and document root with level 0
+        # Consider first heading as a document title
         expect(doc.title).to eq "Heading Level 1"
-        expect(doc.items[0].level).to eq 0 
+        # But only pandoc title formal is level 0 section (not numbered)
+        expect(doc.items[0].level).to eq 1 
         expect(doc.items[0].text).to eq "Heading Level 1"
         expect(doc.items[1].level).to eq 2 
         expect(doc.items[1].text).to eq "Heading Level 2"
@@ -98,9 +104,10 @@ describe 'DocParser' do
         expect(doc.items[0]).to be_instance_of(Heading)
         expect(doc.items[1]).to be_instance_of(Heading)
         expect(doc.items[2]).to be_instance_of(DocFooter)
-        # Consider first heading as a document title and document root with level 0
+        # Consider first heading as a document title
         expect(doc.title).to eq "Heading Level 1 - 1"
-        expect(doc.items[0].level).to eq 0 
+        # But only pandoc title formal is level 0 section (not numbered)
+        expect(doc.items[0].level).to eq 1 
         expect(doc.items[0].text).to eq "Heading Level 1 - 1"
         expect(doc.items[1].level).to eq 1 
         expect(doc.items[1].text).to eq "Heading Level 1 - 2"

@@ -52,7 +52,11 @@ class Heading < Paragraph
     end
 
     def get_section_info
-        s = @section_number + " " + @text
+        if level == 0 # Doc Title
+            s = @text
+        else
+            s = @section_number + " " + @text
+        end
     end
 
     def get_anchor_text()

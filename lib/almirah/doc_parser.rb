@@ -36,7 +36,7 @@ class DocParser
 
           if level == 1 && doc.title == ''
             doc.title = value
-            level = 0 # Doc Title is a Root
+            #level = 0 # Doc Title is a Root
             Heading.reset_global_section_number
           end
 

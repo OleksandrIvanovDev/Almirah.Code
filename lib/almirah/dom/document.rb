@@ -49,7 +49,7 @@ class Document
 
     def section_tree_to_html
         s = ''
-        s += "<a href=\"\#" + @root_section.heading.anchor_id.to_s + "\">" + @root_section.heading.text + "</a>\n"
+        s += "<a href=\"\#" + @root_section.heading.anchor_id.to_s + "\">" + @root_section.heading.get_section_info + "</a>\n"
         if @root_section.sections.length >0
             s += "\t<ul class=\"fa-ul\" style=\"margin-top: 2px;\">\n"
             @root_section.sections.each do |sub_section|
