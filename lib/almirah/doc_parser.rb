@@ -78,12 +78,12 @@ class DocParser
           if tmp.length > 0
             up_links = []
             tmp.each do |ul|
-              up_links.append(ul[0].upcase)
+              up_links << ul[0].upcase
               # try to find the real end of text
               pos = text.index(ul[0])
               first_pos = pos if pos < first_pos
               # remove uplink from text
-              text = text.split(ul[0]).join('')
+              text = text.split(ul[0], 1).join('')
             end
             # remove trailing commas and spaces
             if text.length > first_pos
@@ -96,6 +96,7 @@ class DocParser
           item = ControlledParagraph.new(doc, text, id)
 
           if up_links
+            up_links.uniq! #remove duplicates
             doc.items_with_uplinks_number += 1 # for statistics
             up_links.each do |ul|
               next unless tmp = />\[(\S*)\]$/.match(ul) # >[SRS-001]
