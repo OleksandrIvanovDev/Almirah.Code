@@ -149,7 +149,7 @@ class Project
     def link_all_protocols
         @protocols.each do |p|
             @specifications.each do |s|
-                if p.up_link_doc_id.has_key?(s.id.to_s)
+                if p.up_link_docs.has_key?(s.id.to_s)
                     link_protocol_to_spec(p,s)
                 end
             end
@@ -165,7 +165,7 @@ class Project
         end
 
         @specifications.each do |s|
-            s.up_link_doc_id.each do |key, value|
+            s.up_link_docs.each do |key, value|
                 unless available_specification_ids.has_key?(key)
                     # now key points to the doc_id that does not exist
                     wrong_doc_id = key
@@ -189,10 +189,10 @@ class Project
 
     def link_two_specifications(doc_A, doc_B)
 
-        if doc_B.up_link_doc_id.has_key?(doc_A.id.to_s)
+        if doc_B.up_link_docs.has_key?(doc_A.id.to_s)
             top_document = doc_A
             bottom_document = doc_B
-        elsif doc_A.up_link_doc_id.has_key?(doc_B.id.to_s)
+        elsif doc_A.up_link_docs.has_key?(doc_B.id.to_s)
             top_document = doc_B
             bottom_document = doc_A
         else

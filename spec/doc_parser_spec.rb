@@ -274,7 +274,7 @@ describe 'DocParser' do
         expect(doc.duplicated_ids_number).to eq 0
         # document ids are always in lower case
         expect(doc.id).to eq("srs")
-        expect(doc.up_link_doc_id).to have_key("sys")
+        expect(doc.up_link_docs).to have_key("sys")
       end
       it 'Recognizes Controlled Paragraph with duplicated ids' do
         input_lines = []
@@ -302,7 +302,7 @@ describe 'DocParser' do
         expect(doc.duplicated_ids_number).to eq 1
         # document ids are always in lower case
         expect(doc.id).to eq("srs")
-        expect(doc.up_link_doc_id).to have_key("sys")
+        expect(doc.up_link_docs).to have_key("sys")
       end
       it 'Recognizes Controlled Paragraph with two up-links' do
         input_lines = []
@@ -321,7 +321,7 @@ describe 'DocParser' do
         expect(doc.items[0].up_link_ids[0]).to eq "SYS-002"
         expect(doc.items[0].up_link_ids[1]).to eq "SYS-003"
         # reference
-        expect(doc.up_link_doc_id).to have_key("sys")
+        expect(doc.up_link_docs).to have_key("sys")
       end
       it 'Recognizes Controlled Paragraph with two same up-links' do
         input_lines = []
@@ -340,7 +340,7 @@ describe 'DocParser' do
         expect(doc.items[0].up_link_ids[0]).to eq "SYS-002"
         expect(doc.items[0].up_link_ids.length).to eq 1
         # reference
-        expect(doc.up_link_doc_id).to have_key("sys")
+        expect(doc.up_link_docs).to have_key("sys")
       end
       it 'Recognizes Controlled Paragraph with recursive up-links' do
         input_lines = []
@@ -359,7 +359,31 @@ describe 'DocParser' do
         expect(doc.items[0].up_link_ids[0]).to eq "SYS-002"
         expect(doc.items[0].up_link_ids.length).to eq 1
         # reference
-        expect(doc.up_link_doc_id).to have_key("sys")
-        expect(doc.up_link_doc_id.size).to eq 1
+        expect(doc.up_link_docs).to have_key("sys")
+        expect(doc.up_link_docs.size).to eq 1
+      end
+      it 'Recognizes Controlled Paragraph with up-links to several docs' do
+        input_lines = []
+        input_lines << "[SRS-001] This is a Controlled Paragraph with up-links to several docs >[SYS-100], >[ARCH-200], >[PRD-300]"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[0].text).to eq "This is a Controlled Paragraph with up-links to several docs"
+        expect(doc.items[0].id).to eq "SRS-001"
+        # up-link
+        expect(doc.items[0].up_link_ids[0]).to eq "SYS-100"
+        expect(doc.items[0].up_link_ids[1]).to eq "ARCH-200"
+        expect(doc.items[0].up_link_ids[2]).to eq "PRD-300"
+        expect(doc.items[0].up_link_ids.length).to eq 3
+        # reference
+        expect(doc.up_link_docs).to have_key("sys")
+        expect(doc.up_link_docs).to have_key("arch")
+        expect(doc.up_link_docs).to have_key("prd")
+        expect(doc.up_link_docs.size).to eq 3
       end
 end

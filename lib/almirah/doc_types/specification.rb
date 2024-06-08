@@ -2,7 +2,7 @@ require_relative "base_document"
 
 class Specification < BaseDocument
 
-    attr_accessor :up_link_doc_id
+    attr_accessor :up_link_docs
     attr_accessor :dictionary
     attr_accessor :controlled_items
     attr_accessor :todo_blocks
@@ -39,7 +39,7 @@ class Specification < BaseDocument
         @color = 'bbb'
 
         @id = File.basename(fele_path, File.extname(fele_path)).downcase
-        @up_link_doc_id = Hash.new
+        @up_link_docs = Hash.new
     end
 
     def to_console

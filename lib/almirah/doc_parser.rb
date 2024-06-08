@@ -113,7 +113,7 @@ class DocParser
               item.up_link_ids.append(up_link_id)
 
               if tmp = /^([a-zA-Z]+)-\d+/.match(up_link_id) # SRS
-                doc.up_link_doc_id[tmp[1].downcase.to_s] = tmp[1].downcase # multiple documents could be up-linked
+                doc.up_link_docs[tmp[1].downcase.to_s] = tmp[1].downcase # multiple documents could be up-linked
               end
             end
           end
