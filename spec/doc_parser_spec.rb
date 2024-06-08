@@ -154,4 +154,42 @@ describe 'DocParser' do
         expect(doc.headings[0].section_number).to eq "1"
         expect(doc2.headings[0].section_number).to eq "1"
       end
+
+      it 'Recognizes Controlled Paragraph out of any section' do
+        input_lines = []
+        input_lines << "[SRS-001] This is a Controlled Paragraph"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[0].text).to eq "This is a Controlled Paragraph"
+        expect(doc.items[0].id).to eq "SRS-001"
+        # parent doc
+        expect(doc.items[0].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[0].parent_heading).to eq(nil)
+      end
+
+      it 'Recognizes Controlled Paragraph with id in lower case as well' do
+        input_lines = []
+        input_lines << "[srs-001] This is a Controlled Paragraph"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[0].text).to eq "This is a Controlled Paragraph"
+        expect(doc.items[0].id).to eq "SRS-001"
+        # parent doc
+        expect(doc.items[0].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[0].parent_heading).to eq(nil)
+      end
 end

@@ -67,7 +67,7 @@ class DocParser
             temp_md_list = nil
           end
 
-          id = res[1]
+          id = res[1].upcase
           text = res[2]
           up_links = nil
 
