@@ -78,7 +78,7 @@ class DocParser
           if tmp.length > 0
             up_links = []
             tmp.each do |ul|
-              up_links.append(ul[0])
+              up_links.append(ul[0].upcase)
               # try to find the real end of text
               pos = text.index(ul[0])
               first_pos = pos if pos < first_pos
@@ -93,7 +93,7 @@ class DocParser
           end
 
           # since we already know id and text
-          item = ControlledParagraph.new(text, id)
+          item = ControlledParagraph.new(doc, text, id)
 
           if up_links
             doc.items_with_uplinks_number += 1 # for statistics
@@ -111,9 +111,6 @@ class DocParser
               end
             end
           end
-
-          item.parent_doc = doc
-          item.parent_heading = doc.headings[-1]
 
           doc.items.append(item)
           # for statistics

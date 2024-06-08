@@ -192,4 +192,70 @@ describe 'DocParser' do
         # headings
         expect(doc.items[0].parent_heading).to eq(nil)
       end
+
+      it 'Recognizes Controlled Paragraph within a section' do
+        input_lines = []
+        input_lines << "# Heading Level 1"
+        input_lines << "[SRS-001] This is a Controlled Paragraph"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 3
+        expect(doc.items[0]).to be_instance_of(Heading)
+        expect(doc.items[1]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[2]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[1].text).to eq "This is a Controlled Paragraph"
+        expect(doc.items[1].id).to eq "SRS-001"
+        # parent doc
+        expect(doc.items[1].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[1].parent_heading).to eq(doc.items[0])
+      end
+
+      it 'Recognizes Controlled Paragraph with up-link' do
+        input_lines = []
+        input_lines << "[SRS-001] This is a Controlled Paragraph with up-link >[SYS-002]"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[0].text).to eq "This is a Controlled Paragraph with up-link"
+        expect(doc.items[0].id).to eq "SRS-001"
+        # up-link
+        expect(doc.items[0].up_link_ids[0]).to eq "SYS-002"
+        # parent doc
+        expect(doc.items[0].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[0].parent_heading).to eq(nil)
+      end
+      it 'Recognizes Controlled Paragraph with up-link even in lower case' do
+        input_lines = []
+        input_lines << "[SRS-001] This is a Controlled Paragraph with up-link >[sys-002]"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[0].text).to eq "This is a Controlled Paragraph with up-link"
+        expect(doc.items[0].id).to eq "SRS-001"
+        # up-link
+        expect(doc.items[0].up_link_ids[0]).to eq "SYS-002"
+        # parent doc
+        expect(doc.items[0].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[0].parent_heading).to eq(nil)
+        # references
+        expect(doc.dictionary).to have_key("SRS-001")
+        expect(doc.controlled_items[0]).to eq(doc.items[0])
+        expect(doc.last_used_id).to eq("SRS-001")
+      end
 end
