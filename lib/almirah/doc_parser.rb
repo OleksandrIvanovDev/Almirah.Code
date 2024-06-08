@@ -78,12 +78,17 @@ class DocParser
           if tmp.length > 0
             up_links = []
             tmp.each do |ul|
-              up_links << ul[0].upcase
+              lnk = ul[0]            
+              # do not add links for the self document
+              doc_id = /([a-zA-Z]+)-\d+/.match(lnk) # SRS
+              if (doc_id) and (doc_id[1].downcase != doc.id.downcase)
+                up_links << lnk.upcase
+              end
               # try to find the real end of text
-              pos = text.index(ul[0])
+              pos = text.index(lnk)
               first_pos = pos if pos < first_pos
               # remove uplink from text
-              text = text.split(ul[0], 1).join('')
+              text = text.split(lnk, 1).join('')
             end
             # remove trailing commas and spaces
             if text.length > first_pos

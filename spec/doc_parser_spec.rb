@@ -342,4 +342,24 @@ describe 'DocParser' do
         # reference
         expect(doc.up_link_doc_id).to have_key("sys")
       end
+      it 'Recognizes Controlled Paragraph with recursive up-links' do
+        input_lines = []
+        input_lines << "[SRS-001] This is a Controlled Paragraph with recursive up-links >[SRS-001], >[SYS-002]"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(ControlledParagraph)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Text and id (id is in uppercase)
+        expect(doc.items[0].text).to eq "This is a Controlled Paragraph with recursive up-links"
+        expect(doc.items[0].id).to eq "SRS-001"
+        # up-link
+        expect(doc.items[0].up_link_ids[0]).to eq "SYS-002"
+        expect(doc.items[0].up_link_ids.length).to eq 1
+        # reference
+        expect(doc.up_link_doc_id).to have_key("sys")
+        expect(doc.up_link_doc_id.size).to eq 1
+      end
 end
