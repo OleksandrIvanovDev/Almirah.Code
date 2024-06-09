@@ -7,7 +7,9 @@ class ControlledParagraph < Paragraph
     attr_accessor :down_links
     attr_accessor :coverage_links
 
-    def initialize(text, id)
+    def initialize(doc, text, id)
+        @parent_doc = doc
+        @parent_heading = doc.headings[-1]
         @text = text.strip
         @id = id
         @up_link_ids = nil

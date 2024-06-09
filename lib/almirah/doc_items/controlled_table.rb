@@ -129,7 +129,7 @@ class ControlledTable < DocItem
                 # save uplink key but do not rewrite
                 if col.up_link_doc_id != nil 
                     
-                    @parent_doc.up_link_doc_id[ col.up_link_doc_id.to_s ] = col.up_link_doc_id
+                    @parent_doc.up_link_docs[ col.up_link_doc_id.to_s ] = col.up_link_doc_id
 
                     # save reference to the test step
                     new_row.up_link = col.up_link

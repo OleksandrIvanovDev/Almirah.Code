@@ -10,7 +10,10 @@ class MarkdownList < DocItem
 
     @@lists_stack = Array.new
 
-    def initialize(is_ordered)
+    def initialize(doc, is_ordered)
+        @parent_doc = doc
+        @parent_heading = doc.headings[-1]
+
         @rows = Array.new
         @is_ordered = is_ordered
         @current_nesting_level = 0
@@ -30,7 +33,7 @@ class MarkdownList < DocItem
 
             prev_lists_stack_item = @@lists_stack[-1]
             # the following line pushes new list to the lists_stack in the constructor!
-            nested_list = MarkdownList.new( MarkdownList.ordered_list_item?(raw_text) )
+            nested_list = MarkdownList.new( @parent_doc, MarkdownList.ordered_list_item?(raw_text) )
             nested_list.current_nesting_level = @current_nesting_level + 1
             nested_list.indent_position = pos
             
