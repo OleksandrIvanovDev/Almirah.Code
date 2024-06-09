@@ -167,9 +167,8 @@ class DocParser
           if temp_md_list
             temp_md_list.addRow(s)
           else
-            item = MarkdownList.new(false)
+            item = MarkdownList.new(doc, false)
             item.addRow(s)
-            item.parent_doc = doc
             temp_md_list = item
           end
 
@@ -185,10 +184,8 @@ class DocParser
           if temp_md_list
             temp_md_list.addRow(s)
           else
-            item = MarkdownList.new(true)
+            item = MarkdownList.new(doc, true)
             item.addRow(s)
-            item.parent_doc = doc
-            item.parent_heading = doc.headings[-1]
             temp_md_list = item
           end
 
