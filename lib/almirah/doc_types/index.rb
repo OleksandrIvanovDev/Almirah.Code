@@ -2,13 +2,11 @@ require_relative "base_document"
 
 class Index < BaseDocument
 
-    attr_accessor :items
     attr_accessor :project
 
     def initialize(project)
-        @items = Array.new
+        super()
         @project = project
-
         @title = "Document Index"
         @id = "index"
     end

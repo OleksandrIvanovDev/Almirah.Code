@@ -1,10 +1,8 @@
-require_relative "base_document"
+require_relative "persistent_document"
 
-class Specification < BaseDocument
+class Specification < PersistentDocument
 
-    attr_accessor :up_link_docs
     attr_accessor :dictionary
-    attr_accessor :controlled_items
     attr_accessor :todo_blocks
     attr_accessor :wrong_links_hash
 
@@ -18,12 +16,7 @@ class Specification < BaseDocument
     attr_accessor :color
 
     def initialize(fele_path)
-
-        @path = fele_path
-        @title = ""
-        @items = Array.new
-        @headings = Array.new
-        @controlled_items = Array.new
+        super
         @dictionary = Hash.new
         @duplicates_list = Array.new
         @todo_blocks = Array.new
@@ -39,7 +32,6 @@ class Specification < BaseDocument
         @color = 'bbb'
 
         @id = File.basename(fele_path, File.extname(fele_path)).downcase
-        @up_link_docs = Hash.new
     end
 
     def to_console

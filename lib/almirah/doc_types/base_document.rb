@@ -1,16 +1,11 @@
 
 class BaseDocument
 
-    attr_accessor :path
-    attr_accessor :items
-    attr_accessor :headings
     attr_accessor :title
     attr_accessor :id
     attr_accessor :dom
 
-    def initialize(fele_path)
-
-        @path = fele_path
+    def initialize()
         @items = Array.new
         @headings = Array.new
         @title = ""
