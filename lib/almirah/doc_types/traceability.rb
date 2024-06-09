@@ -9,14 +9,11 @@ class Traceability < BaseDocument
     attr_accessor :traced_items
 
     def initialize(top_doc, bottom_doc, is_agregated)
-
+        super()
         @top_doc = top_doc
         @bottom_doc = bottom_doc
         @is_agregated = is_agregated
         @traced_items = {}
-
-        @items = Array.new
-        @headings = Array.new
 
         if @is_agregated 
             @id = top_doc.id + "-all"

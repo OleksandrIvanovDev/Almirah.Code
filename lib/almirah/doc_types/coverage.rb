@@ -4,15 +4,11 @@ class Coverage < BaseDocument
 
     attr_accessor :top_doc
     attr_accessor :bottom_doc
-    attr_accessor :items
 
     def initialize(top_doc)
-
+        super()
         @top_doc = top_doc
         @bottom_doc = bottom_doc
-
-        @items = Array.new
-        @headings = Array.new
 
         @id = top_doc.id + "-" + "tests"
         @title = "Coverage Matrix: " + @id
