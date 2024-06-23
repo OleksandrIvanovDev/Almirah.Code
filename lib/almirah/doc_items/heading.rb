@@ -61,6 +61,10 @@ class Heading < Paragraph
     "#{@section_number}-#{getTextWithoutSpaces}"
   end
 
+  def get_markdown_anchor_text
+    getTextWithoutSpaces
+  end
+
   def to_html
     s = ''
     if @@html_table_render_in_progress
@@ -77,13 +81,6 @@ class Heading < Paragraph
     s += "<h#{heading_level}> #{heading_text} <a href=\"\##{@anchor_id}\" class=\"heading_anchor\">"
     s += "&para;</a></h#{heading_level}>"
     s
-  end
-
-  def get_html_link
-    if @parent_doc.instance_of? Specification
-      heading_text = get_section_info
-      "<a href= class=\"external\">#{heading_text}</a>"
-    end
   end
 
   def get_url
