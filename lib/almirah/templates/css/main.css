@@ -223,12 +223,15 @@ img{
     font-family: "Trebuchet MS", Verdana, sans-serif;
 }
 #top_nav a:hover {
-    background-color: black;
+    background-color: #149;
     color:  white;
 }
 #top_nav a.active {
     background-color: #169;
     color: white;
+}
+#top_nav a:focus {
+    text-decoration: underline;
 }
 #searchInput{
     float: left;
