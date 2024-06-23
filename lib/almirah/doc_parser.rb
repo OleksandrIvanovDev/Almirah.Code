@@ -217,12 +217,14 @@ class DocParser
               unless temp_md_table.addRow(row)
                 temp_md_table = ControlledTable.new(temp_md_table, doc)
                 temp_md_table.parent_doc = doc
+                temp_md_table.parent_heading = doc.headings[-1]
                 temp_md_table.addRow(row)
               end
             else
               # start table from heading
               temp_md_table = MarkdownTable.new(row)
               temp_md_table.parent_doc = doc
+              temp_md_table.parent_heading = doc.headings[-1]
             end
           end
 

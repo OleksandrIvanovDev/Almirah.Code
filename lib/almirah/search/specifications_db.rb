@@ -23,7 +23,9 @@ class SpecificationsDb
                     }
                     @data.append e                    
                 elsif i.instance_of? MarkdownList
-                    e = add_markdown_list_item_to_db( @data, i, i)    
+                    e = add_markdown_list_item_to_db( @data, i, i)
+                elsif i.instance_of? MarkdownTable
+                    add_markdown_table_item_to_db( @data, i, i)    
                 end
             end
         end
@@ -54,6 +56,21 @@ class SpecificationsDb
             end
         end
         return e
+    end
+
+    def add_markdown_table_item_to_db(data, item_for_reference, item_to_process)
+        e = nil
+        table_text = ""
+        item_to_process.rows.each do |row|
+            table_text += "| " + row.join(" | ") + " |"
+        end
+        e = {   "document" => item_for_reference.parent_doc.title, \
+                "doc_color" => item_for_reference.parent_doc.color, \
+                "text" => table_text, \
+                "heading_url" => item_for_reference.parent_heading.get_url(), \
+                "heading_text" => item_for_reference.parent_heading.get_section_info()
+            }
+        data << e
     end
 
     def save(path)
