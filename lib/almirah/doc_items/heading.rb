@@ -65,9 +65,9 @@ class Heading < Paragraph
 
     def to_html
         s = ''
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>\n"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
         heading_level = level.to_s
         heading_text = get_section_info()

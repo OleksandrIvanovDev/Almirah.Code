@@ -19,10 +19,10 @@ class ControlledParagraph < Paragraph
 
     def to_html
         s = ''
-        unless @@htmlTableRenderInProgress                    
+        unless @@html_table_render_in_progress                    
             s += "<table class=\"controlled\">\n"
             s += "\t<thead> <th>#</th> <th></th> <th title=\"Up-links\">UL</th> <th title=\"Down-links\">DL</th> <th title=\"Test Coverage\">COV</th> </thead>\n"
-            @@htmlTableRenderInProgress = true
+            @@html_table_render_in_progress = true
         end
         f_text = format_string(@text)
         s += "\t<tr>\n"

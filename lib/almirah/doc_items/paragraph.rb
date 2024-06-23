@@ -16,9 +16,9 @@ class Paragraph < DocItem
 
     def to_html
         s = ''
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
 
         s += "<p>" + format_string(@text)

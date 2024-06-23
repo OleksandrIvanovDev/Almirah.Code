@@ -13,9 +13,9 @@ class CodeBlock < DocItem
     def to_html
         s = ''
 
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>\n"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
         s += "<code>"
         @code_lines.each do |l|

@@ -7,7 +7,7 @@ class DocItem < TextLine
     @parent_doc = nil
     @parent_heading = nil
 
-    @@htmlTableRenderInProgress = false
+    @@html_table_render_in_progress = false
 
     def get_url
         ''
