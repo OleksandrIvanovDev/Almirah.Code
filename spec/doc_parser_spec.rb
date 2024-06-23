@@ -386,4 +386,262 @@ describe 'DocParser' do
         expect(doc.up_link_docs).to have_key("prd")
         expect(doc.up_link_docs.size).to eq 3
       end
+
+      it 'Recognizes Markdown Table out of any section' do
+        input_lines = []
+        input_lines << "| Head Column A | Head Column B |"
+        input_lines << "|---|---|"
+        input_lines << "| Column A1 | Column B1 |"
+        input_lines << "| Column A2 | Column B2 |"
+        input_lines << "| Column A1 | Column B3 |"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 2
+        expect(doc.items[0]).to be_instance_of(MarkdownTable)
+        expect(doc.items[1]).to be_instance_of(DocFooter)
+        # Rows and Columns
+        expect(doc.items[0].column_names.length).to eq 2
+        expect(doc.items[0].rows.length).to eq 3
+        # parent doc
+        expect(doc.items[0].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[0].parent_heading).to eq(nil)
+      end
+
+      it 'Recognizes Markdown Table within a section' do
+        input_lines = []
+        input_lines << "# Heading Level 1"
+        input_lines << "| Head Column A | Head Column B |"
+        input_lines << "|---|---|"
+        input_lines << "| Column A1 | Column B1 |"
+        input_lines << "| Column A2 | Column B2 |"
+        input_lines << "| Column A1 | Column B3 |"
+        doc = Specification.new("C:/srs.md")
+        
+        DocParser.parse(doc, input_lines)
+  
+        expect(doc.items.length).to eq 3
+        expect(doc.items[0]).to be_instance_of(Heading)
+        expect(doc.items[1]).to be_instance_of(MarkdownTable)
+        expect(doc.items[2]).to be_instance_of(DocFooter)
+        # Rows and Columns
+        expect(doc.items[1].column_names.length).to eq 2
+        expect(doc.items[1].rows.length).to eq 3
+        # parent doc
+        expect(doc.items[1].parent_doc).to eq(doc)
+        # headings
+        expect(doc.items[1].parent_heading).to eq(doc.items[0])
+      end
+
+    it 'Does not Recognizes Markdown Table without separator' do
+      input_lines = []
+      input_lines << '| Head Column A | Head Column B |'
+      input_lines << '| Column A1 | Column B1 |'
+      input_lines << '| Column A2 | Column B2 |'
+      input_lines << '| Column A1 | Column B3 |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      # expect(doc.items.length).to eq 5
+      expect(doc.items[0]).to be_instance_of(Paragraph)
+      expect(doc.items[1]).to be_instance_of(Paragraph)
+      expect(doc.items[2]).to be_instance_of(Paragraph)
+      expect(doc.items[3]).to be_instance_of(Paragraph)
+      expect(doc.items[4]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].text).to eq '| Head Column A | Head Column B |'
+      expect(doc.items[1].text).to eq '| Column A1 | Column B1 |'
+      expect(doc.items[2].text).to eq '| Column A2 | Column B2 |'
+      expect(doc.items[3].text).to eq '| Column A1 | Column B3 |'
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Does not Recognizes Markdown Table without separator and odd number of lines' do
+      input_lines = []
+      input_lines << '| Head Column A | Head Column B |'
+      input_lines << '| Column A1 | Column B1 |'
+      input_lines << '| Column A2 | Column B2 |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      # expect(doc.items.length).to eq 4
+      expect(doc.items[0]).to be_instance_of(Paragraph)
+      expect(doc.items[1]).to be_instance_of(Paragraph)
+      expect(doc.items[2]).to be_instance_of(Paragraph)
+      expect(doc.items[3]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].text).to eq '| Head Column A | Head Column B |'
+      expect(doc.items[1].text).to eq '| Column A1 | Column B1 |'
+      expect(doc.items[2].text).to eq '| Column A2 | Column B2 |'
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Does not Recognizes Markdown Table if it is just a single line' do
+      input_lines = []
+      input_lines << '| Head Column A | Head Column B |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      # expect(doc.items.length).to eq 1
+      expect(doc.items[0]).to be_instance_of(Paragraph)
+      expect(doc.items[1]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].text).to eq '| Head Column A | Head Column B |'
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Recognizes Controlled Table out of any section' do
+      input_lines = []
+      input_lines << '| Head Column A | Head Column B |'
+      input_lines << '|---|---|'
+      input_lines << '| Column A1 | >[SRS-001] |'
+      input_lines << '| Column A2 | Column B2 |'
+      input_lines << '| Column A3 | Column B3 |'
+      doc = Protocol.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      expect(doc.items.length).to eq 2
+      expect(doc.items[0]).to be_instance_of(ControlledTable)
+      expect(doc.items[1]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].column_names.length).to eq 2
+      expect(doc.items[0].rows.length).to eq 3
+      # expect(doc.items[0].rows[0].columns[0].text).to eq "FD"
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Recognizes Controlled Table within a section' do
+      input_lines = []
+      input_lines << '# Heading Level 1'
+      input_lines << '| Head Column A | Head Column B |'
+      input_lines << '|---|---|'
+      input_lines << '| Column A1 | >[SRS-001] |'
+      input_lines << '| Column A2 | Column B2 |'
+      input_lines << '| Column A1 | Column B3 |'
+      doc = Protocol.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      expect(doc.items.length).to eq 3
+      expect(doc.items[0]).to be_instance_of(Heading)
+      expect(doc.items[1]).to be_instance_of(ControlledTable)
+      expect(doc.items[2]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[1].column_names.length).to eq 2
+      expect(doc.items[1].rows.length).to eq 3
+      # parent doc
+      expect(doc.items[1].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[1].parent_heading).to eq(doc.items[0])
+    end
+
+    it 'Does not Recognizes Controlled Table without separator' do
+      input_lines = []
+      input_lines << '| Head Column A | >[SRS-001] |'
+      input_lines << '| Column A1 | >[SRS-001] |'
+      input_lines << '| Column A2 | >[SRS-001] |'
+      input_lines << '| Column A1 | >[SRS-001] |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      # expect(doc.items.length).to eq 5
+      expect(doc.items[0]).to be_instance_of(Paragraph)
+      expect(doc.items[1]).to be_instance_of(Paragraph)
+      expect(doc.items[2]).to be_instance_of(Paragraph)
+      expect(doc.items[3]).to be_instance_of(Paragraph)
+      expect(doc.items[4]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].text).to eq '| Head Column A | >[SRS-001] |'
+      expect(doc.items[1].text).to eq '| Column A1 | >[SRS-001] |'
+      expect(doc.items[2].text).to eq '| Column A2 | >[SRS-001] |'
+      expect(doc.items[3].text).to eq '| Column A1 | >[SRS-001] |'
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Does not Recognizes Controlled Table without separator and odd number of lines' do
+      input_lines = []
+      input_lines << '| Head Column A | >[SRS-001] |'
+      input_lines << '| Column A1 | >[SRS-001] |'
+      input_lines << '| Column A2 | >[SRS-001] |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      # expect(doc.items.length).to eq 4
+      expect(doc.items[0]).to be_instance_of(Paragraph)
+      expect(doc.items[1]).to be_instance_of(Paragraph)
+      expect(doc.items[2]).to be_instance_of(Paragraph)
+      expect(doc.items[3]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].text).to eq '| Head Column A | >[SRS-001] |'
+      expect(doc.items[1].text).to eq '| Column A1 | >[SRS-001] |'
+      expect(doc.items[2].text).to eq '| Column A2 | >[SRS-001] |'
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Does not Recognizes Controlled Table if it is just a single line' do
+      input_lines = []
+      input_lines << '| Head Column A | >[SRS-001] |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      # expect(doc.items.length).to eq 1
+      expect(doc.items[0]).to be_instance_of(Paragraph)
+      expect(doc.items[1]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].text).to eq '| Head Column A | >[SRS-001] |'
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
+
+    it 'Does not Recognizes Controlled Table as a part of the Specification' do
+      input_lines = []
+      input_lines << '| Head Column A | Head Column B |'
+      input_lines << '|---|---|'
+      input_lines << '| Column A1 | >[SRS-001] |'
+      input_lines << '| Column A2 | Column B2 |'
+      input_lines << '| Column A1 | Column B3 |'
+      doc = Specification.new('C:/srs.md')
+
+      DocParser.parse(doc, input_lines)
+
+      expect(doc.items.length).to eq 2
+      expect(doc.items[0]).to be_instance_of(MarkdownTable)
+      expect(doc.items[1]).to be_instance_of(DocFooter)
+      # Rows and Columns
+      expect(doc.items[0].column_names.length).to eq 2
+      expect(doc.items[0].rows.length).to eq 3
+      # parent doc
+      expect(doc.items[0].parent_doc).to eq(doc)
+      # headings
+      expect(doc.items[0].parent_heading).to eq(nil)
+    end
 end

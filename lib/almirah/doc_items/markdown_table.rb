@@ -4,19 +4,25 @@ class MarkdownTable < DocItem
 
     attr_accessor :column_names
     attr_accessor :rows
+    attr_accessor :heading_row
+    attr_accessor :is_separator_detected
 
-    def initialize(heading_row)
-        @column_names = heading_row.split('|')
+    def initialize(doc, heading_row)
+        @parent_doc = doc
+        @parent_heading = doc.headings[-1]
+        @heading_row = heading_row
+
+        res = /^[|](.*[|])/.match(heading_row)
+        @column_names = if res
+                          res[1].split('|')
+                        else
+                          ['# ERROR# ']
+                        end
         @rows = Array.new
+        @is_separator_detected = false
     end
 
     def addRow(row)
-        #check if row contains a link
-        if tmp = /(.*)\s+>\[(\S*)\]/.match(row)
-            return false # this is not a regular Markdown table.
-            # so the table type shall be changed and this row shall be passed one more time
-        end
-
         columns = row.split('|')
         @rows.append(columns.map!{ |x| x.strip })
         return true

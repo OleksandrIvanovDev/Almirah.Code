@@ -4,7 +4,9 @@ class Paragraph < DocItem
 
     attr_accessor :text
 
-    def initialize(text)
+    def initialize(doc, text)
+        @parent_doc = doc
+        @parent_heading = doc.headings[-1]
         @text = text
     end
 
