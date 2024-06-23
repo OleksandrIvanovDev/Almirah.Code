@@ -26,15 +26,15 @@ class Index < BaseDocument
         s = "<h2>Specifications</h2>\n"
         s += "<table class=\"controlled\">\n"
         s += "\t<thead>\n"
-        s += "\t\t<th>Title</th>\n"
-        s += "\t\t<th>Items</th>\n"
-        s += "\t\t<th>Items<br>w/ Uplinks</th>\n"
-        s += "\t\t<th>Items<br>w/ Downlinks</th>\n"
-        s += "\t\t<th>Covered<br>by Tests</th>\n"
-        s += "\t\t<th>Duplicated<br>ids</th>\n"
-        s += "\t\t<th>Wrong<br>links</th>\n"
-        s += "\t\t<th>TODOs</th>\n"
-        s += "\t\t<th>Last Used<br>id</th>\n"
+        s += "\t\t<th title=\"Document title\">Title</th>\n"
+        s += "\t\t<th title=\"Number of Controlled Paragraphs\">Items</th>\n"
+        s += "\t\t<th title=\"Number of Controlled Paragraphs with up-links\">Items<br>w/ Up-links</th>\n"
+        s += "\t\t<th title=\"Number of references from other documents\">Items<br>w/ Down-links</th>\n"
+        s += "\t\t<th title=\"Number of Controlled Paragraphs mentioned in Test Cases\">Covered <br>by Tests</th>\n"
+        s += "\t\t<th title=\"Number of Controlled Paragraphs that have the same ID\">Duplicated<br>IDs</th>\n"
+        s += "\t\t<th title=\"Number of Controlled Paragraphs that link to non-existing items\">Wrong<br>links</th>\n"
+        s += "\t\t<th title=\"Number of 'TODO:' blocks in document\">TODOs</th>\n"
+        s += "\t\t<th title=\"The last Controlled Paragraph sequence number (ID) used in the document\">Last Used<br>ID</th>\n"
         s += "</thead>\n"
         html_rows.append s
 
@@ -51,11 +51,11 @@ class Index < BaseDocument
             if doc.duplicated_ids_number >0
                 s += "\t\t<td class=\"item_id\" style='width: 7%; background-color: #fcc;'>"
                 s += "<div id=\"DL_#{doc.id}\" style=\"display: block;\">"
-                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\">#{doc.duplicated_ids_number.to_s}</a>"
+                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\" title=\"Number of Controlled Paragraphs that have the same ID\">#{doc.duplicated_ids_number.to_s}</a>"
                 s += "</div>"
                 s += "<div id=\"DLS_#{doc.id}\" style=\"display: none;\">"
                 doc.duplicates_list.each do |lnk|
-                    s += "\t\t\t<a href=\"./specifications/#{doc.id}/#{doc.id}.html##{lnk.id}\" class=\"external\">#{lnk.id}</a>\n<br>"
+                    s += "\t\t\t<a href=\"./specifications/#{doc.id}/#{doc.id}.html##{lnk.id}\" class=\"external\" title=\"Controlled Paragraph with duplicated ID\">#{lnk.id}</a>\n<br>"
                 end
                 s += "</div>"
                 s += "</td>\n"
@@ -66,11 +66,11 @@ class Index < BaseDocument
             if doc.wrong_links_hash.length >0
                 s += "\t\t<td class=\"item_id\" style='width: 7%; background-color: #fcc;'>"
                 s += "<div id=\"DL_#{doc.id}wl\" style=\"display: block;\">"
-                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\">#{doc.wrong_links_hash.length.to_s}</a>"
+                s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" class=\"external\" title=\"Number of Controlled Paragraphs that link to non-existing items\">#{doc.wrong_links_hash.length.to_s}</a>"
                 s += "</div>"
                 s += "<div id=\"DLS_#{doc.id}wl\" style=\"display: none;\">"
                 doc.wrong_links_hash.each do |wrong_lnk, item|
-                    s += "\t\t\t<a href=\"./specifications/#{doc.id}/#{doc.id}.html##{item.id}\" class=\"external\">#{wrong_lnk}</a>\n<br>"
+                    s += "\t\t\t<a href=\"./specifications/#{doc.id}/#{doc.id}.html##{item.id}\" class=\"external\" title=\"Controlled Paragraphs that link to non-existing items\">#{wrong_lnk}</a>\n<br>"
                 end
                 s += "</div>"
                 s += "</td>\n"
@@ -94,10 +94,10 @@ class Index < BaseDocument
         s = "<h2>Traceability Matrices</h2>\n"
         s += "<table class=\"controlled\">\n"
         s += "\t<thead>\n"
-        s += "\t\t<th>Title</th>\n"
-        s += "\t\t<th>Coverage</th>\n"
-        s += "\t\t<th>Top Document</th>\n"
-        s += "\t\t<th>Bottom Document</th>\n"
+        s += "\t\t<th title=\"Traceability Matrix Title\">Title</th>\n"
+        s += "\t\t<th title=\"The ratio of Controlled Paragraphs mentioned in other documents and not-mentioned ones\">Coverage</th>\n"
+        s += "\t\t<th title=\"Document, that contains Cotroled Paragraphs to be referenced in Bottom document(s)\">Top Document</th>\n"
+        s += "\t\t<th title=\"Document(s), that contains references to Controlled Paragraphs from the Top Document\">Bottom Document</th>\n"
         s += "</thead>\n"
         html_rows.append s
 

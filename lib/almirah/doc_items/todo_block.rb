@@ -11,9 +11,9 @@ class TodoBlock < DocItem
     def to_html
         s = ''
         f_text = format_string(@text)
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>\n"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
 
         s += "<div class=\"todoblock\"><p>#{f_text}</div>\n"

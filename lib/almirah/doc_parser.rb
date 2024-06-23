@@ -24,10 +24,7 @@ class DocParser
       if s.lstrip != ''
         if res = /^(\#{1,})\s(.*)/.match(s) # Heading
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -58,10 +55,7 @@ class DocParser
 
         elsif res = /^\[(\S*)\]\s+(.*)/.match(s) # Controlled Paragraph
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -137,10 +131,7 @@ class DocParser
 
         elsif res = /^!\[(.*)\]\((.*)\)/.match(s) # Image
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -157,10 +148,7 @@ class DocParser
 
         elsif res = /^(\*\s+)(.*)/.match(s)   # check if unordered list start
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
 
           row = res[2]
 
@@ -174,10 +162,7 @@ class DocParser
 
         elsif res = /^\d[.]\s(.*)/.match(s)   # check if ordered list start
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
 
           row = res[1]
 
@@ -199,39 +184,50 @@ class DocParser
           if res = /^[|](-{3,})[|]/.match(s) # check if it is a separator first
 
             if temp_md_table
-            # separator is found after heading - just skip it
+            # separator is found after heading
+            temp_md_table.is_separator_detected = true
             else
               # separator out of table scope consider it just as a regular paragraph
-              item = Paragraph.new(s)
-              item.parent_doc = doc
-              item.parent_heading = doc.headings[-1]
+              item = Paragraph.new(doc, s)
               doc.items.append(item)
             end
 
-          elsif res = /^[|](.*[|])/.match(s) # check if it looks as a table
+          elsif res = /^[|](.*[|])/.match(s) # check if it looks as a table row
 
             row = res[1]
 
             if temp_md_table
-              # check if it is a controlled table
-              unless temp_md_table.addRow(row)
-                temp_md_table = ControlledTable.new(temp_md_table, doc)
-                temp_md_table.parent_doc = doc
+              if temp_md_table.is_separator_detected # if there is a separator
+                # check if parent doc is a Protocol
+                if doc.instance_of? Protocol
+                  # check if it is a controlled table
+                  tmp = /(.*)\s+>\[(\S*)\]/.match(row)
+                  if tmp && (temp_md_table.instance_of? MarkdownTable)
+                    # this is not a regular Markdown table
+                    # so the table type shall be changed and this row shall be passed one more time
+                    temp_md_table = ControlledTable.new(doc, temp_md_table)
+                  end
+                end
                 temp_md_table.addRow(row)
+              else
+                # replece table heading with regular paragraph
+                item = Paragraph.new(doc, temp_md_table.heading_row)
+                doc.items.append(item)
+                # and current row
+                item = Paragraph.new(doc, s)
+                doc.items.append(item)
+                temp_md_table = nil
               end
             else
               # start table from heading
-              temp_md_table = MarkdownTable.new(row)
-              temp_md_table.parent_doc = doc
+              temp_md_table = MarkdownTable.new(doc, s)
             end
           end
 
         elsif res = /^>(.*)/.match(s) # check if blockquote
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
+
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -244,10 +240,7 @@ class DocParser
 
         elsif res = /^```(\w*)/.match(s) # check if code block
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -268,10 +261,7 @@ class DocParser
 
         elsif res = /^TODO:(.*)/.match(s) # check if TODO block
 
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -286,10 +276,7 @@ class DocParser
           doc.todo_blocks.append(item)
 
         else # Reqular Paragraph
-          if temp_md_table
-            doc.items.append temp_md_table
-            temp_md_table = nil
-          end
+          temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             if MarkdownList.unordered_list_item?(s) || MarkdownList.ordered_list_item?(s)
               temp_md_list.addRow(s)
@@ -302,9 +289,7 @@ class DocParser
           if temp_code_block
             temp_code_block.code_lines.append(s)
           else
-            item = Paragraph.new(s)
-            item.parent_doc = doc
-            item.parent_heading = doc.headings[-1]
+            item = Paragraph.new(doc, s)
             doc.items.append(item)
           end
         end
@@ -314,10 +299,7 @@ class DocParser
       end
     end
     # Finalize non-closed elements
-    if temp_md_table
-      doc.items.append temp_md_table
-      temp_md_table = nil
-    end
+    temp_md_table = process_temp_table(doc, temp_md_table)
     if temp_md_list
       doc.items.append temp_md_list
       temp_md_list = nil
@@ -330,5 +312,19 @@ class DocParser
     item = DocFooter.new
     item.parent_doc = doc
     doc.items.append(item)
+  end
+
+  def self.process_temp_table(doc, temp_md_table) # rubocop:disable Metrics/MethodLength
+    if temp_md_table
+      if temp_md_table.is_separator_detected
+        doc.items.append temp_md_table
+      else # no separator
+        # replece table heading with regular paragraph
+        item = Paragraph.new(doc, temp_md_table.heading_row)
+        doc.items.append(item)
+      end
+      temp_md_table = nil
+    end
+    temp_md_table
   end
 end

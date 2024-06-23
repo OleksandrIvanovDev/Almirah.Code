@@ -4,7 +4,9 @@ class Paragraph < DocItem
 
     attr_accessor :text
 
-    def initialize(text)
+    def initialize(doc, text)
+        @parent_doc = doc
+        @parent_heading = doc.headings[-1]
         @text = text
     end
 
@@ -14,9 +16,9 @@ class Paragraph < DocItem
 
     def to_html
         s = ''
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
 
         s += "<p>" + format_string(@text)

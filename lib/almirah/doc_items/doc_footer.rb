@@ -7,9 +7,9 @@ class DocFooter < DocItem
 
     def to_html
         s = ''
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>\n"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
         return s
     end

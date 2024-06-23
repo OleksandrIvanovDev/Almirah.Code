@@ -87,10 +87,14 @@ class ControlledTable < DocItem
 
     attr_accessor :column_names
     attr_accessor :rows
+    attr_accessor :is_separator_detected
 
-    def initialize(markdown_table, parent_doc)
-        @parent_doc = parent_doc
+    def initialize(doc, markdown_table)
+        @parent_doc = doc
+        @parent_heading = doc.headings[-1]
+
         @column_names = markdown_table.column_names
+        @is_separator_detected = markdown_table.is_separator_detected
         # copy and re-format existing rows
         @rows = Array.new
 
@@ -151,9 +155,9 @@ class ControlledTable < DocItem
 
     def to_html
         s = ''
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>\n"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
                    
         s += "<table class=\"markdown_table\">\n"

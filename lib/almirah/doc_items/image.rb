@@ -16,9 +16,9 @@ class Image < DocItem
 
     def to_html
         s = ''
-        if @@htmlTableRenderInProgress
+        if @@html_table_render_in_progress
             s += "</table>\n"
-            @@htmlTableRenderInProgress = false
+            @@html_table_render_in_progress = false
         end
 
         s += "<p style=\"margin-top: 15px;\"><img src=\"#{@path}\" alt=\"#{@text}\" "
