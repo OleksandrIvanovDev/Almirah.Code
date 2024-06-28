@@ -36,11 +36,11 @@ class ControlledParagraph < Paragraph
             class=\"external\" title=\"Linked to\">#{@up_link_ids[0]}</a></td>\n"
       else
         s += "\t\t<td class=\"item_id\">"
-        s += "<div id=\"DL_#{@id}\" style=\"display: block;\">"
-        s += "<a  href=\"#\" onclick=\"downlink_OnClick(this.parentElement); return false;\" \
+        s += "<div id=\"UL_#{@id}\" style=\"display: block;\">"
+        s += "<a  href=\"#\" onclick=\"upLink_OnClick(this.parentElement); return false;\" \
             class=\"external\" title=\"Number of up-links\">#{@up_link_ids.length}</a>"
         s += '</div>'
-        s += "<div id=\"DLS_#{@id}\" style=\"display: none;\">"
+        s += "<div id=\"ULS_#{@id}\" style=\"display: none;\">"
         @up_link_ids.each do |lnk|
           if tmp = /^([a-zA-Z]+)-\d+/.match(lnk)
             up_link_doc_name = tmp[1].downcase
