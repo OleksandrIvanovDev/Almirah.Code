@@ -19,6 +19,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @traceability_matrices = []
     @coverage_matrices = []
     @specifications_dictionary = {}
+    @covered_specifications_dictionary = {}
     @index = nil
     @project = self
     FileUtils.remove_dir("#{@configuration.project_root_directory}/build", true)
@@ -136,11 +137,19 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
   end
 
-  def link_all_protocols
+  def link_all_protocols # rubocop:disable Metrics/MethodLength
     @protocols.each do |p|
       @specifications.each do |s|
-        link_protocol_to_spec(p, s) if p.up_link_docs.key?(s.id.to_s)
+        if p.up_link_docs.key?(s.id.to_s)
+          link_protocol_to_spec(p, s)
+          @covered_specifications_dictionary[s.id.to_s] = s
+        end
       end
+    end
+    # create coverage documents
+    @covered_specifications_dictionary.each do |_key, value|
+      trx = Coverage.new value
+      @coverage_matrices.append trx
     end
   end
 
@@ -236,9 +245,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
         end
       end
     end
-    # create coverage document
-    trx = Coverage.new top_document
-    @coverage_matrices.append trx
   end
 
   def create_index
