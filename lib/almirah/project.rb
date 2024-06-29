@@ -281,7 +281,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
       FileUtils.copy_entry(img_src_dir, img_dst_dir) if File.directory?(img_src_dir)
 
-      doc.to_html(nil, "#{path}/build/tests/protocols/")
+      nav_pane = NavigationPane.new(doc)
+      doc.to_html(nav_pane, "#{path}/build/tests/protocols/")
     end
   end
 

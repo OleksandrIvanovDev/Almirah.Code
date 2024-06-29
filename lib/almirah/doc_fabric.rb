@@ -40,7 +40,6 @@ class DocFabric
     DocParser.parse(doc, file_lines)
 
     # Build dom
-    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification)
-    
+    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol)
   end
 end
