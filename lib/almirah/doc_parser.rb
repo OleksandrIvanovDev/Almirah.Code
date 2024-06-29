@@ -153,10 +153,10 @@ class DocParser
           row = res[2]
 
           if temp_md_list
-            temp_md_list.addRow(s)
+            temp_md_list.add_row(s)
           else
             item = MarkdownList.new(doc, false)
-            item.addRow(s)
+            item.add_row(s)
             temp_md_list = item
           end
 
@@ -167,10 +167,10 @@ class DocParser
           row = res[1]
 
           if temp_md_list
-            temp_md_list.addRow(s)
+            temp_md_list.add_row(s)
           else
             item = MarkdownList.new(doc, true)
-            item.addRow(s)
+            item.add_row(s)
             temp_md_list = item
           end
 
@@ -208,7 +208,7 @@ class DocParser
                     temp_md_table = ControlledTable.new(doc, temp_md_table)
                   end
                 end
-                temp_md_table.addRow(row)
+                temp_md_table.add_row(row)
               else
                 # replece table heading with regular paragraph
                 item = Paragraph.new(doc, temp_md_table.heading_row)
@@ -279,7 +279,7 @@ class DocParser
           temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             if MarkdownList.unordered_list_item?(s) || MarkdownList.ordered_list_item?(s)
-              temp_md_list.addRow(s)
+              temp_md_list.add_row(s)
               next
             else
               doc.items.append temp_md_list

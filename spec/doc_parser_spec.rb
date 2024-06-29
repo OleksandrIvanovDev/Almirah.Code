@@ -646,4 +646,44 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     # headings
     expect(doc.items[0].parent_heading).to eq(nil)
   end
+  it 'Recognizes Controlled Table with multiple items covered in one test step' do
+    input_lines = []
+    input_lines << '# Heading Level 1'
+    input_lines << '| Test Step | Test Step Description | Expected Output | Actual Output | Result | Req-ID |'
+    input_lines << '|---|---|'
+    input_lines << '| 1 | Description 1 | Expected Output 1 | Actual Output 1 |  | >[SRS-001], >[ARCH-002], >[SDD-003] |'
+    input_lines << '| 2 | Description 2 | Expected Output 2 | Actual Output 2 |  | Column B2 |'
+    input_lines << '| 3 | Description 3 | Expected Output 3 | Actual Output 3 |  | Column B3 |'
+    doc = Protocol.new('C:/tp-001.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 3
+    expect(doc.items[0]).to be_instance_of(Heading)
+    expect(doc.items[1]).to be_instance_of(ControlledTable)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    # Rows and Columns
+    expect(doc.items[1].column_names.length).to eq 6
+    expect(doc.items[1].rows.length).to eq 3
+    expect(doc.items[1].rows[0].columns[0].row_id).to eq 'tp-001.1'
+    expect(doc.items[1].rows[0].columns[1].text).to eq 'Description 1'
+    expect(doc.items[1].rows[0].columns[2].text).to eq 'Expected Output 1'
+    expect(doc.items[1].rows[0].columns[3].text).to eq 'Actual Output 1'
+    expect(doc.items[1].rows[0].columns[4].text).to eq ''
+    # References
+    expect(doc.items[1].rows[0].columns[5].up_link_ids[0]).to eq 'SRS-001'
+    expect(doc.items[1].rows[0].columns[5].up_link_ids[1]).to eq 'ARCH-002'
+    expect(doc.items[1].rows[0].columns[5].up_link_ids[2]).to eq 'SDD-003'
+    expect(doc.items[1].rows[0].columns[5].up_link_ids.length).to eq 3
+    expect(doc.items[1].rows[0].columns[5].up_link_doc_ids).to have_key('srs')
+    expect(doc.items[1].rows[0].columns[5].up_link_doc_ids).to have_key('arch')
+    expect(doc.items[1].rows[0].columns[5].up_link_doc_ids).to have_key('sdd')
+    expect(doc.items[1].rows[0].parent_doc.up_link_docs).to have_key('srs')
+    expect(doc.items[1].rows[0].parent_doc.up_link_docs).to have_key('arch')
+    expect(doc.items[1].rows[0].parent_doc.up_link_docs).to have_key('sdd')
+    # parent doc
+    expect(doc.items[1].parent_doc).to eq(doc)
+    # headings
+    expect(doc.items[1].parent_heading).to eq(doc.items[0])
+  end
 end

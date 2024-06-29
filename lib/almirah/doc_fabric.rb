@@ -1,8 +1,10 @@
 require_relative 'doc_types/base_document'
 require_relative 'doc_types/specification'
 require_relative 'doc_types/protocol'
+require_relative 'doc_types/coverage'
 require_relative 'doc_parser'
 require_relative 'dom/document'
+require_relative 'doc_items/heading'
 
 class DocFabric
   @@color_index = 0
@@ -31,6 +33,24 @@ class DocFabric
     doc
   end
 
+  def self.create_coverage_matrix(specification)
+    doc = Coverage.new specification
+    Heading.reset_global_section_number
+    doc.headings << Heading.new(doc, doc.title, 0)
+    # Build dom
+    doc.dom = Document.new(doc.headings)
+    doc
+  end
+
+  def self.create_traceability_document(top_document, bottom_document)
+    doc = Traceability.new top_document, bottom_document
+    Heading.reset_global_section_number
+    doc.headings << Heading.new(doc, doc.title, 0)
+    # Build dom
+    doc.dom = Document.new(doc.headings)
+    doc
+  end
+
   def self.parse_document(doc)
 
     file = File.open(doc.path)
@@ -40,7 +60,6 @@ class DocFabric
     DocParser.parse(doc, file_lines)
 
     # Build dom
-    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification)
-    
+    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol)
   end
 end

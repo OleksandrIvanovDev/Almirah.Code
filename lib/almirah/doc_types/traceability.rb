@@ -8,11 +8,15 @@ class Traceability < BaseDocument
     attr_accessor :is_agregated
     attr_accessor :traced_items
 
-    def initialize(top_doc, bottom_doc, is_agregated)
+    def initialize(top_doc, bottom_doc)
         super()
         @top_doc = top_doc
         @bottom_doc = bottom_doc
-        @is_agregated = is_agregated
+        @is_agregated = if bottom_doc
+                          false
+                        else
+                          true
+                        end
         @traced_items = {}
 
         if @is_agregated 

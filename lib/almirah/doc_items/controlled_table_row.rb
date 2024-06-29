@@ -3,13 +3,13 @@ require_relative "doc_item"
 class ControlledTableRow < DocItem
 
     attr_accessor :id
-    attr_accessor :up_link
+    attr_accessor :up_link_ids
     attr_accessor :columns
     
     def initialize
         @id = ""
-        @up_link = ""
-        @columns = Array.new
+        @up_link_ids = nil
+        @columns = []
     end
 
     def to_html

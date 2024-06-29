@@ -7,7 +7,7 @@ class Paragraph < DocItem
     def initialize(doc, text)
         @parent_doc = doc
         @parent_heading = doc.headings[-1]
-        @text = text
+        @text = text.strip
     end
 
     def getTextWithoutSpaces

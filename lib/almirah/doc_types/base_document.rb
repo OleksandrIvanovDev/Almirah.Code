@@ -4,6 +4,7 @@ class BaseDocument
     attr_accessor :title
     attr_accessor :id
     attr_accessor :dom
+    attr_accessor :headings
 
     def initialize()
         @items = Array.new
