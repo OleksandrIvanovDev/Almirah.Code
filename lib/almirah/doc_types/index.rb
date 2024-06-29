@@ -136,6 +136,9 @@ class Index < BaseDocument
             s += "<table class=\"controlled\">\n"
             s += "\t<thead>\n"
             s += "\t\t<th>Title</th>\n"
+            s += "\t\t<th title=\"The ratio of Controlled Paragraphs mentioned in test protocols \
+                and total number of Controlled Paragraphs\">Coverage</th>\n"
+            s += "\t\t<th title=\"Numbers of passed and failed test steps\">Test Results</th>\n"
             s += "\t\t<th>Specification Covered</th>\n"
             s += "</thead>\n"
             html_rows.append s
@@ -144,8 +147,13 @@ class Index < BaseDocument
 
             sorted_items.each do |doc|
                 s = "\t<tr>\n"
+                coverage = doc.covered_items.length.to_f / doc.top_doc.controlled_items.length * 100.0
                 s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
-                s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>#{doc.top_doc.title}</td>\n"
+                s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n"
+                s += "\t\t<td class=\"item_id\" style='width: 7%;'> n/a </td>\n"
+                s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>\
+                    <i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>\
+                    #{doc.top_doc.title}</td>\n"
                 s += "</tr>\n"
                 html_rows.append s
             end

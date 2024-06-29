@@ -4,14 +4,16 @@ class Coverage < BaseDocument
 
     attr_accessor :top_doc
     attr_accessor :bottom_doc
+    attr_accessor :covered_items
 
     def initialize(top_doc)
         super()
         @top_doc = top_doc
-        @bottom_doc = bottom_doc
+        @bottom_doc = nil
 
         @id = top_doc.id + "-" + "tests"
         @title = "Coverage Matrix: " + @id
+        @covered_items = {}
     end
 
     def to_console
@@ -64,6 +66,7 @@ class Coverage < BaseDocument
                 s += "\t\t<td class=\"item_id\" #{test_step_color}><a href=\"./../../tests/protocols/#{bottom_item.parent_doc.id}/#{bottom_item.parent_doc.id}.html##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 42%;'>#{bottom_item.columns[1].text}</td>\n"
                 s += "\t</tr>\n"
+                @covered_items[top_item.id.to_s.downcase] = top_item
             end
         else
             s += "\t<tr>\n"
