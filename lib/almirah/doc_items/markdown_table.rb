@@ -21,7 +21,7 @@ class MarkdownTable < DocItem
     @is_separator_detected = false
   end
 
-  def addRow(row)
+  def add_row(row)
     columns = row.split('|')
     @rows.append(columns.map!(&:strip))
     true

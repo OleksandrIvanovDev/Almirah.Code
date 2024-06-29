@@ -21,7 +21,7 @@ class MarkdownList < DocItem
     @@lists_stack.push(self)
   end
 
-  def addRow(raw_text)
+  def add_row(raw_text)
     pos = calculate_text_position(raw_text)
     row = raw_text[pos..-1]
 
@@ -44,7 +44,7 @@ class MarkdownList < DocItem
         prev_lists_stack_item.rows[-1] = nested_list
       end
 
-      nested_list.addRow(raw_text)
+      nested_list.add_row(raw_text)
 
     elsif pos < @@lists_stack[-1].indent_position
 
