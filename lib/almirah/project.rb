@@ -4,7 +4,6 @@ require 'fileutils'
 require_relative 'doc_fabric'
 require_relative 'navigation_pane'
 require_relative 'doc_types/traceability'
-require_relative 'doc_types/coverage'
 require_relative 'doc_types/index'
 require_relative 'search/specifications_db'
 
@@ -131,8 +130,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
       document = @specifications_dictionary[i.to_s.downcase]
       if document
-        trx = Traceability.new document, nil, true
-        @traceability_matrices.append trx
+        doc = DocFabric.create_traceability_document(document, nil)
+        @traceability_matrices.append doc
       end
     end
   end
@@ -148,8 +147,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
     # create coverage documents
     @covered_specifications_dictionary.each do |_key, value|
-      trx = Coverage.new value
-      @coverage_matrices.append trx
+      doc = DocFabric.create_coverage_matrix(value)
+      @coverage_matrices.append doc
     end
   end
 
@@ -216,8 +215,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       end
     end
     # create treceability document
-    trx = Traceability.new top_document, bottom_document, false
-    @traceability_matrices.append trx
+    doc = DocFabric.create_traceability_document(top_document, bottom_document)
+    @traceability_matrices.append doc
   end
 
   def link_protocol_to_spec(protocol, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
@@ -272,9 +271,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   end
 
   def render_all_protocols
-    # create a sidebar first
-    # nav_pane = NavigationPane.new(@specifications)
-
     path = @configuration.project_root_directory
 
     FileUtils.mkdir_p("#{path}/build/tests/protocols")
