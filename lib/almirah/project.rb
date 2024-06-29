@@ -236,15 +236,27 @@ class Project
 
         bottom_document.controlled_items.each do |item|
 
-            if top_document.dictionary.has_key?(item.up_link.to_s)
+            if item.up_link_ids
+                item.up_link_ids.each do |up_lnk|
 
-                topItem = top_document.dictionary[item.up_link.to_s]
-                
-                unless topItem.coverage_links
-                    topItem.coverage_links = Array.new
-                    top_document.items_with_coverage_number += 1    # for statistics
+                    if top_document.dictionary.has_key?(up_lnk.to_s)
+
+                        topItem = top_document.dictionary[up_lnk.to_s]
+                        
+                        unless topItem.coverage_links
+                            topItem.coverage_links = Array.new
+                            top_document.items_with_coverage_number += 1    # for statistics
+                        end
+                        topItem.coverage_links.append(item)
+                    else
+                        # check if there is a non existing link with the right doc_id
+                        if tmp = /^([a-zA-Z]+)[-]\d+/.match(up_lnk) # SRS
+                            if tmp[1].downcase == top_document.id.downcase
+                                bottom_document.wrong_links_hash[ up_lnk ] = item
+                            end
+                        end
+                    end
                 end
-                topItem.coverage_links.append(item)
             end
         end
         # create coverage document
