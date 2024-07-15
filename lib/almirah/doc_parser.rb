@@ -47,14 +47,17 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
     # try to get frontmatter first
     text_lines = try_to_extract_frontmatter(doc, text_lines)
     # There is no document without heading
-    if doc.title == ''
-      # dummy section if root is not a Document Title (level 0)
-      title = "#{doc.id}.md"
-      item = Heading.new(doc, title, 0)
-      doc.items.append(item)
-      doc.headings.append(item)
-      doc.title = title
+    title = "#{doc.id}.md"
+    item = Heading.new(doc, title, 0)
+    doc.items.append(item)
+    doc.headings.append(item)
+    doc.title = title
+    # replace dummy title with extracted from frontmatter
+    if doc.frontmatter && (doc.frontmatter.parameters.key? 'title')
+      doc.title = doc.frontmatter.parameters['title']
+      doc.headings[0].text = doc.frontmatter.parameters['title']
     end
+    # main loop
     text_lines.each do |s|
       if s.lstrip != ''
         if res = /^(\#{1,})\s(.*)/.match(s) # Heading

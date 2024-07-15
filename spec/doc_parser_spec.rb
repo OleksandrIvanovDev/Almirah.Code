@@ -971,4 +971,28 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     # headings
     expect(doc.headings[0]).to eq(doc.items[0])
   end
+  it 'Recognizes document title from the Frontmatter field' do
+    input_lines = []
+    input_lines << '---'
+    input_lines << 'title: "This is a Document Title"'
+    input_lines << '---'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 2
+    expect(doc.items[0]).to be_instance_of(Heading)
+    expect(doc.frontmatter).to be_instance_of(Frontmatter)
+    expect(doc.items[1]).to be_instance_of(DocFooter)
+    # Title is extracted from Frontmatter
+    expect(doc.title).to eq 'This is a Document Title'
+    expect(doc.items[0].level).to eq 0
+    expect(doc.items[0].text).to eq 'This is a Document Title'
+    # frontmatter
+    expect(doc.frontmatter.parameters['title']).to eq 'This is a Document Title'
+    # parent doc
+    expect(doc.items[0].parent_doc).to eq(doc)
+    # headings
+    expect(doc.headings[0]).to eq(doc.items[0])
+  end
 end
