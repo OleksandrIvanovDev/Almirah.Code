@@ -32,6 +32,8 @@ class Document
         s.parent_section = sections_stack[-1].parent_section
         sections_stack[-1].parent_section.sections.append(s)
         sections_stack[-1] = s
+        # for search engine
+        s.heading.parent_heading = s.parent_section.heading
 
       elsif h.level > sections_stack[-1].heading.level
 
@@ -39,6 +41,8 @@ class Document
         s.parent_section = sections_stack[-1]
         sections_stack[-1].sections.append(s)
         sections_stack.push s
+        # for search engine
+        s.heading.parent_heading = s.parent_section.heading
 
       else
         sections_stack.pop while h.level < sections_stack[-1].heading.level
@@ -52,6 +56,8 @@ class Document
           sections_stack[-1].sections.append(s)
         end
         sections_stack[-1] = s
+        # for search engine
+        s.heading.parent_heading = s.parent_section.heading
       end
     end
   end

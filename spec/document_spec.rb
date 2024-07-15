@@ -7,13 +7,13 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
     expect(dom.root_section.sections[0].heading.level).to eq 1
     expect(dom.root_section.sections[0].heading.text).to eq 'Heading Level 1'
-    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'Heading Level 1'
+    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'srs.md'
     expect(dom.root_section.sections[0].parent_section.parent_section).to be_nil
   end
 
@@ -26,7 +26,7 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 2
   end
@@ -60,13 +60,13 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
     expect(dom.root_section.sections[0].heading.level).to eq 1
     expect(dom.root_section.sections[0].heading.text).to eq 'Heading Level 1'
-    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'Heading Level 1'
+    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'srs.md'
     expect(dom.root_section.sections[0].parent_section.parent_section).to be_nil
     # Heading 2
     expect(dom.root_section.sections[0].sections[0].heading.level).to eq 2
@@ -83,13 +83,13 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
     expect(dom.root_section.sections[0].heading.level).to eq 1
     expect(dom.root_section.sections[0].heading.text).to eq 'Heading Level 1'
-    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'Heading Level 1'
+    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'srs.md'
     expect(dom.root_section.sections[0].parent_section.parent_section).to be_nil
     # Heading 3
     expect(dom.root_section.sections[0].sections[0].heading.level).to eq 3
@@ -107,13 +107,13 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
     expect(dom.root_section.sections[0].heading.level).to eq 1
     expect(dom.root_section.sections[0].heading.text).to eq 'Heading Level 1'
-    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'Heading Level 1'
+    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'srs.md'
     expect(dom.root_section.sections[0].parent_section.parent_section).to be_nil
     # Heading 2
     expect(dom.root_section.sections[0].sections[0].heading.level).to eq 2
@@ -125,7 +125,7 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     expect(dom.root_section.sections[0].sections[0].sections[0].heading.text).to eq 'Heading Level 3'
     expect(dom.root_section.sections[0].sections[0].sections[0].parent_section.heading.text).to eq 'Heading Level 2'
     expect(dom.root_section.sections[0].sections[0].sections[0].parent_section.parent_section).to \
-        eq(dom.root_section.sections[0])
+      eq(dom.root_section.sections[0])
   end
   it 'Is able to build sections tree for Heading1, Heading2, and Heading2' do
     input_lines = []
@@ -137,13 +137,13 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
     expect(dom.root_section.sections[0].heading.level).to eq 1
     expect(dom.root_section.sections[0].heading.text).to eq 'Heading Level 1'
-    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'Heading Level 1'
+    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'srs.md'
     expect(dom.root_section.sections[0].parent_section.parent_section).to be_nil
     # Heading 2
     expect(dom.root_section.sections[0].sections[0].heading.level).to eq 2
@@ -262,7 +262,7 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
@@ -287,7 +287,7 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
@@ -317,7 +317,7 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     DocParser.parse(doc, input_lines)
 
     dom = Document.new(doc.headings)
-    expect(dom.root_section.heading.level).to eq 1
+    expect(dom.root_section.heading.level).to eq 0
     expect(dom.root_section.parent_section).to be_nil
     expect(dom.root_section.sections.length).to be 1
     # Root Sub-heading
@@ -366,5 +366,30 @@ describe 'Document' do # rubocop:disable Metrics/BlockLength
     expect(dom.root_section.sections[1].heading.text).to eq 'Heading Level 1.2'
     expect(dom.root_section.sections[1].parent_section.heading.text).to eq 'Document Title'
     expect(dom.root_section.sections[1].parent_section).to eq dom.root_section
+  end
+  it 'Is able to build sections tree for Heading2, Heading2' do
+    input_lines = []
+    input_lines << '## Heading Level 2.1'
+    input_lines << '## Heading Level 2.2'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    dom = Document.new(doc.headings)
+    expect(dom.root_section.heading.level).to eq 0
+    expect(dom.root_section.parent_section).to be_nil
+    expect(dom.root_section.sections.length).to be 2
+    # Root Sub-heading
+    expect(dom.root_section.sections[0].heading.level).to eq 2
+    expect(dom.root_section.sections[0].heading.text).to eq 'Heading Level 2.1'
+    expect(dom.root_section.sections[0].parent_section.heading.text).to eq 'srs.md'
+    expect(dom.root_section.sections[0].parent_section).to eq dom.root_section
+    expect(dom.root_section.sections[0].heading.parent_heading).to eq dom.root_section.heading
+    # Heading 2
+    expect(dom.root_section.sections[1].heading.level).to eq 2
+    expect(dom.root_section.sections[1].heading.text).to eq 'Heading Level 2.2'
+    expect(dom.root_section.sections[1].parent_section.heading.text).to eq 'srs.md'
+    expect(dom.root_section.sections[1].parent_section).to eq dom.root_section
+    expect(dom.root_section.sections[1].heading.parent_heading).to eq dom.root_section.heading
   end
 end
