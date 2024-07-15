@@ -946,4 +946,29 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     expect(doc.headings[0]).to eq(doc.items[0])
     expect(doc.items[1].parent_heading).to eq(doc.items[0])
   end
+  it 'Recognizes Frontmatter block with no headings' do
+    input_lines = []
+    input_lines << '---'
+    input_lines << 'field: "value"'
+    input_lines << '---'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 2
+    expect(doc.items[0]).to be_instance_of(Heading)
+    expect(doc.frontmatter).to be_instance_of(Frontmatter)
+    expect(doc.items[1]).to be_instance_of(DocFooter)
+    # Consider file name as a document title
+    expect(doc.title).to eq 'srs.md'
+    # If there is no Title, we always have a dummy heading with level 0
+    expect(doc.items[0].level).to eq 0
+    expect(doc.items[0].text).to eq 'srs.md'
+    # frontmatter
+    expect(doc.frontmatter.parameters['field']).to eq 'value'
+    # parent doc
+    expect(doc.items[0].parent_doc).to eq(doc)
+    # headings
+    expect(doc.headings[0]).to eq(doc.items[0])
+  end
 end
