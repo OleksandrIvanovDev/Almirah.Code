@@ -8,9 +8,7 @@ class MarkdownList < DocItem
   @@lists_stack = []
 
   def initialize(doc, is_ordered)
-    super()
-    @parent_doc = doc
-    @parent_heading = doc.headings[-1]
+    super(doc)
 
     @rows = []
     @is_ordered = is_ordered

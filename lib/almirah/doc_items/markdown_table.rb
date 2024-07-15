@@ -6,9 +6,7 @@ class MarkdownTable < DocItem
   attr_accessor :column_names, :rows, :heading_row, :is_separator_detected
 
   def initialize(doc, heading_row)
-    super()
-    @parent_doc = doc
-    @parent_heading = doc.headings[-1]
+    super(doc)
     @heading_row = heading_row
 
     res = /^[|](.*[|])/.match(heading_row)
