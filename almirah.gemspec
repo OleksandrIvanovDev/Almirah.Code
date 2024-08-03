@@ -9,5 +9,6 @@ Gem::Specification.new do |s|
   s.files       = Dir['lib/**/*.rb'] + Dir['lib/**/*.html'] + Dir['lib/**/*.js'] + Dir['lib/**/*.css']
   s.license     = 'MIT'
   s.executables << 'almirah'
-  s.add_runtime_dependency 'thor', ['>= 1.3.1']
+  s.add_runtime_dependency 'thor', '~> 1.3', '>= 1.3.1'
+  s.required_ruby_version = '>= 3.0'
 end
