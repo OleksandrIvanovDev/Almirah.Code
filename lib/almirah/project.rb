@@ -69,25 +69,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     create_search_data
   end
 
-  def transform(file_extension)
-    transform_all_specifications file_extension
-  end
-
-  def transform_all_specifications(_file_extension)
-    path = @configuration.project_root_directory
-
-    # find all specifications
-    Dir.glob("#{path}/specifications/**/*.md").each do |f|
-      puts f
-      # make a copy with another extention to preserve the content
-      f_directory = File.dirname(f)
-      f_name = File.basename(f, File.extname(f)).downcase + '._md'
-      FileUtils.copy_file(f, "#{f_directory}/#{f_name}")
-      # transform the original one
-      # but do nothing for now - TODO
-    end
-  end
-
   def parse_all_specifications
     path = @configuration.project_root_directory
     # do a lasy pass first to get the list of documents id
@@ -250,7 +231,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @index = Index.new(@project)
   end
 
-  def render_all_specifications(spec_list) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def render_all_specifications(spec_list) # rubocop:disable Metrics/MethodLength
     path = @configuration.project_root_directory
 
     FileUtils.mkdir_p("#{path}/build/specifications")
