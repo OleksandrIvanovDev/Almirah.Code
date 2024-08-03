@@ -1,28 +1,38 @@
-require "thor"
-require_relative "almirah/project"
-require_relative "almirah/project_configuration"
+require 'thor'
+require_relative 'almirah/project'
+require_relative 'almirah/project_configuration'
+require_relative 'almirah/project_template'
 
 class CLI < Thor
-  option :results
-  desc "please <project_folder>", "say <project_folder>"
-    def please(project_folder)
-      a = Almirah.new project_folder
-      if options[:results]
-        a.results( options[:results] )
-      else
-        a.default()
-      end
-    end
+  option :run
+  desc 'please <project_folder>', 'Processes the folder'
+  long_desc <<-LONGDESC
+    Creates HTML representation of markdown files stored in <project_folder>
 
-  desc "transform <project_folder>", "say <project_folder>"
-  def transform(project_folder)
+    Use --run option to specify excat test run ID for processing if required.
+
+    For example: almirah please my_project --run 003
+
+  LONGDESC
+  def please(project_folder)
     a = Almirah.new project_folder
-    a.transform "docx"
+    if options[:run]
+      a.run(options[:run])
+    else
+      a.default
+    end
+  end
+
+  desc 'Creates project from template', ''
+  long_desc <<-LONGDESC
+    Creates default project structure in the <project_name> folder
+  LONGDESC
+  def create(project_name)
+    Almirah.create_new_project_structure project_name
   end
 end
 
 class Almirah
-
   attr_accessor :project
 
   def initialize(project_folder)
@@ -30,20 +40,19 @@ class Almirah
     @project = Project.new config
   end
 
-  def getGemRoot()
+  def getGemRoot
     File.expand_path './..', File.dirname(__FILE__)
   end
 
-  def results( test_run )
+  def run(test_run)
     @project.specifications_and_results test_run
   end
 
-  def transform( file_extension )
-    @project.transform file_extension
+  def self.create_new_project_structure(project_name)
+    ProjectTemplate.new project_name
   end
 
-  def default()
+  def default
     @project.specifications_and_protocols
   end
-
 end

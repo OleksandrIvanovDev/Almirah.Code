@@ -1,20 +1,22 @@
-require_relative "text_line"
+# frozen_string_literal: true
 
-class DocItem < TextLine
-    attr_accessor :parent_doc
-    attr_accessor :parent_heading
-    
-    @parent_doc = nil
-    @parent_heading = nil
+require_relative 'text_line'
 
-    @@html_table_render_in_progress = false
+class DocItem < TextLine # rubocop:disable Style/Documentation
+  attr_accessor :parent_doc, :parent_heading
 
-    def get_url
-        ''
-    end
+  @parent_doc = nil
+  @parent_heading = nil
+
+  @@html_table_render_in_progress = false # rubocop:disable Style/ClassVars
+
+  def initialize(doc)
+    super()
+    @parent_doc = doc
+    @parent_heading = doc.headings[-1]
+  end
+
+  def get_url
+    ''
+  end
 end
-
-
-
-
-

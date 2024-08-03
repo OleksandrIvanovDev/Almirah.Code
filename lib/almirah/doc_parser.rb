@@ -11,15 +11,53 @@ require_relative 'doc_items/controlled_table'
 require_relative 'doc_items/image'
 require_relative 'doc_items/markdown_list'
 require_relative 'doc_items/doc_footer'
+require_relative 'doc_items/frontmatter'
 
-class DocParser
+class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
+  def self.try_to_extract_frontmatter(doc, text_lines) # rubocop:disable Metrics/MethodLength
+    lines_to_remove = 0
+    frontmatter_lines = ''
+    if /^(-{3,})/.match(text_lines[0])
+      frontmatter_started = false
+      text_lines.each do |s|
+        lines_to_remove += 1
+        if /^(-{3,})/.match(s)
+          if frontmatter_started
+            doc.frontmatter = Frontmatter.new(frontmatter_lines)
+            frontmatter_started = false
+            break
+          else
+            frontmatter_started = true
+          end
+        elsif frontmatter_started
+          frontmatter_lines += s
+        end
+      end
+    end
+    text_lines.shift(lines_to_remove)
+    text_lines
+  end
+
   def self.parse(doc, text_lines)
     temp_md_table = nil
     temp_md_list = nil
     temp_code_block = nil
     # restart section numbering for each new document
     Heading.reset_global_section_number
-
+    # try to get frontmatter first
+    text_lines = try_to_extract_frontmatter(doc, text_lines)
+    # There is no document without heading
+    title = "#{doc.id}.md"
+    item = Heading.new(doc, title, 0)
+    doc.items.append(item)
+    doc.headings.append(item)
+    doc.title = title
+    # replace dummy title with extracted from frontmatter
+    if doc.frontmatter && (doc.frontmatter.parameters.key? 'title')
+      doc.title = doc.frontmatter.parameters['title']
+      doc.headings[0].text = doc.frontmatter.parameters['title']
+    end
+    # main loop
     text_lines.each do |s|
       if s.lstrip != ''
         if res = /^(\#{1,})\s(.*)/.match(s) # Heading
@@ -33,10 +71,6 @@ class DocParser
           level = res[1].length
           value = res[2]
 
-          if level == 1 && doc.title == ''
-            doc.title = value
-          end
-
           item = Heading.new(doc, value, level)
           doc.items.append(item)
           doc.headings.append(item)
@@ -45,13 +79,9 @@ class DocParser
 
           title = res[1]
 
-          if doc.title == ''
-            doc.title = title
-          end
-
-          item = Heading.new(doc, title, 0)
-          doc.items.append(item)
-          doc.headings.append(item)
+          # Rewrite
+          doc.title = title
+          doc.headings[0].text = title
 
         elsif res = /^\[(\S*)\]\s+(.*)/.match(s) # Controlled Paragraph
 
@@ -72,12 +102,10 @@ class DocParser
           if tmp.length > 0
             up_links = []
             tmp.each do |ul|
-              lnk = ul[0]            
+              lnk = ul[0]
               # do not add links for the self document
               doc_id = /([a-zA-Z]+)-\d+/.match(lnk) # SRS
-              if (doc_id) and (doc_id[1].downcase != doc.id.downcase)
-                up_links << lnk.upcase
-              end
+              up_links << lnk.upcase if doc_id and (doc_id[1].downcase != doc.id.downcase)
               # try to find the real end of text
               pos = text.index(lnk)
               first_pos = pos if pos < first_pos
@@ -95,7 +123,7 @@ class DocParser
           item = ControlledParagraph.new(doc, text, id)
 
           if up_links
-            up_links.uniq! #remove duplicates
+            up_links.uniq! # remove duplicates
             doc.items_with_uplinks_number += 1 # for statistics
             up_links.each do |ul|
               next unless tmp = />\[(\S*)\]$/.match(ul) # >[SRS-001]
@@ -146,7 +174,16 @@ class DocParser
 
           doc.items.append(item)
 
-        elsif res = /^(\*\s+)(.*)/.match(s)   # check if unordered list start
+        elsif res = /^(\*\s+)(.*)/.match(s) # check if unordered list start
+
+          if doc.title == ''
+            # dummy section if root is not a Document Title (level 0)
+            title = "#{doc.id}.md"
+            item = Heading.new(doc, title, 0)
+            doc.items.append(item)
+            doc.headings.append(item)
+            doc.title = title
+          end
 
           temp_md_table = process_temp_table(doc, temp_md_table)
 
@@ -160,7 +197,7 @@ class DocParser
             temp_md_list = item
           end
 
-        elsif res = /^\d[.]\s(.*)/.match(s)   # check if ordered list start
+        elsif res = /^\d[.]\s(.*)/.match(s) # check if ordered list start
 
           temp_md_table = process_temp_table(doc, temp_md_table)
 
@@ -176,6 +213,15 @@ class DocParser
 
         elsif s[0] == '|' # check if table
 
+          if doc.title == ''
+            # dummy section if root is not a Document Title (level 0)
+            title = "#{doc.id}.md"
+            item = Heading.new(doc, title, 0)
+            doc.items.append(item)
+            doc.headings.append(item)
+            doc.title = title
+          end
+
           if temp_md_list
             doc.items.append temp_md_list
             temp_md_list = nil
@@ -184,8 +230,8 @@ class DocParser
           if res = /^[|](-{3,})[|]/.match(s) # check if it is a separator first
 
             if temp_md_table
-            # separator is found after heading
-            temp_md_table.is_separator_detected = true
+              # separator is found after heading
+              temp_md_table.is_separator_detected = true
             else
               # separator out of table scope consider it just as a regular paragraph
               item = Paragraph.new(doc, s)
@@ -257,6 +303,7 @@ class DocParser
             # start code block
             temp_code_block = CodeBlock.new(suggested_format)
             temp_code_block.parent_doc = doc
+            temp_code_block.parent_heading = doc.headings[-1]
           end
 
         elsif res = /^TODO:(.*)/.match(s) # check if TODO block
@@ -276,6 +323,7 @@ class DocParser
           doc.todo_blocks.append(item)
 
         else # Reqular Paragraph
+
           temp_md_table = process_temp_table(doc, temp_md_table)
           if temp_md_list
             if MarkdownList.unordered_list_item?(s) || MarkdownList.ordered_list_item?(s)
@@ -314,7 +362,7 @@ class DocParser
     doc.items.append(item)
   end
 
-  def self.process_temp_table(doc, temp_md_table) # rubocop:disable Metrics/MethodLength
+  def self.process_temp_table(doc, temp_md_table)
     if temp_md_table
       if temp_md_table.is_separator_detected
         doc.items.append temp_md_table
