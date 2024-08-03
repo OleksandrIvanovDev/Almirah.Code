@@ -147,9 +147,18 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
       sorted_items.each do |doc|
         s = "\t<tr>\n"
         coverage = doc.covered_items.length.to_f / doc.top_doc.controlled_items.length * 100.0
+
+        test_step_color = if doc.failed_steps_number.positive?
+                            'background-color: #fcc;'
+                          elsif !doc.failed_steps_number.positive? && doc.passed_steps_number.positive?
+                            'background-color: #cfc;'
+                          else
+                            'background-color: #ffffee;'
+                          end
+
         s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
         s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n" # rubocop:disable Style/FormatString
-        s += "\t\t<td class=\"item_id\" style='width: 7%;' title='pass/fail'> #{doc.passed_steps_number}/#{doc.failed_steps_number} </td>\n"
+        s += "\t\t<td class=\"item_id\" style='width: 7%; #{test_step_color}' title='pass/fail'> #{doc.passed_steps_number}/#{doc.failed_steps_number} </td>\n"
         s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>\
                     <i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>\
                     #{doc.top_doc.title}</td>\n"
