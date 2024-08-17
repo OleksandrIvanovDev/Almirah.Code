@@ -19,7 +19,7 @@ class ProjectUtility # rubocop:disable Style/Documentation
 
   private
 
-  def combine(run_id)
+  def combine(run_id) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     path = @configuration.project_root_directory
     dst_folder = "#{@configuration.project_root_directory}/build"
     FileUtils.mkdir_p(dst_folder)
@@ -29,7 +29,9 @@ class ProjectUtility # rubocop:disable Style/Documentation
     dst_f = File.open(dst_file, 'a')
 
     src_path = if run_id
-                puts "\e[1m\e[31m Run #{run_id} folder does not exists" unless Dir.exist? "#{path}/tests/runs/#{run_id}"
+                 unless Dir.exist? "#{path}/tests/runs/#{run_id}"
+                   puts "\e[1m\e[31m Run #{run_id} folder does not exists"
+                 end
                  "#{path}/tests/runs/#{run_id}/**/*.md"
                else
                  "#{path}/tests/protocols/**/*.md"
