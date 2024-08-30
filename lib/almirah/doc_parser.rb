@@ -227,11 +227,12 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
             temp_md_list = nil
           end
 
-          if res = /^[|](-{3,})[|]/.match(s) # check if it is a separator first
+          if res = /^[|]\s?(:?)(-{3,})(:?)\s?[|]/.match(s) # check if it is a separator first
 
             if temp_md_table
               # separator is found after heading
               temp_md_table.is_separator_detected = true
+              temp_md_table.add_separator(s)
             else
               # separator out of table scope consider it just as a regular paragraph
               item = Paragraph.new(doc, s)
