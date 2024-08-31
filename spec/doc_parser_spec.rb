@@ -396,10 +396,102 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     expect(doc.up_link_docs.size).to eq 3
   end
 
-  it 'Recognizes Markdown Table out of any section' do
+  it 'Recognizes Markdown Table out of any section (Form A)' do
     input_lines = []
     input_lines << '| Head Column A | Head Column B |'
     input_lines << '|---|---|'
+    input_lines << '| Column A1 | Column B1 |'
+    input_lines << '| Column A2 | Column B2 |'
+    input_lines << '| Column A1 | Column B3 |'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 3
+    expect(doc.items[1]).to be_instance_of(MarkdownTable)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    # Rows and Columns
+    expect(doc.items[1].column_names.length).to eq 2
+    expect(doc.items[1].rows.length).to eq 3
+    # parent doc
+    expect(doc.items[1].parent_doc).to eq(doc)
+    # headings
+    expect(doc.items[1].parent_heading).to eq(doc.headings[0])
+  end
+
+  it 'Recognizes Markdown Table out of any section (Form B)' do
+    input_lines = []
+    input_lines << '| Head Column A | Head Column B |'
+    input_lines << '| --- | --- |'
+    input_lines << '| Column A1 | Column B1 |'
+    input_lines << '| Column A2 | Column B2 |'
+    input_lines << '| Column A1 | Column B3 |'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 3
+    expect(doc.items[1]).to be_instance_of(MarkdownTable)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    # Rows and Columns
+    expect(doc.items[1].column_names.length).to eq 2
+    expect(doc.items[1].rows.length).to eq 3
+    # parent doc
+    expect(doc.items[1].parent_doc).to eq(doc)
+    # headings
+    expect(doc.items[1].parent_heading).to eq(doc.headings[0])
+  end
+
+  it 'Recognizes Markdown Table out of any section (Form C)' do
+    input_lines = []
+    input_lines << '| Head Column A | Head Column B |'
+    input_lines << '| :--- | :--- |'
+    input_lines << '| Column A1 | Column B1 |'
+    input_lines << '| Column A2 | Column B2 |'
+    input_lines << '| Column A1 | Column B3 |'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 3
+    expect(doc.items[1]).to be_instance_of(MarkdownTable)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    # Rows and Columns
+    expect(doc.items[1].column_names.length).to eq 2
+    expect(doc.items[1].rows.length).to eq 3
+    # parent doc
+    expect(doc.items[1].parent_doc).to eq(doc)
+    # headings
+    expect(doc.items[1].parent_heading).to eq(doc.headings[0])
+  end
+
+  it 'Recognizes Markdown Table out of any section (Form D)' do
+    input_lines = []
+    input_lines << '| Head Column A | Head Column B |'
+    input_lines << '| ---: | ---: |'
+    input_lines << '| Column A1 | Column B1 |'
+    input_lines << '| Column A2 | Column B2 |'
+    input_lines << '| Column A1 | Column B3 |'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 3
+    expect(doc.items[1]).to be_instance_of(MarkdownTable)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    # Rows and Columns
+    expect(doc.items[1].column_names.length).to eq 2
+    expect(doc.items[1].rows.length).to eq 3
+    # parent doc
+    expect(doc.items[1].parent_doc).to eq(doc)
+    # headings
+    expect(doc.items[1].parent_heading).to eq(doc.headings[0])
+  end
+
+  it 'Recognizes Markdown Table out of any section (Form E)' do
+    input_lines = []
+    input_lines << '| Head Column A | Head Column B |'
+    input_lines << '| :---: | :---: |'
     input_lines << '| Column A1 | Column B1 |'
     input_lines << '| Column A2 | Column B2 |'
     input_lines << '| Column A1 | Column B3 |'
