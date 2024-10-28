@@ -211,7 +211,9 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
             temp_md_list = item
           end
 
-        elsif s[0] == '|' # check if table
+        elsif /^[+](-*[+])/.match(s) # try to ignore Grid Table borders
+
+        elsif (s[0] == '|') || (s[0] == '+') # check if table
 
           if doc.title == ''
             # dummy section if root is not a Document Title (level 0)
@@ -227,7 +229,8 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
             temp_md_list = nil
           end
 
-          if res = /^[|]\s?(:?)(-{3,})(:?)\s?[|]/.match(s) # check if it is a separator first
+          # check if it is a separator first
+          if /^[|]\s?(:?)(-{3,})(:?)\s?[|]/.match(s) || /^[+]\s?(:?)(={3,})(:?)\s?[+]/.match(s)
 
             if temp_md_table
               # separator is found after heading

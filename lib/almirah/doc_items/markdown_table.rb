@@ -30,7 +30,7 @@ class MarkdownTable < DocItem
 
     columns.each do |c|
       res = /(:?)(-{3,})(:?)/.match(c)
-      @column_aligns << if res.length == 4
+      @column_aligns << if res && res.length == 4
                           if (res[1] != '') && (res[2] != '') && (res[3] != '')
                             'center'
                           elsif (res[1] != '') && (res[2] != '') && (res[3] == '')
