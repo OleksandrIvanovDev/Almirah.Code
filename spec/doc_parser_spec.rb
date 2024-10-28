@@ -1087,4 +1087,31 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     # headings
     expect(doc.headings[0]).to eq(doc.items[0])
   end
+
+  it 'Recognizes Grid Table out of any section (Form A)' do
+    input_lines = []
+    input_lines << '+---------------+---------------+'
+    input_lines << '| Head Column A | Head Column B |'
+    input_lines << '+===============+===============+'
+    input_lines << '| Column A1 | Column B1 |'
+    input_lines << '+---------------+---------------+'
+    input_lines << '| Column A2 | Column B2 |'
+    input_lines << '+---------------+---------------+'
+    input_lines << '| Column A1 | Column B3 |'
+    input_lines << '+---------------+---------------+'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+    puts doc.items
+    expect(doc.items.length).to eq 3
+    expect(doc.items[1]).to be_instance_of(MarkdownTable)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    # Rows and Columns
+    expect(doc.items[1].column_names.length).to eq 2
+    expect(doc.items[1].rows.length).to eq 3
+    # parent doc
+    expect(doc.items[1].parent_doc).to eq(doc)
+    # headings
+    expect(doc.items[1].parent_heading).to eq(doc.headings[0])
+  end
 end
