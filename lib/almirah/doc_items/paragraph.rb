@@ -1,5 +1,6 @@
 require_relative 'doc_item'
 
+# <REQ> Implementa a non-controlled paragraph as a subclass of the DocItem >[SRS-004] </REQ>
 class Paragraph < DocItem
   attr_accessor :text
 

@@ -1,5 +1,6 @@
 require_relative 'paragraph'
 
+# <REQ> Implementa a controlled paragraph as a subclass of the DocItem >[SRS-001] </REQ>
 class ControlledParagraph < Paragraph
   attr_accessor :id, :up_link_ids, :down_links, :coverage_links
 
