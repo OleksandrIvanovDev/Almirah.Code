@@ -42,6 +42,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   def specifications_and_protocols # rubocop:disable Metrics/MethodLength
     parse_all_specifications
     parse_all_protocols
+    parse_all_source_files
     link_all_specifications
     link_all_protocols
     link_all_source_files
@@ -92,6 +93,18 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
   end
 
+  def parse_all_source_files
+    @configuration.get_repositories.each do |repos|
+      puts "Processing repository: #{repos['name']}, #{repos['path']}"
+      next unless repos['path'] && Dir.exist?(repos['path'])
+
+      Dir.glob("#{repos['path']}/**/*.*").each do |f|
+        puts " - file: #{f}" if File.file?(f)
+      end
+      # @source_files.append(doc)
+    end
+  end
+
   def parse_test_run(test_run)
     path = @configuration.project_root_directory
     Dir.glob("#{path}/tests/runs/#{test_run}/**/*.md").each do |f|
@@ -135,14 +148,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   end
 
   def link_all_source_files
-    @configuration.get_repositories.each do |repos|
-      puts "Processing repository: #{repos['name']}, #{repos['path']}"
-      # Dir.glob("#{path}/source_files/**/*.md").each do |f|
-      #  doc = DocFabric.create_source_file(f)
-      #  @specifications.each do |s|
-      #    s.source_files.append(doc) if doc.up_link_docs.key?(s.id.to_s)
-      #  end
-    end
+    # currently no links between source files and specifications
   end
 
   def check_wrong_specification_referenced # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
