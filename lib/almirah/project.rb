@@ -44,6 +44,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     parse_all_protocols
     link_all_specifications
     link_all_protocols
+    link_all_source_files
     check_wrong_specification_referenced
     create_index
     render_all_specifications(@specifications)
@@ -130,6 +131,17 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @covered_specifications_dictionary.each do |_key, value|
       doc = DocFabric.create_coverage_matrix(value)
       @coverage_matrices.append doc
+    end
+  end
+
+  def link_all_source_files
+    @configuration.get_repositories.each do |repos|
+      puts "Processing repository: #{repos['name']}, #{repos['path']}"
+      # Dir.glob("#{path}/source_files/**/*.md").each do |f|
+      #  doc = DocFabric.create_source_file(f)
+      #  @specifications.each do |s|
+      #    s.source_files.append(doc) if doc.up_link_docs.key?(s.id.to_s)
+      #  end
     end
   end
 
