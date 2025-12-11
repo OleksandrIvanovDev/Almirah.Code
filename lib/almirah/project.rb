@@ -99,7 +99,11 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       next unless repos['path'] && Dir.exist?(repos['path'])
 
       Dir.glob("#{repos['path']}/**/*.*").each do |f|
-        puts " - file: #{f}" if File.file?(f)
+        next unless File.file?(f)
+
+        doc = DocFabric.create_source_file(f, repos['name'])
+        # puts "Source file: #{doc.id}"
+        # @source_files.append(doc)
       end
       # @source_files.append(doc)
     end
