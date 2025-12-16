@@ -53,8 +53,8 @@ class DocFabric
     doc
   end
 
-  def self.create_source_file(path, repository)
-    doc = SourceFile.new path, repository
+  def self.create_source_file(root_path, path, repository)
+    doc = SourceFile.new root_path, path, repository
     DocFabric.parse_source_file doc
     doc
   end

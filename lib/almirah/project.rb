@@ -17,6 +17,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @protocols = []
     @traceability_matrices = []
     @coverage_matrices = []
+    @source_files = []
     @specifications_dictionary = {}
     @covered_specifications_dictionary = {}
     @index = nil
@@ -52,6 +53,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_specifications(@traceability_matrices)
     render_all_specifications(@coverage_matrices)
     render_all_protocols
+    render_all_source_files
     render_index
     create_search_data
   end
@@ -98,14 +100,15 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       puts "Processing repository: #{repos['name']}, #{repos['path']}"
       next unless repos['path'] && Dir.exist?(repos['path'])
 
+      root_path = repos['path']
       Dir.glob("#{repos['path']}/**/*.*").each do |f|
-        next unless File.file?(f)
+        next unless File.file?(f) && f.end_with?('.c', '.cpp', '.h', '.hpp', '.py', '.java', '.rb', '.js', '.ts', '.go',
+                                                 '.rs')
 
-        doc = DocFabric.create_source_file(f, repos['name'])
+        doc = DocFabric.create_source_file(root_path, f, repos['name'])
         # puts "Source file: #{doc.id}"
-        # @source_files.append(doc)
+        @source_files.append(doc)
       end
-      # @source_files.append(doc)
     end
   end
 
@@ -288,6 +291,17 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
       nav_pane = NavigationPane.new(doc)
       doc.to_html(nav_pane, "#{path}/build/tests/protocols/")
+    end
+  end
+
+  def render_all_source_files
+    path = @configuration.project_root_directory
+    FileUtils.mkdir_p("#{path}/build/source_files")
+
+    @source_files.each do |doc|
+      doc.to_console
+
+      doc.to_html("#{path}/build/source_files/")
     end
   end
 
