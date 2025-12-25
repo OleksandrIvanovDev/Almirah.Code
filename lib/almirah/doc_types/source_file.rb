@@ -2,6 +2,7 @@
 
 require_relative 'persistent_document'
 require 'fileutils'
+require 'rouge'
 
 class SourceFile < PersistentDocument
   attr_accessor :root_path, :repository
@@ -24,6 +25,26 @@ class SourceFile < PersistentDocument
     s = "<h1>#{@title}</h1>\n"
     html_rows.append s
 
+    # make some nice lexed html
+    source = File.read(@path.to_s)
+    puts @path.to_s
+    # Detect lexer from file extension
+    # lexer = Rouge::Lexer.find_fancy(@path.to_s, source) || Rouge::Lexers::PlainText.new
+    lexer = Rouge::Lexer.guess_by_filename(@path.to_s) || Rouge::Lexers::PlainText.new
+    formatter = Rouge::Formatters::HTML.new
+
+    # Add Base16 theme CSS
+    theme_css = Rouge::Themes::Pastie.render(scope: '.highlight')
+    html_rows.append "<style>\n#{theme_css}\n</style>"
+
+    # Format the source code with syntax highlighting
+    formatted_html = formatter.format(lexer.lex(source))
+
+    # Add formatted code with highlighting styles
+    html_rows.append '<div class="highlight" style="background-color:#f6f7f8;"><pre>'
+    html_rows.append formatted_html
+    html_rows.append '</pre></div>'
+
     save_to_file(html_rows, nil, output_file_path)
   end
 
@@ -37,10 +58,18 @@ class SourceFile < PersistentDocument
 
     output_file_path += "#{@repository}/"
     output_file_path += @path.sub("#{@root_path}/", '')
+    output_file_path += '.html'
     FileUtils.mkdir_p(File.dirname(output_file_path))
 
+    # Calculate the relative path depth to determine correct number of parent directory symbols
+    relative_path = @path.sub("#{@root_path}/", '')
+    depth = relative_path.count('/') + 1 # +1 for the repository folder
+    depth += 1 # for the source_files folder
+    css_path = "#{'../' * depth}css/main.css"
+    js_path = "#{'../' * depth}scripts/main.js"
+
     file = File.open(output_file_path, 'w')
-    file_data.each do |s| # rubocop:disable Metrics/BlockLength
+    file_data.each do |s|
       if s.include?('{{CONTENT}}')
         html_rows.each do |r|
           file.puts r
@@ -50,24 +79,8 @@ class SourceFile < PersistentDocument
       elsif s.include?('{{DOCUMENT_TITLE}}')
         file.puts s.gsub! '{{DOCUMENT_TITLE}}', @title
       elsif s.include?('{{STYLES_AND_SCRIPTS}}')
-        if @id == 'index'
-          file.puts '<script type="module" src="./scripts/orama_search.js"></script>'
-          file.puts '<link rel="stylesheet" href="./css/search.css">'
-          file.puts '<link rel="stylesheet" href="./css/main.css">'
-          file.puts '<script src="./scripts/main.js"></script>'
-        elsif instance_of? Specification
-          file.puts '<link rel="stylesheet" href="../../css/main.css">'
-          file.puts '<script src="../../scripts/main.js"></script>'
-        elsif instance_of? Traceability
-          file.puts '<link rel="stylesheet" href="../../css/main.css">'
-          file.puts '<script src="../../scripts/main.js"></script>'
-        elsif instance_of? Coverage
-          file.puts '<link rel="stylesheet" href="../../css/main.css">'
-          file.puts '<script src="../../scripts/main.js"></script>'
-        elsif instance_of? Protocol
-          file.puts '<link rel="stylesheet" href="../../../css/main.css">'
-          file.puts '<script src="../../../scripts/main.js"></script>'
-        end
+        file.puts "<link rel=\"stylesheet\" href=\"#{css_path}\">"
+        file.puts "<script src=\"#{js_path}\"></script>"
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
       else
