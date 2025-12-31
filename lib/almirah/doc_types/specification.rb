@@ -5,7 +5,7 @@ require_relative 'persistent_document'
 class Specification < PersistentDocument
   attr_accessor :dictionary, :todo_blocks, :wrong_links_hash, :items_with_uplinks_number, :items_with_downlinks_number,
                 :items_with_coverage_number, :duplicated_ids_number, :duplicates_list, :last_used_id,
-                :last_used_id_number, :color
+                :last_used_id_number, :color, :source_code_links
 
   def initialize(fele_path)
     super
@@ -13,6 +13,7 @@ class Specification < PersistentDocument
     @duplicates_list = []
     @todo_blocks = []
     @wrong_links_hash = {}
+    @source_code_links = []
 
     @items_with_uplinks_number = 0
     @items_with_downlinks_number = 0

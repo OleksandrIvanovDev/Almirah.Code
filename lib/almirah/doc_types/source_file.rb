@@ -5,29 +5,37 @@ require 'fileutils'
 require 'rouge'
 
 class SourceFile < PersistentDocument
-  attr_accessor :root_path, :repository
+  attr_accessor :root_path, :repository, :dictionary, :wrong_links_hash,
+                :items_with_uplinks_number
 
   def initialize(root_path, fele_path, repository)
     super fele_path
     @root_path = root_path
     @id = File.basename(fele_path).downcase
     @repository = repository
+
+    @dictionary = {}
+    @wrong_links_hash = {}
+
+    @items_with_uplinks_number = 0
   end
 
   def to_console
-    puts "\e[32mSource File: <#{@repository}> #{@id}\e[0m"
+    puts "\e[32mSource File: [#{@repository}] #{@id}\e[0m"
   end
 
   def to_html(output_file_path)
     html_rows = []
 
     html_rows.append('')
-    s = "<h1>#{@title}</h1>\n"
-    html_rows.append s
+
+    @items.each do |item|
+      a = item.to_html
+      html_rows.append a
+    end
 
     # make some nice lexed html
     source = File.read(@path.to_s)
-    puts @path.to_s
     # Detect lexer from file extension
     # lexer = Rouge::Lexer.find_fancy(@path.to_s, source) || Rouge::Lexers::PlainText.new
     lexer = Rouge::Lexer.guess_by_filename(@path.to_s) || Rouge::Lexers::PlainText.new

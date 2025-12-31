@@ -6,20 +6,17 @@ require_relative 'navigation_pane'
 require_relative 'doc_types/traceability'
 require_relative 'doc_types/index'
 require_relative 'search/specifications_db'
+require_relative 'project/doc_linker'
+require_relative 'project_configuration'
+require_relative 'project/project_data'
 
 class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
-  attr_accessor :specifications, :protocols, :traceability_matrices, :coverage_matrices, :specifications_dictionary,
-                :index, :project, :configuration
+  attr_accessor :index, :project, :configuration, :project_data
 
   def initialize(configuration)
     @configuration = configuration
-    @specifications = []
-    @protocols = []
-    @traceability_matrices = []
-    @coverage_matrices = []
-    @source_files = []
-    @specifications_dictionary = {}
-    @covered_specifications_dictionary = {}
+    @project_data = ProjectData.new
+
     @index = nil
     @project = self
     FileUtils.remove_dir("#{@configuration.project_root_directory}/build", true)
@@ -49,9 +46,9 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_source_files
     check_wrong_specification_referenced
     create_index
-    render_all_specifications(@specifications)
-    render_all_specifications(@traceability_matrices)
-    render_all_specifications(@coverage_matrices)
+    render_all_specifications(@project_data.specifications)
+    render_all_specifications(@project_data.traceability_matrices)
+    render_all_specifications(@project_data.coverage_matrices)
     render_all_protocols
     render_all_source_files
     render_index
@@ -65,9 +62,9 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_protocols
     check_wrong_specification_referenced
     create_index
-    render_all_specifications(@specifications)
-    render_all_specifications(@traceability_matrices)
-    render_all_specifications(@coverage_matrices)
+    render_all_specifications(@project_data.specifications)
+    render_all_specifications(@project_data.traceability_matrices)
+    render_all_specifications(@project_data.coverage_matrices)
     render_all_protocols
     render_index
     create_search_data
@@ -82,8 +79,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     # parse documents in the second pass
     Dir.glob("#{path}/specifications/**/*.md").each do |f| # rubocop:disable Style/CombinableLoops
       doc = DocFabric.create_specification(f)
-      @specifications.append(doc)
-      @specifications_dictionary[doc.id.to_s.downcase] = doc
+      @project_data.specifications.append(doc)
+      @project_data.specifications_dictionary[doc.id.to_s.downcase] = doc
     end
   end
 
@@ -91,13 +88,13 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     path = @configuration.project_root_directory
     Dir.glob("#{path}/tests/protocols/**/*.md").each do |f|
       doc = DocFabric.create_protocol(f)
-      @protocols.append(doc)
+      @project_data.protocols.append(doc)
     end
   end
 
   def parse_all_source_files
     @configuration.get_repositories.each do |repos|
-      puts "Processing repository: #{repos['name']}, #{repos['path']}"
+      # puts "Processing repository: #{repos['name']}, #{repos['path']}"
       next unless repos['path'] && Dir.exist?(repos['path'])
 
       root_path = repos['path']
@@ -107,7 +104,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
         doc = DocFabric.create_source_file(root_path, f, repos['name'])
         # puts "Source file: #{doc.id}"
-        @source_files.append(doc)
+        @project_data.source_files.append(doc)
       end
     end
   end
@@ -116,56 +113,62 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     path = @configuration.project_root_directory
     Dir.glob("#{path}/tests/runs/#{test_run}/**/*.md").each do |f|
       doc = DocFabric.create_protocol(f)
-      @protocols.append(doc)
+      @project_data.protocols.append(doc)
     end
   end
 
-  def link_all_specifications # rubocop:disable Metrics/MethodLength
-    comb_list = @specifications.combination(2)
+  def link_all_specifications # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    comb_list = @project_data.specifications.combination(2)
     comb_list.each do |c|
       link_two_specifications(c[0], c[1])
       # puts "Link: #{c[0].id} - #{c[1].id}"
     end
     # separatelly create design inputs treceability
     @configuration.get_design_inputs.each do |i|
-      next unless @specifications_dictionary.key? i.to_s.downcase
+      next unless @project_data.specifications_dictionary.key? i.to_s.downcase
 
-      document = @specifications_dictionary[i.to_s.downcase]
+      document = @project_data.specifications_dictionary[i.to_s.downcase]
       if document
         doc = DocFabric.create_traceability_document(document, nil)
-        @traceability_matrices.append doc
+        @project_data.traceability_matrices.append doc
       end
     end
   end
 
   def link_all_protocols # rubocop:disable Metrics/MethodLength
-    @protocols.each do |p|
-      @specifications.each do |s|
+    @project_data.protocols.each do |p|
+      @project_data.specifications.each do |s|
         if p.up_link_docs.key?(s.id.to_s)
-          link_protocol_to_spec(p, s)
-          @covered_specifications_dictionary[s.id.to_s] = s
+          DocLinker.link_protocol_to_spec(p, s)
+          @project_data.covered_specifications_dictionary[s.id.to_s] = s
         end
       end
     end
     # create coverage documents
-    @covered_specifications_dictionary.each do |_key, value|
+    @project_data.covered_specifications_dictionary.each do |_key, value|
       doc = DocFabric.create_coverage_matrix(value)
-      @coverage_matrices.append doc
+      @project_data.coverage_matrices.append doc
     end
   end
 
   def link_all_source_files
-    # currently no links between source files and specifications
+    return unless DocLinker.link_all_source_files(@project_data)
+
+    # create coverage documents
+    @project_data.implemented_specifications_dictionary.each do |_key, value|
+      doc = DocFabric.create_coverage_matrix(value)
+      @project_data.coverage_matrices.append doc
+    end
   end
 
   def check_wrong_specification_referenced # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
     available_specification_ids = {}
 
-    @specifications.each do |s|
+    @project_data.specifications.each do |s|
       available_specification_ids[s.id.to_s.downcase] = s
     end
 
-    @specifications.each do |s| # rubocop:disable Style/CombinableLoops
+    @project_data.specifications.each do |s| # rubocop:disable Style/CombinableLoops
       s.up_link_docs.each do |key, _value|
         next if available_specification_ids.key?(key)
 
@@ -222,34 +225,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
     # create treceability document
     doc = DocFabric.create_traceability_document(top_document, bottom_document)
-    @traceability_matrices.append doc
-  end
-
-  def link_protocol_to_spec(protocol, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
-    top_document = specification
-    bottom_document = protocol
-
-    bottom_document.controlled_items.each do |item|
-      next unless item.up_link_ids
-
-      item.up_link_ids.each do |up_lnk|
-        if top_document.dictionary.key?(up_lnk.to_s)
-
-          top_item = top_document.dictionary[up_lnk.to_s]
-
-          unless top_item.coverage_links
-            top_item.coverage_links = []
-            top_document.items_with_coverage_number += 1 # for statistics
-          end
-          top_item.coverage_links.append(item)
-        elsif tmp = /^([a-zA-Z]+)-\d+/.match(up_lnk)
-          # check if there is a non existing link with the right doc_id
-          if tmp[1].downcase == top_document.id.downcase
-            bottom_document.wrong_links_hash[up_lnk] = item
-          end # SRS
-        end
-      end
-    end
+    @project_data.traceability_matrices.append doc
   end
 
   def create_index
@@ -281,7 +257,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
     FileUtils.mkdir_p("#{path}/build/tests/protocols")
 
-    @protocols.each do |doc|
+    @project_data.protocols.each do |doc|
       img_src_dir = "#{path}/tests/protocols/#{doc.id}/img"
       img_dst_dir = "#{path}/build/tests/protocols/#{doc.id}/img"
 
@@ -298,7 +274,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     path = @configuration.project_root_directory
     FileUtils.mkdir_p("#{path}/build/source_files")
 
-    @source_files.each do |doc|
+    @project_data.source_files.each do |doc|
       doc.to_console
 
       doc.to_html("#{path}/build/source_files/")
@@ -315,7 +291,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   end
 
   def create_search_data
-    db = SpecificationsDb.new @specifications
+    db = SpecificationsDb.new @project_data.specifications
     data_path = "#{@configuration.project_root_directory}/build/data"
     FileUtils.mkdir_p(data_path)
     db.save(data_path)

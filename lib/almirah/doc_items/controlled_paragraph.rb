@@ -2,7 +2,7 @@ require_relative 'paragraph'
 
 # <REQ> Implementa a controlled paragraph as a subclass of the DocItem >[SRS-001] </REQ>
 class ControlledParagraph < Paragraph
-  attr_accessor :id, :up_link_ids, :down_links, :coverage_links
+  attr_accessor :id, :up_link_ids, :down_links, :coverage_links, :source_code_links
 
   def initialize(doc, text, id)
     super(doc, text)
@@ -11,6 +11,7 @@ class ControlledParagraph < Paragraph
     @up_link_ids = nil
     @down_links = nil
     @coverage_links = nil
+    @source_code_links = nil
   end
 
   def to_html
