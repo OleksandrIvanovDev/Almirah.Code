@@ -51,6 +51,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_specifications(@project_data.coverage_matrices)
     render_all_protocols
     render_all_source_files
+    render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_index
     create_search_data
   end
@@ -97,12 +98,12 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       # puts "Processing repository: #{repos['name']}, #{repos['path']}"
       next unless repos['path'] && Dir.exist?(repos['path'])
 
-      root_path = repos['path']
+      file_path = repos['path']
       Dir.glob("#{repos['path']}/**/*.*").each do |f|
         next unless File.file?(f) && f.end_with?('.c', '.cpp', '.h', '.hpp', '.py', '.java', '.rb', '.js', '.ts', '.go',
                                                  '.rs')
 
-        doc = DocFabric.create_source_file(root_path, f, repos['name'])
+        doc = DocFabric.create_source_file(file_path, f, repos['name'])
         # puts "Source file: #{doc.id}"
         @project_data.source_files.append(doc)
       end
@@ -154,10 +155,10 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   def link_all_source_files
     return unless DocLinker.link_all_source_files(@project_data)
 
-    # create coverage documents
+    # create implementation documents
     @project_data.implemented_specifications_dictionary.each do |_key, value|
-      doc = DocFabric.create_coverage_matrix(value)
-      @project_data.coverage_matrices.append doc
+      doc = DocFabric.create_implementation_document(value)
+      @project_data.implementation_matrices.append doc
     end
   end
 

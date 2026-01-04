@@ -6,13 +6,14 @@ require 'rouge'
 
 class SourceFile < PersistentDocument
   attr_accessor :root_path, :repository, :dictionary, :wrong_links_hash,
-                :items_with_uplinks_number
+                :items_with_uplinks_number, :html_file_path
 
-  def initialize(root_path, fele_path, repository)
+  def initialize(repository_path, fele_path, repository_name)
     super fele_path
-    @root_path = root_path
+    @root_path = repository_path
     @id = File.basename(fele_path).downcase
-    @repository = repository
+    @repository = repository_name
+    @html_file_path = '' # available only afer rendering
 
     @dictionary = {}
     @wrong_links_hash = {}
@@ -67,6 +68,7 @@ class SourceFile < PersistentDocument
     output_file_path += "#{@repository}/"
     output_file_path += @path.sub("#{@root_path}/", '')
     output_file_path += '.html'
+    @html_file_path = output_file_path
     FileUtils.mkdir_p(File.dirname(output_file_path))
 
     # Calculate the relative path depth to determine correct number of parent directory symbols

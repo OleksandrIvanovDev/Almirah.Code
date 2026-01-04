@@ -49,6 +49,9 @@ class BaseDocument # rubocop:disable Style/Documentation
         elsif instance_of? Coverage
           file.puts '<link rel="stylesheet" href="../../css/main.css">'
           file.puts '<script src="../../scripts/main.js"></script>'
+        elsif instance_of? Implementation
+          file.puts '<link rel="stylesheet" href="../../css/main.css">'
+          file.puts '<script src="../../scripts/main.js"></script>'
         elsif instance_of? Protocol
           file.puts '<link rel="stylesheet" href="../../../css/main.css">'
           file.puts '<script src="../../../scripts/main.js"></script>'
