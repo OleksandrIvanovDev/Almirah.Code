@@ -169,6 +169,40 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
       html_rows.append "</table>\n"
     end
 
+    # Implementation Matrices
+    unless @project.project_data.implementation_matrices.empty?
+      s = "<h2>Implementation Matrices</h2>\n"
+      s += "<table class=\"controlled\">\n"
+      s += "\t<thead>\n"
+      s += "\t\t<th>Title</th>\n"
+      s += "\t\t<th title=\"The ratio of Controlled Paragraphs mentioned in source code files and total number of Controlled Paragraphs\">Status</th>\n"
+      s += "\t\t<th>Specification Implemented</th>\n"
+      s += "</thead>\n"
+      html_rows.append s
+
+      sorted_items = @project.project_data.implementation_matrices.sort_by(&:id)
+
+      sorted_items.each do |doc|
+        s = "\t<tr>\n"
+
+        implemented_items = 0
+        doc.top_doc.controlled_items.each do |i|
+          implemented_items += 1 if i.source_code_links && i.source_code_links.length.positive? # rubocop:disable Style/SafeNavigation
+        end
+
+        coverage = implemented_items.to_f / doc.top_doc.controlled_items.length * 100.0
+
+        s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
+        s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n" # rubocop:disable Style/FormatString
+        s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>\
+                    <i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>\
+                    #{doc.top_doc.title}</td>\n"
+        s += "</tr>\n"
+        html_rows.append s
+      end
+      html_rows.append "</table>\n"
+    end
+
     save_html_to_file(html_rows, nil, output_file_path)
   end
 end
