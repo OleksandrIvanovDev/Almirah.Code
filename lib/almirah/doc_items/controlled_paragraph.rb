@@ -34,7 +34,7 @@ class ControlledParagraph < Paragraph
           up_link_doc_name = tmp[1].downcase
         end
         s += "\t\t<td class=\"item_id\">\
-            <a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
+            <a href=\"#{parent_doc.specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
             class=\"external\" title=\"Linked to\">#{@up_link_ids[0]}</a></td>\n"
       else
         s += "\t\t<td class=\"item_id\">"
@@ -47,7 +47,7 @@ class ControlledParagraph < Paragraph
           if tmp = /^([a-zA-Z]+)-\d+/.match(lnk)
             up_link_doc_name = tmp[1].downcase
           end
-          s += "\t\t\t<a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
+          s += "\t\t\t<a href=\"#{parent_doc.specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
             class=\"external\" title=\"Linked to\">#{lnk}</a>\n<br>"
         end
         s += '</div>'

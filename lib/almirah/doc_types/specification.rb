@@ -5,7 +5,7 @@ require_relative 'persistent_document'
 class Specification < PersistentDocument
   attr_accessor :dictionary, :todo_blocks, :wrong_links_hash, :items_with_uplinks_number, :items_with_downlinks_number,
                 :items_with_coverage_number, :duplicated_ids_number, :duplicates_list, :last_used_id,
-                :last_used_id_number, :color, :source_code_links
+                :last_used_id_number, :color, :source_code_links, :specifications_path
 
   def initialize(fele_path)
     super
@@ -25,6 +25,7 @@ class Specification < PersistentDocument
     @color = 'bbb'
 
     @id = File.basename(fele_path, File.extname(fele_path)).downcase
+    @specifications_path = './../'
   end
 
   def to_console
