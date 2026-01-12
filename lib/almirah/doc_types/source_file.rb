@@ -84,6 +84,7 @@ class SourceFile < PersistentDocument
     depth += 1 # for the source_files folder
     css_path = "#{'../' * depth}css/main.css"
     js_path = "#{'../' * depth}scripts/main.js"
+    index_path = "#{'../' * depth}index.html"
 
     file = File.open(output_file_path, 'w')
     file_data.each do |s|
@@ -98,6 +99,8 @@ class SourceFile < PersistentDocument
       elsif s.include?('{{STYLES_AND_SCRIPTS}}')
         file.puts "<link rel=\"stylesheet\" href=\"#{css_path}\">"
         file.puts "<script src=\"#{js_path}\"></script>"
+      elsif s.include?('{{HOME_BUTTON}}')
+        file.puts "<a id=\"index_menu_item\" href=\"#{index_path}\"><span><i class=\"fa fa-info\" aria-hidden=\"true\"></i></span>&nbsp;Index</a>"
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
       else

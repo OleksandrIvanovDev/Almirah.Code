@@ -56,6 +56,14 @@ class BaseDocument # rubocop:disable Style/Documentation
           file.puts '<link rel="stylesheet" href="../../../css/main.css">'
           file.puts '<script src="../../../scripts/main.js"></script>'
         end
+      elsif s.include?('{{HOME_BUTTON}}')
+        if @id == 'index'
+          file.puts '<a id="home_menu_item" href="./index.html"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>'
+        elsif instance_of? Protocol
+          file.puts '<a id="index_menu_item" href="./../../../index.html"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>'
+        else
+           file.puts '<a id="index_menu_item" href="./../../index.html"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>'
+        end
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
       else

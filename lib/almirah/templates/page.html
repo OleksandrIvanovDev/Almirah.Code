@@ -9,8 +9,7 @@
 </head>
 <body>
     <div id="top_nav">
-        <a id="home_menu_item" href="javascript:void(0)" onclick="navigate_to_home()"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>
-        <a id="index_menu_item" href="javascript:void(0)" onclick="navigate_to_home()" style="display: none;"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>
+        {{HOME_BUTTON}}
         <a id="document_tree_menu_item" href="javascript:void(0)" onclick="openNav()" style="display: none;" title="Navigation Pane"><span><i class="fa fa-folder-open-o" aria-hidden="true"></i></span></a>
         <input type="text" id="searchInput" placeholder="Search.." style="display: none;">
         <a class="split">{{DOCUMENT_TITLE}}</a>
