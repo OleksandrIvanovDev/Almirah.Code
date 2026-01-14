@@ -71,7 +71,7 @@ class Implementation < BaseDocument
                 s += "\t<tr>\n"
                 s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 28%;'>#{top_f_text}</td>\n"
-                s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"#{html_source_file_relative_path}##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
+                s += "\t\t<td class=\"item_id\"><a href=\"#{html_source_file_relative_path}##{bottom_item.id}\" class=\"external\">#{bottom_item.id}</a></td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{repository}</td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 16%;'>#{file_name}</td>\n"
                 s += "\t\t<td class=\"item_text\" style='width: 28%;'>#{bottom_f_text}</td>\n"
