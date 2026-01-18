@@ -1,8 +1,12 @@
 require_relative 'doc_types/base_document'
 require_relative 'doc_types/specification'
+require_relative 'doc_types/source_file'
 require_relative 'doc_types/protocol'
 require_relative 'doc_types/coverage'
+require_relative 'doc_types/implementation'
+require_relative 'doc_types/traceability'
 require_relative 'doc_parser'
+require_relative 'source_file_parser'
 require_relative 'dom/document'
 require_relative 'doc_items/heading'
 
@@ -51,8 +55,22 @@ class DocFabric
     doc
   end
 
-  def self.parse_document(doc)
+  def self.create_implementation_document(top_document)
+    doc = Implementation.new top_document
+    Heading.reset_global_section_number
+    doc.headings << Heading.new(doc, doc.title, 0)
+    # Build dom
+    doc.dom = Document.new(doc.headings)
+    doc
+  end
 
+  def self.create_source_file(repository_path, path, repository_name)
+    doc = SourceFile.new repository_path, path, repository_name
+    DocFabric.parse_source_file doc
+    doc
+  end
+
+  def self.parse_document(doc)
     file = File.open(doc.path)
     file_lines = file.readlines
     file.close
@@ -61,5 +79,13 @@ class DocFabric
 
     # Build dom
     doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol)
+  end
+
+  def self.parse_source_file(doc)
+    file = File.open(doc.path)
+    file_lines = file.readlines
+    file.close
+
+    SourceFileParser.parse(doc, file_lines)
   end
 end

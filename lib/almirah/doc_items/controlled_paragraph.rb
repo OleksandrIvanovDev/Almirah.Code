@@ -1,7 +1,8 @@
 require_relative 'paragraph'
 
+# <REQ> Implementa a controlled paragraph as a subclass of the DocItem >[SRS-001] </REQ>
 class ControlledParagraph < Paragraph
-  attr_accessor :id, :up_link_ids, :down_links, :coverage_links
+  attr_accessor :id, :up_link_ids, :down_links, :coverage_links, :source_code_links
 
   def initialize(doc, text, id)
     super(doc, text)
@@ -10,6 +11,7 @@ class ControlledParagraph < Paragraph
     @up_link_ids = nil
     @down_links = nil
     @coverage_links = nil
+    @source_code_links = nil
   end
 
   def to_html
@@ -32,7 +34,7 @@ class ControlledParagraph < Paragraph
           up_link_doc_name = tmp[1].downcase
         end
         s += "\t\t<td class=\"item_id\">\
-            <a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
+            <a href=\"#{parent_doc.specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
             class=\"external\" title=\"Linked to\">#{@up_link_ids[0]}</a></td>\n"
       else
         s += "\t\t<td class=\"item_id\">"
@@ -45,7 +47,7 @@ class ControlledParagraph < Paragraph
           if tmp = /^([a-zA-Z]+)-\d+/.match(lnk)
             up_link_doc_name = tmp[1].downcase
           end
-          s += "\t\t\t<a href=\"./../#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
+          s += "\t\t\t<a href=\"#{parent_doc.specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
             class=\"external\" title=\"Linked to\">#{lnk}</a>\n<br>"
         end
         s += '</div>'
