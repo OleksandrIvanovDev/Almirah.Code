@@ -59,14 +59,18 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength
     parse_all_specifications
     parse_test_run test_run
+    parse_all_source_files
     link_all_specifications
     link_all_protocols
+    link_all_source_files
     check_wrong_specification_referenced
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
     render_all_specifications(@project_data.coverage_matrices)
     render_all_protocols
+    render_all_source_files
+    render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_index
     create_search_data
   end
