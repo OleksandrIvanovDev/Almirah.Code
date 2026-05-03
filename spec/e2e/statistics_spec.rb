@@ -45,4 +45,21 @@ RSpec.describe 'Statistics', type: :aruba do
       expect(cell.text.strip).to eq('1')
     end
   end
+
+  # <REQ> The software shall provide the "Number of Items w/ Up-links" for each specification >[SRS-006] </REQ>
+  describe 'Number of Items with Up-links' do
+    let(:idx) { Nokogiri::HTML(File.read(expand_path('myproject/build/index.html'))) }
+
+    it 'renders 0 up-link items for REQ' do
+      cell = idx.at_xpath('(//tr[.//a[contains(@href,"specifications/req/req.html")]]//td[@class="item_id"])[2]')
+      expect(cell).not_to be_nil
+      expect(cell.text.strip).to eq('0')
+    end
+
+    it 'renders 1 up-link item for ARCH' do
+      cell = idx.at_xpath('(//tr[.//a[contains(@href,"specifications/arch/arch.html")]]//td[@class="item_id"])[2]')
+      expect(cell).not_to be_nil
+      expect(cell.text.strip).to eq('1')
+    end
+  end
 end
