@@ -38,9 +38,13 @@ RSpec.describe 'Decision Records', type: :aruba do
 
     it 'lists all parsed decision records on the overview page' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
-      ids = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
+      sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
+      anchor_ids = doc.xpath('//td[@class="item_id"]//a').map { |a| a['id'] }
+      types = doc.xpath('//td[@class="item_type"]').map { |c| c.text.strip }
       titles = doc.xpath('//td[@class="item_text"]').map { |c| c.text.strip }
-      expect(ids).to contain_exactly('adr-001-foo', 'adr-002-bar')
+      expect(sequence_numbers).to contain_exactly('001', '002')
+      expect(anchor_ids).to contain_exactly('adr-001', 'adr-002')
+      expect(types).to contain_exactly('ADR', 'ADR')
       expect(titles).to contain_exactly('ADR-001: First Decision', 'ADR-002: Second Decision')
     end
 
@@ -74,15 +78,72 @@ RSpec.describe 'Decision Records', type: :aruba do
         specifications:
           input: []
       YML
-      write_file('myproject/specifications/req/req.md', "# Requirements\n\n[REQ-001] x\n")
       write_file('myproject/decisions/adr-001-titleless.md', "body without heading\n")
       run_command_and_stop('almirah please myproject')
     end
 
-    it 'falls back to the filename-derived id for the title' do
+    it 'derives the id from the letters-digits prefix and falls back to the full stem for the title' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
+      anchor_ids = doc.xpath('//td[@class="item_id"]//a').map { |a| a['id'] }
+      types = doc.xpath('//td[@class="item_type"]').map { |c| c.text.strip }
       titles = doc.xpath('//td[@class="item_text"]').map { |c| c.text.strip }
+      expect(sequence_numbers).to eq(['001'])
+      expect(anchor_ids).to eq(['adr-001'])
+      expect(types).to eq(['ADR'])
       expect(titles).to eq(['adr-001-titleless'])
+    end
+  end
+
+  context 'when a decision record filename has no descriptive suffix' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+      YML
+      write_file('myproject/decisions/ise-1892.md', <<~MD)
+        # ISE-1892: A redmine-style record
+
+        body
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    it 'uses the full letters-digits stem as the id and shows the digits in the # column' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
+      anchor_ids = doc.xpath('//td[@class="item_id"]//a').map { |a| a['id'] }
+      types = doc.xpath('//td[@class="item_type"]').map { |c| c.text.strip }
+      titles = doc.xpath('//td[@class="item_text"]').map { |c| c.text.strip }
+      expect(sequence_numbers).to eq(['1892'])
+      expect(anchor_ids).to eq(['ise-1892'])
+      expect(types).to eq(['ISE'])
+      expect(titles).to eq(['ISE-1892: A redmine-style record'])
+    end
+  end
+
+  context 'when a decision record filename does not match the convention' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+      YML
+      write_file('myproject/decisions/meeting-notes.md', <<~MD)
+        # Meeting notes
+
+        body
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    it 'falls back to the full filename stem as the id and as the # column label, with empty Type' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
+      anchor_ids = doc.xpath('//td[@class="item_id"]//a').map { |a| a['id'] }
+      types = doc.xpath('//td[@class="item_type"]').map { |c| c.text.strip }
+      expect(sequence_numbers).to eq(['meeting-notes'])
+      expect(anchor_ids).to eq(['meeting-notes'])
+      expect(types).to eq([''])
     end
   end
 

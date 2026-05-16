@@ -110,6 +110,11 @@ table.controlled td.item_id {
     width: 3%;
     text-align: center;
 }
+table.controlled td.item_type {
+    width: 5%;
+    text-align: center;
+    font-weight: normal;
+}
 table.controlled td.item_text{
     text-align: left;
 }
