@@ -5,6 +5,8 @@ require_relative 'doc_types/protocol'
 require_relative 'doc_types/coverage'
 require_relative 'doc_types/implementation'
 require_relative 'doc_types/traceability'
+require_relative 'doc_types/decision'
+require_relative 'doc_types/decisions_overview'
 require_relative 'doc_parser'
 require_relative 'source_file_parser'
 require_relative 'dom/document'
@@ -62,6 +64,14 @@ class DocFabric
     # Build dom
     doc.dom = Document.new(doc.headings)
     doc
+  end
+
+  def self.create_decision(path)
+    Decision.new path
+  end
+
+  def self.create_decisions_overview(project)
+    DecisionsOverview.new project
   end
 
   def self.create_source_file(repository_path, path, repository_name)

@@ -37,10 +37,11 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     FileUtils.copy_entry(src_folder, dst_folder)
   end
 
-  def specifications_and_protocols # rubocop:disable Metrics/MethodLength
+  def specifications_and_protocols # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     parse_all_specifications
     parse_all_protocols
     parse_all_source_files
+    parse_decisions
     link_all_specifications
     link_all_protocols
     link_all_source_files
@@ -52,14 +53,16 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_protocols
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
+    render_decisions_overview
     render_index
     create_search_data
   end
 
-  def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength
+  def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     parse_all_specifications
     parse_test_run test_run
     parse_all_source_files
+    parse_decisions
     link_all_specifications
     link_all_protocols
     link_all_source_files
@@ -71,6 +74,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_protocols
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
+    render_decisions_overview
     render_index
     create_search_data
   end
@@ -112,6 +116,15 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
         @project_data.source_files.append(doc)
       end
     end
+  end
+
+  def parse_decisions
+    path = @configuration.project_root_directory
+    Dir.glob("#{path}/decisions/**/*.md").each do |f|
+      doc = DocFabric.create_decision(f)
+      @project_data.decisions.append(doc)
+    end
+    BaseDocument.show_decisions_link = @project_data.decisions.any?
   end
 
   def parse_test_run(test_run)
@@ -293,6 +306,17 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     doc.to_console
 
     doc.to_html("#{path}/build/")
+  end
+
+  def render_decisions_overview
+    return if @project_data.decisions.empty?
+
+    path = @configuration.project_root_directory
+    FileUtils.mkdir_p("#{path}/build/decisions")
+
+    doc = DocFabric.create_decisions_overview(@project)
+    doc.to_console
+    doc.to_html("#{path}/build/decisions/")
   end
 
   def create_search_data

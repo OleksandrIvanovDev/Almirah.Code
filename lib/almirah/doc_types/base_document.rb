@@ -3,6 +3,10 @@
 class BaseDocument # rubocop:disable Style/Documentation
   attr_accessor :title, :id, :dom, :headings
 
+  class << self
+    attr_accessor :show_decisions_link
+  end
+
   def initialize
     @items = []
     @headings = []
@@ -21,6 +25,8 @@ class BaseDocument # rubocop:disable Style/Documentation
 
     output_file_path += if @id == 'index'
                           "#{@id}.html"
+                        elsif instance_of? DecisionsOverview
+                          'overview.html'
                         else
                           "#{@id}/#{@id}.html"
                         end
@@ -55,14 +61,23 @@ class BaseDocument # rubocop:disable Style/Documentation
         elsif instance_of? Protocol
           file.puts '<link rel="stylesheet" href="../../../css/main.css">'
           file.puts '<script src="../../../scripts/main.js"></script>'
+        elsif instance_of? DecisionsOverview
+          file.puts '<link rel="stylesheet" href="../css/main.css">'
+          file.puts '<script src="../scripts/main.js"></script>'
         end
       elsif s.include?('{{HOME_BUTTON}}')
         if @id == 'index'
           file.puts '<a id="home_menu_item" href="./index.html"><span><i class="fa fa-home" aria-hidden="true"></i></span>&nbsp;Home</a>'
+          file.puts decisions_link('./decisions/overview.html') if BaseDocument.show_decisions_link
         elsif instance_of? Protocol
           file.puts '<a id="index_menu_item" href="./../../../index.html"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>'
+          file.puts decisions_link('./../../../decisions/overview.html') if BaseDocument.show_decisions_link
+        elsif instance_of? DecisionsOverview
+          file.puts index_link('./../index.html')
+          file.puts decisions_link('./overview.html')
         else
-           file.puts '<a id="index_menu_item" href="./../../index.html"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>'
+          file.puts '<a id="index_menu_item" href="./../../index.html"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>'
+          file.puts decisions_link('./../../decisions/overview.html') if BaseDocument.show_decisions_link
         end
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
@@ -71,5 +86,15 @@ class BaseDocument # rubocop:disable Style/Documentation
       end
     end
     file.close
+  end
+
+  def decisions_link(href)
+    icon = '<span><i class="fa fa-gavel" aria-hidden="true"></i></span>'
+    %(<a id="decisions_menu_item" href="#{href}">#{icon}&nbsp;Decision Records</a>)
+  end
+
+  def index_link(href)
+    icon = '<span><i class="fa fa-info" aria-hidden="true"></i></span>'
+    %(<a id="index_menu_item" href="#{href}">#{icon}&nbsp;Index</a>)
   end
 end
