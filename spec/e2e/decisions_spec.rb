@@ -36,10 +36,16 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
+    # <REQ> Provide a Decision Records Overview page with Sequence Number, Type, Title columns. >[SRS-041] </REQ>
     it 'renders build/decisions/overview.html' do
       expect(File.exist?(expand_path('myproject/build/decisions/overview.html'))).to be true
     end
 
+    # <REQ> ID derived from filename letters-digits prefix; full stem when no match. >[SRS-040] </REQ>
+    # <REQ> Provide a Decision Records Overview page with Sequence Number, Type, Title columns. >[SRS-041] </REQ>
+    # <REQ> Sequence Number is the digits portion of the ID. >[SRS-044] </REQ>
+    # <REQ> Type is the letters portion of the ID, in upper case. >[SRS-045] </REQ>
+    # <REQ> Title comes from the YAML frontmatter title field. >[SRS-046] </REQ>
     it 'lists all parsed decision records on the overview page' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
@@ -52,6 +58,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(titles).to contain_exactly('ADR-001: First Decision', 'ADR-002: Second Decision')
     end
 
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'adds the Decision Records link to the index page top-nav' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
       link = doc.at_css('#decisions_menu_item')
@@ -61,6 +68,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(link.at_css('i')['class']).to include('fa-gavel')
     end
 
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'adds the Decision Records link to specification page top-nav with correct relative path' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       link = doc.at_css('#decisions_menu_item')
@@ -68,6 +76,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(link['href']).to eq('./../../decisions/overview.html')
     end
 
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'adds the Decision Records link to the overview page itself' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       link = doc.at_css('#decisions_menu_item')
@@ -75,11 +84,14 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(link['href']).to eq('./overview.html')
     end
 
+    # <REQ> Render each decision record to an HTML page named after the Decision Record ID. >[SRS-047] </REQ>
     it 'renders an HTML page per decision using the id as the filename' do
       expect(File.exist?(expand_path('myproject/build/decisions/adr-001.html'))).to be true
       expect(File.exist?(expand_path('myproject/build/decisions/adr-002.html'))).to be true
     end
 
+    # <REQ> Render each decision record to an HTML page named after the Decision Record ID. >[SRS-047] </REQ>
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'sets correct CSS/JS and top-nav paths on top-level decision pages' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/adr-001.html')))
       css_hrefs = doc.css('link[rel="stylesheet"]').map { |l| l['href'] }
@@ -90,6 +102,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(doc.at_css('#decisions_menu_item')['href']).to eq('../decisions/overview.html')
     end
 
+    # <REQ> Title click in the overview navigates to the rendered decision page. >[SRS-042] </REQ>
     it 'links each overview title to the rendered decision page' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       hrefs = doc.xpath('//td[@class="item_text"]/a').map { |a| a['href'] }
@@ -113,10 +126,15 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
+    # <REQ> Accept decision records placed in the decisions/ folder, including nested subfolders. >[SRS-043] </REQ>
+    # <REQ> Render each decision record to an HTML page named after the Decision Record ID. >[SRS-047] </REQ>
     it 'mirrors the source folder structure in build/decisions' do
       expect(File.exist?(expand_path('myproject/build/decisions/enhancements/adr-200.html'))).to be true
     end
 
+    # <REQ> Accept decision records placed in the decisions/ folder, including nested subfolders. >[SRS-043] </REQ>
+    # <REQ> Render each decision record to an HTML page named after the Decision Record ID. >[SRS-047] </REQ>
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'sets CSS/JS and top-nav paths relative to the nested depth' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/enhancements/adr-200.html')))
       css_hrefs = doc.css('link[rel="stylesheet"]').map { |l| l['href'] }
@@ -127,6 +145,8 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(doc.at_css('#decisions_menu_item')['href']).to eq('../../decisions/overview.html')
     end
 
+    # <REQ> Title click in the overview navigates to the rendered decision page. >[SRS-042] </REQ>
+    # <REQ> Accept decision records placed in the decisions/ folder, including nested subfolders. >[SRS-043] </REQ>
     it 'links the overview title to the nested rendered page' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       hrefs = doc.xpath('//td[@class="item_text"]/a').map { |a| a['href'] }
@@ -144,6 +164,9 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
+    # <REQ> ID derived from filename letters-digits prefix; full stem when no match. >[SRS-040] </REQ>
+    # <REQ> Sequence Number is the digits portion of the ID. >[SRS-044] </REQ>
+    # <REQ> Type is the letters portion of the ID, in upper case. >[SRS-045] </REQ>
     it 'derives the id from the letters-digits prefix and falls back to <id>.md for the title' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
@@ -173,6 +196,10 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
+    # <REQ> ID derived from filename letters-digits prefix; full stem when no match. >[SRS-040] </REQ>
+    # <REQ> Sequence Number is the digits portion of the ID. >[SRS-044] </REQ>
+    # <REQ> Type is the letters portion of the ID, in upper case. >[SRS-045] </REQ>
+    # <REQ> Title comes from the YAML frontmatter title field. >[SRS-046] </REQ>
     it 'uses the full letters-digits stem as the id and shows the digits in the # column' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
@@ -204,6 +231,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
+    # <REQ> Title comes from the YAML frontmatter title field. >[SRS-046] </REQ>
     it 'uses the frontmatter title rather than the H1' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       titles = doc.xpath('//td[@class="item_text"]').map { |c| c.text.strip }
@@ -225,6 +253,8 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
+    # <REQ> ID derived from filename letters-digits prefix; full stem when no match. >[SRS-040] </REQ>
+    # <REQ> Type is the letters portion of the ID, in upper case. >[SRS-045] </REQ>
     it 'falls back to the full filename stem as the id and as the # column label, with empty Type' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
@@ -254,11 +284,13 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(File.exist?(expand_path('myproject/build/decisions/overview.html'))).to be false
     end
 
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'does not add the Decision Records link to the index page' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
       expect(doc.at_css('#decisions_menu_item')).to be_nil
     end
 
+    # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'does not add the Decision Records link to spec pages' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       expect(doc.at_css('#decisions_menu_item')).to be_nil
