@@ -15,14 +15,18 @@ RSpec.describe 'Decision Records', type: :aruba do
         [REQ-001] A first requirement.
       MD
       write_file('myproject/decisions/adr-001-foo.md', <<~MD)
-        # ADR-001: First Decision
+        ---
+        title: "ADR-001: First Decision"
+        ---
 
         ## Context
 
         A first decision.
       MD
       write_file('myproject/decisions/adr-002-bar.md', <<~MD)
-        # ADR-002: Second Decision
+        ---
+        title: "ADR-002: Second Decision"
+        ---
 
         ## Context
 
@@ -72,17 +76,17 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
-  context 'when a decision record has no H1 heading' do
+  context 'when a decision record has no frontmatter title' do
     before do
       write_file('myproject/project.yml', <<~YML)
         specifications:
           input: []
       YML
-      write_file('myproject/decisions/adr-001-titleless.md', "body without heading\n")
+      write_file('myproject/decisions/adr-001-titleless.md', "body without frontmatter or heading\n")
       run_command_and_stop('almirah please myproject')
     end
 
-    it 'derives the id from the letters-digits prefix and falls back to the full stem for the title' do
+    it 'derives the id from the letters-digits prefix and falls back to <id>.md for the title' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       sequence_numbers = doc.xpath('//td[@class="item_id"]').map { |c| c.text.strip }
       anchor_ids = doc.xpath('//td[@class="item_id"]//a').map { |a| a['id'] }
@@ -91,7 +95,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(sequence_numbers).to eq(['001'])
       expect(anchor_ids).to eq(['adr-001'])
       expect(types).to eq(['ADR'])
-      expect(titles).to eq(['adr-001-titleless'])
+      expect(titles).to eq(['adr-001.md'])
     end
   end
 
@@ -102,7 +106,9 @@ RSpec.describe 'Decision Records', type: :aruba do
           input: []
       YML
       write_file('myproject/decisions/ise-1892.md', <<~MD)
-        # ISE-1892: A redmine-style record
+        ---
+        title: "ISE-1892: A redmine-style record"
+        ---
 
         body
       MD
@@ -119,6 +125,31 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(anchor_ids).to eq(['ise-1892'])
       expect(types).to eq(['ISE'])
       expect(titles).to eq(['ISE-1892: A redmine-style record'])
+    end
+  end
+
+  context 'when a decision record has both frontmatter title and an H1' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+      YML
+      write_file('myproject/decisions/adr-042-precedence.md', <<~MD)
+        ---
+        title: "From Frontmatter"
+        ---
+
+        # Different H1 In Body
+
+        body
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    it 'uses the frontmatter title rather than the H1' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      titles = doc.xpath('//td[@class="item_text"]').map { |c| c.text.strip }
+      expect(titles).to eq(['From Frontmatter'])
     end
   end
 

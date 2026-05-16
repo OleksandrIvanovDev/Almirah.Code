@@ -67,7 +67,9 @@ class DocFabric
   end
 
   def self.create_decision(path)
-    Decision.new path
+    doc = Decision.new path
+    DocFabric.parse_document doc
+    doc
   end
 
   def self.create_decisions_overview(project)
@@ -88,7 +90,7 @@ class DocFabric
     DocParser.parse(doc, file_lines)
 
     # Build dom
-    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol)
+    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol) || doc.is_a?(Decision)
   end
 
   def self.parse_source_file(doc)
