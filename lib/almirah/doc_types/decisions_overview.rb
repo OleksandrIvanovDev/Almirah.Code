@@ -37,7 +37,8 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
       s += "\t\t\t<a #{anchor_attrs}><b>#{label}</b></a>"
       s += "\t\t</td>\n"
       s += "\t\t<td class=\"item_type\">#{doc.record_type}</td>\n"
-      s += "\t\t<td class=\"item_text\" style='padding: 5px;'>#{doc.title}</td>\n"
+      title_html = doc.html_rel_path ? %(<a href="./#{doc.html_rel_path}" class="external">#{doc.title}</a>) : doc.title
+      s += "\t\t<td class=\"item_text\" style='padding: 5px;'>#{title_html}</td>\n"
       s += "</tr>\n"
       html_rows.append s
     end

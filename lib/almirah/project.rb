@@ -54,6 +54,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_decisions_overview
+    render_all_decisions
     render_index
     create_search_data
   end
@@ -75,6 +76,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_decisions_overview
+    render_all_decisions
     render_index
     create_search_data
   end
@@ -120,8 +122,11 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
   def parse_decisions
     path = @configuration.project_root_directory
-    Dir.glob("#{path}/decisions/**/*.md").each do |f|
+    decisions_root = "#{path}/decisions"
+    Dir.glob("#{decisions_root}/**/*.md").each do |f|
       doc = DocFabric.create_decision(f)
+      rel_dir = File.dirname(f.sub("#{decisions_root}/", ''))
+      doc.html_rel_path = rel_dir == '.' ? "#{doc.id}.html" : "#{rel_dir}/#{doc.id}.html"
       @project_data.decisions.append(doc)
     end
     BaseDocument.show_decisions_link = @project_data.decisions.any?
@@ -317,6 +322,21 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     doc = DocFabric.create_decisions_overview(@project)
     doc.to_console
     doc.to_html("#{path}/build/decisions/")
+  end
+
+  def render_all_decisions # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    return if @project_data.decisions.empty?
+
+    build_decisions_root = "#{@configuration.project_root_directory}/build/decisions"
+    @project_data.decisions.each do |doc|
+      out_dir_rel = File.dirname(doc.html_rel_path)
+      out_dir = out_dir_rel == '.' ? build_decisions_root : "#{build_decisions_root}/#{out_dir_rel}"
+      FileUtils.mkdir_p(out_dir)
+      depth = 1 + (out_dir_rel == '.' ? 0 : out_dir_rel.split('/').size)
+      doc.root_prefix = '../' * depth
+      doc.to_console
+      doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
+    end
   end
 
   def create_search_data

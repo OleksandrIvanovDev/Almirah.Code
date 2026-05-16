@@ -27,6 +27,8 @@ class BaseDocument # rubocop:disable Style/Documentation
                           "#{@id}.html"
                         elsif instance_of? DecisionsOverview
                           'overview.html'
+                        elsif instance_of? Decision
+                          "#{@id}.html"
                         else
                           "#{@id}/#{@id}.html"
                         end
@@ -64,6 +66,9 @@ class BaseDocument # rubocop:disable Style/Documentation
         elsif instance_of? DecisionsOverview
           file.puts '<link rel="stylesheet" href="../css/main.css">'
           file.puts '<script src="../scripts/main.js"></script>'
+        elsif instance_of? Decision
+          file.puts "<link rel=\"stylesheet\" href=\"#{root_prefix}css/main.css\">"
+          file.puts "<script src=\"#{root_prefix}scripts/main.js\"></script>"
         end
       elsif s.include?('{{HOME_BUTTON}}')
         if @id == 'index'
@@ -75,6 +80,9 @@ class BaseDocument # rubocop:disable Style/Documentation
         elsif instance_of? DecisionsOverview
           file.puts index_link('./../index.html')
           file.puts decisions_link('./overview.html')
+        elsif instance_of? Decision
+          file.puts index_link("#{root_prefix}index.html")
+          file.puts decisions_link("#{root_prefix}decisions/overview.html")
         else
           file.puts '<a id="index_menu_item" href="./../../index.html"><span><i class="fa fa-info" aria-hidden="true"></i></span>&nbsp;Index</a>'
           file.puts decisions_link('./../../decisions/overview.html') if BaseDocument.show_decisions_link

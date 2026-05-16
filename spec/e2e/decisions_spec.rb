@@ -74,6 +74,64 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(link).not_to be_nil
       expect(link['href']).to eq('./overview.html')
     end
+
+    it 'renders an HTML page per decision using the id as the filename' do
+      expect(File.exist?(expand_path('myproject/build/decisions/adr-001.html'))).to be true
+      expect(File.exist?(expand_path('myproject/build/decisions/adr-002.html'))).to be true
+    end
+
+    it 'sets correct CSS/JS and top-nav paths on top-level decision pages' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/adr-001.html')))
+      css_hrefs = doc.css('link[rel="stylesheet"]').map { |l| l['href'] }
+      js_srcs   = doc.css('script[src]').map { |s| s['src'] }
+      expect(css_hrefs).to include('../css/main.css')
+      expect(js_srcs).to include('../scripts/main.js')
+      expect(doc.at_css('#index_menu_item')['href']).to eq('../index.html')
+      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../decisions/overview.html')
+    end
+
+    it 'links each overview title to the rendered decision page' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      hrefs = doc.xpath('//td[@class="item_text"]/a').map { |a| a['href'] }
+      expect(hrefs).to contain_exactly('./adr-001.html', './adr-002.html')
+    end
+  end
+
+  context 'when a decision record lives in a nested folder' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+      YML
+      write_file('myproject/decisions/enhancements/adr-200-nested.md', <<~MD)
+        ---
+        title: "ADR-200: A nested decision"
+        ---
+
+        body
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    it 'mirrors the source folder structure in build/decisions' do
+      expect(File.exist?(expand_path('myproject/build/decisions/enhancements/adr-200.html'))).to be true
+    end
+
+    it 'sets CSS/JS and top-nav paths relative to the nested depth' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/enhancements/adr-200.html')))
+      css_hrefs = doc.css('link[rel="stylesheet"]').map { |l| l['href'] }
+      js_srcs   = doc.css('script[src]').map { |s| s['src'] }
+      expect(css_hrefs).to include('../../css/main.css')
+      expect(js_srcs).to include('../../scripts/main.js')
+      expect(doc.at_css('#index_menu_item')['href']).to eq('../../index.html')
+      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../../decisions/overview.html')
+    end
+
+    it 'links the overview title to the nested rendered page' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      hrefs = doc.xpath('//td[@class="item_text"]/a').map { |a| a['href'] }
+      expect(hrefs).to eq(['./enhancements/adr-200.html'])
+    end
   end
 
   context 'when a decision record has no frontmatter title' do

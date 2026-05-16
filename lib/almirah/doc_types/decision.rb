@@ -3,7 +3,7 @@
 require_relative 'persistent_document'
 
 class Decision < PersistentDocument # rubocop:disable Style/Documentation
-  attr_accessor :path, :sequence_number, :record_type
+  attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix
 
   def initialize(file_path)
     super
@@ -17,17 +17,14 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
   end
 
   def to_html(nav_pane, output_file_path)
+    html_rows = []
+    html_rows.append('')
 
-        html_rows = Array.new
+    @items.each do |item|
+      html_rows.append item.to_html
+    end
 
-        html_rows.append('')
-
-        @items.each do |item|
-            a = item.to_html
-            html_rows.append a
-        end
-
-        self.save_html_to_file(html_rows, nav_pane, output_file_path)
+    save_html_to_file(html_rows, nav_pane, output_file_path)
   end
 
   private
