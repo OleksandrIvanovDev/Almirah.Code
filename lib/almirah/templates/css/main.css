@@ -64,10 +64,13 @@ table.markdown_table th{
     background-color:#EEEEEE;
 }
 table.markdown_table td{
-    border: 1px solid #bbb; 
+    border: 1px solid #bbb;
     padding: 4px;
     display: table-cell;
     vertical-align: inherit;
+}
+table.markdown_table tr.current_status td {
+    background-color: #ffffee;
 }
 table.controlled{
     border: 1px solid #e4e4e4;

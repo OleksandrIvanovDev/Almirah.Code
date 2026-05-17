@@ -71,7 +71,12 @@ class MarkdownTable < DocItem
     s += " </thead>\n"
 
     @rows.each do |row|
-      s += "\t<tr>\n"
+      tr_class = if @is_decision_status_table && row[0].to_s.strip == '*'
+                   ' class="current_status"'
+                 else
+                   ''
+                 end
+      s += "\t<tr#{tr_class}>\n"
       row.each_with_index do |col, index|
         cell = col
         cell = '▶' if @is_decision_status_table && index.zero? && col.strip == '*'
