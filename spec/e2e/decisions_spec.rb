@@ -296,4 +296,135 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(doc.at_css('#decisions_menu_item')).to be_nil
     end
   end
+
+  context 'when a decision record has a single "*" current-status marker' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-300-marked.md', <<~MD)
+        ---
+        title: "ADR-300: Marked Record"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 17-05-2026 | Proposed |
+        | * | 17-05-2026 | Accepted |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Decision Record current status comes from the "*"-marked row of the Status table. >[SRS-049] </REQ>
+    # <REQ> Decision Records Overview page has a Status column between Type and Title. >[SRS-051] </REQ>
+    it 'shows the marked row status value in the overview Status column' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      statuses = doc.xpath('//td[@class="item_status"]').map { |c| c.text.strip }
+      expect(statuses).to eq(['Accepted'])
+    end
+
+    # <REQ> Decision Records Overview page has a Status column between Type and Title. >[SRS-051] </REQ>
+    it 'places the Status column between Type and Title in the overview' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      header_cells = doc.xpath('//table[@class="controlled"]/thead/th').map { |th| th.text.strip }
+      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title'])
+    end
+
+    # <REQ> Render the "*" in the Status table marker column as "▶" in the rendered HTML. >[SRS-050] </REQ>
+    it 'renders the marker as ▶ in the decision page Status table' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/adr-300.html')))
+      status_table = doc.css('table.markdown_table').first
+      first_column_cells = status_table.css('tr').map { |tr| tr.css('td').first&.text&.strip }.compact
+      expect(first_column_cells).to include('▶')
+      expect(first_column_cells).not_to include('*')
+    end
+  end
+
+  context 'when a decision record has no current-status marker' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-301-unmarked.md', <<~MD)
+        ---
+        title: "ADR-301: Unmarked Record"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 17-05-2026 | Proposed |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Current status is undefined when zero rows carry the marker. >[SRS-049] </REQ>
+    # <REQ> Decision Records Overview Status cell is empty when current status is undefined. >[SRS-051] </REQ>
+    it 'leaves the overview Status cell empty' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      statuses = doc.xpath('//td[@class="item_status"]').map { |c| c.text.strip }
+      expect(statuses).to eq([''])
+    end
+  end
+
+  context 'when a decision record has multiple current-status markers' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-302-multi.md', <<~MD)
+        ---
+        title: "ADR-302: Multi-Marker Record"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 17-05-2026 | Proposed |
+        | * | 17-05-2026 | Accepted |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Current status is undefined when more than one row carries the marker. >[SRS-049] </REQ>
+    # <REQ> Decision Records Overview Status cell is empty when current status is undefined. >[SRS-051] </REQ>
+    it 'leaves the overview Status cell empty' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      statuses = doc.xpath('//td[@class="item_status"]').map { |c| c.text.strip }
+      expect(statuses).to eq([''])
+    end
+  end
+
+  context 'when a decision record has "*" in a non-Status table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-303-other-tables.md', <<~MD)
+        ---
+        title: "ADR-303: Marker In Non-Status Table"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 17-05-2026 | Accepted |
+
+        # Scope
+
+        | Item | Status | Note |
+        |---|---|---|
+        | Code | Done | * |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Triangle substitution applies only to the Status table. >[SRS-050] </REQ>
+    it 'does not substitute "*" outside the Status table' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/adr-303.html')))
+      tables = doc.css('table.markdown_table')
+      status_first_col = tables[0].css('tr').map { |tr| tr.css('td').first&.text&.strip }.compact
+      scope_cells = tables[1].css('td').map { |td| td.text.strip }
+      expect(status_first_col).to include('▶')
+      expect(scope_cells).to include('*')
+      expect(scope_cells).not_to include('▶')
+    end
+  end
 end
