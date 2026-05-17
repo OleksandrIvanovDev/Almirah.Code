@@ -174,7 +174,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           doc.items.append(item)
 
-        elsif res = /^(\*\s+)(.*)/.match(s) # check if unordered list start
+        elsif res = /^([*\-]\s+)(.*)/.match(s) # check if unordered list start
 
           if doc.title == ''
             # dummy section if root is not a Document Title (level 0)
