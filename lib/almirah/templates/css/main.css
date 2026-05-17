@@ -115,6 +115,10 @@ table.controlled td.item_type {
     text-align: center;
     font-weight: normal;
 }
+table.controlled td.item_status {
+    width: 5%;
+    text-align: center;
+}
 table.controlled td.item_text{
     text-align: left;
 }

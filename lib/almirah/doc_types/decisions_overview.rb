@@ -25,6 +25,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
     html_rows.append "\t<thead>\n"
     html_rows.append "\t\t<th>#</th>\n"
     html_rows.append "\t\t<th>Type</th>\n"
+    html_rows.append "\t\t<th>Status</th>\n"
     html_rows.append "\t\t<th>Title</th>\n"
     html_rows.append "</thead>\n"
 
@@ -37,6 +38,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
       s += "\t\t\t<a #{anchor_attrs}><b>#{label}</b></a>"
       s += "\t\t</td>\n"
       s += "\t\t<td class=\"item_type\">#{doc.record_type}</td>\n"
+      s += "\t\t<td class=\"item_status\">#{doc.current_status}</td>\n"
       title_html = doc.html_rel_path ? %(<a href="./#{doc.html_rel_path}" class="external">#{doc.title}</a>) : doc.title
       s += "\t\t<td class=\"item_text\" style='padding: 5px;'>#{title_html}</td>\n"
       s += "</tr>\n"

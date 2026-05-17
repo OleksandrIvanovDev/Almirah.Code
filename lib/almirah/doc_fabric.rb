@@ -69,6 +69,7 @@ class DocFabric
   def self.create_decision(path)
     doc = Decision.new path
     DocFabric.parse_document doc
+    doc.extract_current_status
     doc
   end
 
