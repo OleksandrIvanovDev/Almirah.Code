@@ -338,6 +338,17 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(first_column_cells).to include('▶')
       expect(first_column_cells).not_to include('*')
     end
+
+    # <REQ> Highlight the current-status row in the Status table for visual emphasis. >[SRS-050] </REQ>
+    it 'tags the marked row with the current_status class so CSS can highlight it' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/adr-300.html')))
+      status_table = doc.css('table.markdown_table').first
+      marked_rows = status_table.css('tr.current_status')
+      expect(marked_rows.length).to eq(1)
+      expect(marked_rows.first.css('td').first.text.strip).to eq('▶')
+      unmarked_rows = status_table.css('tr:not(.current_status)')
+      expect(unmarked_rows.any? { |tr| tr.css('td').first&.text&.include?('▶') }).to be false
+    end
   end
 
   context 'when a decision record has no current-status marker' do
