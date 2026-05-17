@@ -49,6 +49,8 @@ Almirah is a Ruby gem (CLI via Thor) that processes Markdown-based ALM (Applicat
 | `Coverage` | Matrix of test protocol → specification coverage |
 | `Implementation` | Matrix of source file → specification links |
 | `Index` | Main navigation/overview page |
+| `Decision` | Decision record (ADR / issue / enhancement) parsed from `<project>/decisions/` |
+| `DecisionsOverview` | Listing page rendered to `build/decisions/overview.html` |
 
 ### Key Concepts
 
