@@ -121,6 +121,16 @@ table.controlled td.item_type {
 table.controlled td.item_status {
     width: 5%;
     text-align: center;
+    white-space: nowrap;
+}
+table.controlled.decisions_overview th {
+    font-weight: bold;
+}
+table.controlled.decisions_overview td.item_id {
+    font-weight: bold;
+}
+table.controlled.decisions_overview td.item_text {
+    font-weight: bold;
 }
 table.controlled td.item_text{
     text-align: left;

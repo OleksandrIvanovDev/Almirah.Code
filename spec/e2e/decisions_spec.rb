@@ -326,8 +326,9 @@ RSpec.describe 'Decision Records', type: :aruba do
     # <REQ> Decision Records Overview page has a Status column between Type and Title. >[SRS-051] </REQ>
     it 'places the Status column between Type and Title in the overview' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
-      header_cells = doc.xpath('//table[@class="controlled"]/thead/th').map { |th| th.text.strip }
-      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title'])
+      table_xpath = '//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th'
+      header_cells = doc.xpath(table_xpath).map { |th| th.text.strip }
+      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Owner'])
     end
 
     # <REQ> Render the "*" in the Status table marker column as "▶" in the rendered HTML. >[SRS-050] </REQ>
