@@ -2,7 +2,7 @@ require_relative 'paragraph'
 
 # <REQ> Implementa a controlled paragraph as a subclass of the DocItem >[SRS-001] </REQ>
 class ControlledParagraph < Paragraph
-  attr_accessor :id, :up_link_ids, :down_links, :coverage_links, :source_code_links
+  attr_accessor :id, :up_link_ids, :down_links, :coverage_links, :source_code_links, :decision_record_links
 
   def initialize(doc, text, id)
     super(doc, text)
@@ -12,6 +12,7 @@ class ControlledParagraph < Paragraph
     @down_links = nil
     @coverage_links = nil
     @source_code_links = nil
+    @decision_record_links = nil
   end
 
   def to_html
@@ -19,7 +20,7 @@ class ControlledParagraph < Paragraph
     unless @@html_table_render_in_progress
       s += "<table class=\"controlled\">\n"
       s += "\t<thead> <th>#</th> <th></th> <th title=\"Up-links\">UL</th> <th title=\"Down-links\">DL</th> \
-        <th title=\"Test Coverage\">COV</th> </thead>\n"
+        <th title=\"Test Coverage\">COV</th> <th title=\"Decision Record\">DR</th> </thead>\n"
       @@html_table_render_in_progress = true # rubocop:disable Style/ClassVars
     end
     f_text = format_string(@text)
@@ -101,6 +102,31 @@ class ControlledParagraph < Paragraph
         @coverage_links.each do |lnk|
           s += "\t\t\t<a href=\"./../../tests/protocols/#{lnk.parent_doc.id}/#{lnk.parent_doc.id}.html##{lnk.id}\" \
             class=\"external\" title=\"Covered in\">#{lnk.id}</a>\n<br>"
+        end
+        s += '</div>'
+        s += "</td>\n"
+      end
+    else
+      s += "\t\t<td class=\"item_id\"></td>\n"
+    end
+
+    if @decision_record_links
+      if @decision_record_links.length == 1
+        dr_doc = @decision_record_links[0].parent_doc
+        s += "\t\t<td class=\"item_id\">\
+            <a href=\"./../../decisions/#{dr_doc.html_rel_path}\" \
+            class=\"external\" title=\"Decision Record\">#{dr_doc.id}</a></td>\n"
+      else
+        s += "\t\t<td class=\"item_id\">"
+        s += "<div id=\"DR_#{@id}\" style=\"display: block;\">"
+        s += "<a  href=\"#\" onclick=\"decisionLink_OnClick(this.parentElement); return false;\" \
+            class=\"external\" title=\"Number of decision records\">#{@decision_record_links.length}</a>"
+        s += '</div>'
+        s += "<div id=\"DRS_#{@id}\" style=\"display: none;\">"
+        @decision_record_links.each do |lnk|
+          dr_doc = lnk.parent_doc
+          s += "\t\t\t<a href=\"./../../decisions/#{dr_doc.html_rel_path}\" \
+            class=\"external\" title=\"Referenced in\">#{dr_doc.id}</a>\n<br>"
         end
         s += '</div>'
         s += "</td>\n"

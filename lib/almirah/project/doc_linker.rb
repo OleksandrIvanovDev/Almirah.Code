@@ -44,6 +44,30 @@ class DocLinker
     end
   end
 
+  def self.link_decision_to_spec(decision, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+    top_document = specification
+    bottom_document = decision
+
+    bottom_document.controlled_items.each do |item|
+      next unless item.up_link_ids
+
+      item.up_link_ids.each do |up_lnk|
+        if top_document.dictionary.key?(up_lnk.to_s)
+
+          top_item = top_document.dictionary[up_lnk.to_s]
+
+          top_item.decision_record_links = [] unless top_item.decision_record_links
+          top_item.decision_record_links.append(item)
+        elsif tmp = /^([a-zA-Z]+)-\d+/.match(up_lnk)
+          # check if there is a non existing link with the right doc_id
+          if tmp[1].downcase == top_document.id.downcase
+            bottom_document.wrong_links_hash[up_lnk] = item
+          end # SRS
+        end
+      end
+    end
+  end
+
   def self.link_source_file_to_spec(source_file, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
     top_document = specification
     bottom_document = source_file

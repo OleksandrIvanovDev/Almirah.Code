@@ -5,7 +5,8 @@ require_relative '../doc_items/heading'
 require_relative '../doc_items/markdown_table'
 
 class Decision < PersistentDocument # rubocop:disable Style/Documentation
-  attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status
+  attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
+                :specifications_path, :wrong_links_hash
 
   def initialize(file_path)
     super
@@ -13,6 +14,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
     stem = File.basename(file_path, File.extname(file_path))
     assign_id_parts(stem)
     @current_status = nil
+    @wrong_links_hash = {}
   end
 
   def to_console

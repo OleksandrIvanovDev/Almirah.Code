@@ -248,8 +248,9 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
             if temp_md_table
               if temp_md_table.is_separator_detected # if there is a separator
-                # check if parent doc is a Protocol
-                if doc.instance_of? Protocol
+                # check if parent doc is a Protocol, or a Decision Record inside an "Affected Documents" section
+                if doc.instance_of?(Protocol) ||
+                   (doc.instance_of?(Decision) && in_section?(doc, 'Affected Documents'))
                   # check if it is a controlled table
                   tmp = /(.*)\s+>\[(\S*)\]/.match(row)
                   if tmp && (temp_md_table.instance_of? MarkdownTable)
@@ -378,5 +379,21 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
       temp_md_table = nil
     end
     temp_md_table
+  end
+
+  # Returns true when the most recently parsed heading is inside (or equal to) a section
+  # whose heading text matches `section_name`. Walks back through the heading list
+  # accumulating the ancestor chain (strictly decreasing levels).
+  def self.in_section?(doc, section_name)
+    return false if doc.headings.empty?
+
+    last_level = doc.headings[-1].level + 1
+    doc.headings.reverse_each do |h|
+      next if h.level >= last_level
+
+      last_level = h.level
+      return true if h.text.strip == section_name
+    end
+    false
   end
 end

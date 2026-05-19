@@ -45,6 +45,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_specifications
     link_all_protocols
     link_all_source_files
+    link_all_decisions
     check_wrong_specification_referenced
     create_index
     render_all_specifications(@project_data.specifications)
@@ -67,6 +68,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_specifications
     link_all_protocols
     link_all_source_files
+    link_all_decisions
     check_wrong_specification_referenced
     create_index
     render_all_specifications(@project_data.specifications)
@@ -171,6 +173,16 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @project_data.covered_specifications_dictionary.each do |_key, value|
       doc = DocFabric.create_coverage_matrix(value)
       @project_data.coverage_matrices.append doc
+    end
+  end
+
+  def link_all_decisions
+    @project_data.decisions.each do |d|
+      @project_data.specifications.each do |s|
+        next unless d.up_link_docs.key?(s.id.to_s)
+
+        DocLinker.link_decision_to_spec(d, s)
+      end
     end
   end
 
@@ -334,6 +346,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       FileUtils.mkdir_p(out_dir)
       depth = 1 + (out_dir_rel == '.' ? 0 : out_dir_rel.split('/').size)
       doc.root_prefix = '../' * depth
+      doc.specifications_path = "./#{doc.root_prefix}specifications/"
       doc.to_console
       doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
     end
