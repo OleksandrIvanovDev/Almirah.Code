@@ -32,7 +32,9 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
     html_rows.append "\t\t<th>Owner</th>\n"
     html_rows.append "</thead>\n"
 
-    sorted_items = @project.project_data.decisions.sort_by(&:id)
+    sorted_items = @project.project_data.decisions.sort_by do |d|
+      [d.sequence_number ? 0 : 1, d.sequence_number.to_i, d.id]
+    end
     sorted_items.each do |doc|
       s = "\t<tr>\n"
       s += "\t\t<td class=\"item_id\">\n"
