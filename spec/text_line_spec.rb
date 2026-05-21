@@ -125,4 +125,34 @@ describe 'TextLine' do
     ret_val = obj.format_string("***a***b***c***")
     expect(ret_val).to eq("<b><i>a</i></b>b<b><i>c</i></b>")
   end
+
+  it 'keeps a quoted asterisk "*" literal' do
+    obj = TextLine.new
+    ret_val = obj.format_string('only "*" markers were implemented')
+    expect(ret_val).to eq('only "*" markers were implemented')
+  end
+
+  it 'keeps two quoted asterisks "*" "*" literal in the same line' do
+    obj = TextLine.new
+    ret_val = obj.format_string('both "*" and "-" are valid')
+    expect(ret_val).to eq('both "*" and "-" are valid')
+  end
+
+  it 'still italicises a phrase whose first/last char is a quote: *"foo"*' do
+    obj = TextLine.new
+    ret_val = obj.format_string('*"foo"*')
+    expect(ret_val).to eq('<i>"foo"</i>')
+  end
+
+  it 'keeps an asterisk surrounded by spaces literal' do
+    obj = TextLine.new
+    ret_val = obj.format_string('a * lone * star')
+    expect(ret_val).to eq('a * lone * star')
+  end
+
+  it 'keeps a quoted double asterisk "**" literal' do
+    obj = TextLine.new
+    ret_val = obj.format_string('the "**" marker')
+    expect(ret_val).to eq('the "**" marker')
+  end
 end

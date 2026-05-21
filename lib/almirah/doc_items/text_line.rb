@@ -70,7 +70,7 @@ class TextLineParser
     @supported_tokens.append(TextLineToken.new)
   end
 
-  def tokenize(str)
+  def tokenize(str) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/AbcSize,Metrics/PerceivedComplexity
     result = []
     sl = str.length
     si = 0
@@ -79,28 +79,77 @@ class TextLineParser
         tl = t.value.length
         if tl != 0 # literal is the last supported token in the list
           projected_end_position = si + tl - 1
-          next if projected_end_position > sl
+          next if projected_end_position >= sl
 
           buf = str[si..projected_end_position]
-          if buf == t.value
-            result.append(t)
-            si = projected_end_position + 1
-            break
-          end
-        else
-          if result.length.positive? && (result[-1].instance_of? TextLineToken)
-            literal = result[-1]
-            literal.value += str[si]
+          next unless buf == t.value
+
+          if emphasis_token?(t) && !can_flank?(str, si, projected_end_position)
+            append_literal(result, buf)
           else
-            literal = TextLineToken.new
-            literal.value = str[si]
-            result.append(literal)
+            result.append(t)
           end
+          si = projected_end_position + 1
+          break
+        else
+          append_literal(result, str[si])
           si += 1
         end
       end
     end
     result
+  end
+
+  private
+
+  def emphasis_token?(token)
+    token.is_a?(ItalicToken) || token.is_a?(BoldToken) || token.is_a?(BoldAndItalicToken)
+  end
+
+  def append_literal(result, text)
+    if !result.empty? && result[-1].instance_of?(TextLineToken)
+      result[-1].value += text
+    else
+      literal = TextLineToken.new
+      literal.value = text.dup
+      result.append(literal)
+    end
+  end
+
+  def can_flank?(str, start_idx, end_idx)
+    left_flanking?(str, start_idx, end_idx) || right_flanking?(str, start_idx, end_idx)
+  end
+
+  def left_flanking?(str, start_idx, end_idx)
+    after = char_at(str, end_idx + 1)
+    return false if after.nil? || whitespace?(after)
+    return true unless punctuation?(after)
+
+    before = char_at(str, start_idx - 1)
+    before.nil? || whitespace?(before)
+  end
+
+  def right_flanking?(str, start_idx, end_idx)
+    before = char_at(str, start_idx - 1)
+    return false if before.nil? || whitespace?(before)
+    return true unless punctuation?(before)
+
+    after = char_at(str, end_idx + 1)
+    after.nil? || whitespace?(after)
+  end
+
+  def char_at(str, idx)
+    return nil if idx.negative? || idx >= str.length
+
+    str[idx]
+  end
+
+  def whitespace?(char)
+    char.match?(/\s/)
+  end
+
+  def punctuation?(char)
+    char.match?(/[[:punct:]]/)
   end
 end
 
