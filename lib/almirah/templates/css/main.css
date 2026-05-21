@@ -126,6 +126,19 @@ table.controlled td.item_status {
 table.controlled td.item_text{
     text-align: left;
 }
+.decisions_overview_charts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.decisions_overview_charts .chart_cell {
+    min-height: 240px;
+}
+.decisions_overview_charts .chart_cell canvas {
+    max-width: 100%;
+    max-height: 300px;
+}
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,

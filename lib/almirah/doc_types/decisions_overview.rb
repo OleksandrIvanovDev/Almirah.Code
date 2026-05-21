@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require_relative 'base_document'
 
 class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
@@ -20,6 +21,8 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
     html_rows = []
     html_rows.append('')
     html_rows.append "<h1>#{@title}</h1>\n"
+
+    html_rows.append render_charts_grid
 
     html_rows.append "<table class=\"controlled decisions_overview\">\n"
     html_rows.append "\t<thead>\n"
@@ -56,5 +59,35 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
     html_rows.append "</table>\n"
 
     save_html_to_file(html_rows, nil, output_file_path)
+  end
+
+  private
+
+  def render_charts_grid
+    counts = @project.project_data.decisions.each_with_object(Hash.new(0)) do |item, cntr|
+      cntr[item.record_type] += 1 if item.record_type
+    end
+    labels = counts.keys.sort
+    data = labels.map { |k| counts[k] }
+
+    <<~HTML
+      <div class="decisions_overview_charts">
+      \t<div class="chart_cell">
+      \t\t<canvas id="decisions_type_pie"></canvas>
+      \t\t<script>
+      \t\t\tnew Chart(document.getElementById('decisions_type_pie'), {
+      \t\t\t\ttype: 'pie',
+      \t\t\t\tdata: {
+      \t\t\t\t\tlabels: #{labels.to_json},
+      \t\t\t\t\tdatasets: [{ label: 'Decision records', data: #{data.to_json} }]
+      \t\t\t\t},
+      \t\t\t\toptions: { plugins: { title: { display: true, text: 'Decision Records by Type' } } }
+      \t\t\t});
+      \t\t</script>
+      \t</div>
+      \t<div class="chart_cell"></div>
+      \t<div class="chart_cell"></div>
+      </div>
+    HTML
   end
 end

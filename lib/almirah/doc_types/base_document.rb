@@ -66,6 +66,7 @@ class BaseDocument # rubocop:disable Style/Documentation
         elsif instance_of? DecisionsOverview
           file.puts '<link rel="stylesheet" href="../css/main.css">'
           file.puts '<script src="../scripts/main.js"></script>'
+          file.puts '<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>'
         elsif instance_of? Decision
           file.puts "<link rel=\"stylesheet\" href=\"#{root_prefix}css/main.css\">"
           file.puts "<script src=\"#{root_prefix}scripts/main.js\"></script>"
