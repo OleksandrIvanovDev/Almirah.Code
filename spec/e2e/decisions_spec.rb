@@ -439,4 +439,173 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(scope_cells).not_to include('▶')
     end
   end
+
+  context 'when a decision record has dates in both Status and Scope tables' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-400-both.md', <<~MD)
+        ---
+        title: "ADR-400: Earliest Wins"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 15-05-2026 | Proposed |
+        | * | 17-05-2026 | Accepted |
+
+        # Scope
+
+        | Item | Status | Start Date | Target Date | Description |
+        |---|---|---|---|---|
+        | Code | Proposed | 10-05-2026 |  | Earlier work |
+        | Tests | Proposed | 20-05-2026 |  | Later work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Start Date is the earliest of Status Date and Scope Start Date columns. >[SRS-061] </REQ>
+    # <REQ> Start Date is rendered in the existing Start Date column, DD-MM-YYYY. >[SRS-065] </REQ>
+    it 'picks the earliest date across both tables and renders it on the overview' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-400"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells.first).to eq('10-05-2026')
+    end
+  end
+
+  context 'when a decision record has no Scope table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-401-status-only.md', <<~MD)
+        ---
+        title: "ADR-401: Status Only"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 12-05-2026 | Proposed |
+        |   | 18-05-2026 | Accepted |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Falls back to Status Date column when Scope is missing. >[SRS-061] </REQ>
+    it 'uses the earliest Status table date' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-401"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells.first).to eq('12-05-2026')
+    end
+  end
+
+  context 'when a decision record has no Status table but has a Scope table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-402-scope-only.md', <<~MD)
+        ---
+        title: "ADR-402: Scope Only"
+        ---
+
+        # Scope
+
+        | Item | Status | Start Date | Target Date | Description |
+        |---|---|---|---|---|
+        | Code | Proposed | 09-05-2026 |  | Work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Falls back to Scope Start Date column when Status is missing. >[SRS-061] </REQ>
+    it 'uses the Scope Start Date column' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-402"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells.first).to eq('09-05-2026')
+    end
+  end
+
+  context 'when neither table has a parseable date' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-403-nodates.md', <<~MD)
+        ---
+        title: "ADR-403: No Parseable Dates"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | TBD | Proposed |
+
+        # Scope
+
+        | Item | Status | Start Date | Target Date | Description |
+        |---|---|---|---|---|
+        | Code | Proposed |  |  | Free text |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Start Date is undefined when no date is parseable. >[SRS-064] </REQ>
+    # <REQ> Start Date cell is empty when the attribute is undefined. >[SRS-065] </REQ>
+    it 'leaves the Start Date cell empty without raising' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-403"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells.first).to eq('')
+    end
+  end
+
+  context 'when the Scope table has its columns in a non-default order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-404-reordered.md', <<~MD)
+        ---
+        title: "ADR-404: Reordered Columns"
+        ---
+
+        # Scope
+
+        | Description | Start Date | Item | Status |
+        |---|---|---|---|
+        | Free text | 07-05-2026 | Code | Proposed |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Columns are identified by header text, not by position. >[SRS-063] </REQ>
+    it 'reads the Start Date column by header text regardless of position' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-404"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells.first).to eq('07-05-2026')
+    end
+  end
+
+  context 'when a decision record has no dated tables at all' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-405-bare.md', <<~MD)
+        ---
+        title: "ADR-405: Bare Record"
+        ---
+
+        body without status or scope
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Start Date is undefined when neither table is present. >[SRS-064] </REQ>
+    it 'leaves the Start Date cell empty' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-405"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells.first).to eq('')
+    end
+  end
 end
