@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
+require 'date'
 require_relative 'persistent_document'
 require_relative '../doc_items/heading'
 require_relative '../doc_items/markdown_table'
 
 class Decision < PersistentDocument # rubocop:disable Style/Documentation
   attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
-                :specifications_path, :wrong_links_hash
+                :start_date, :specifications_path, :wrong_links_hash
 
   def initialize(file_path)
     super
@@ -14,6 +15,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
     stem = File.basename(file_path, File.extname(file_path))
     assign_id_parts(stem)
     @current_status = nil
+    @start_date = nil
     @wrong_links_hash = {}
   end
 
@@ -32,23 +34,8 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
     save_html_to_file(html_rows, nav_pane, output_file_path)
   end
 
-  def extract_current_status # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
-    in_status_section = false
-    status_level = nil
-    status_table = nil
-    @items.each do |item|
-      if item.is_a?(Heading)
-        if !in_status_section && item.text.strip == 'Status'
-          in_status_section = true
-          status_level = item.level
-        elsif in_status_section && item.level <= status_level
-          break
-        end
-      elsif in_status_section && item.is_a?(MarkdownTable)
-        status_table = item
-        break
-      end
-    end
+  def extract_current_status
+    status_table = find_section_table('Status')
     return if status_table.nil?
 
     status_table.is_decision_status_table = true
@@ -56,7 +43,58 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
     @current_status = marker_rows.length == 1 ? marker_rows[0][-1].to_s.strip : nil
   end
 
+  def extract_start_date
+    dates = collect_dates('Status', 'Date') + collect_dates('Scope', 'Start Date')
+    @start_date = dates.min
+  end
+
   private
+
+  def find_section_table(section_name) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    in_section = false
+    section_level = nil
+    @items.each do |item|
+      if item.is_a?(Heading)
+        if !in_section && item.text.strip == section_name
+          in_section = true
+          section_level = item.level
+        elsif in_section && item.level <= section_level
+          return nil
+        end
+      elsif in_section && item.is_a?(MarkdownTable)
+        return item
+      end
+    end
+    nil
+  end
+
+  def collect_dates(section_name, column_name)
+    table = find_section_table(section_name)
+    return [] if table.nil?
+
+    col_index = column_index(table, column_name)
+    return [] if col_index.nil?
+
+    table.rows.filter_map { |row| parse_dd_mm_yyyy(row[col_index]) }
+  end
+
+  def column_index(table, column_name)
+    table.column_names.each_with_index do |name, idx|
+      return idx if name.to_s.strip == column_name
+    end
+    nil
+  end
+
+  def parse_dd_mm_yyyy(value)
+    return nil if value.nil?
+
+    match = /\A(\d{2})-(\d{2})-(\d{4})\z/.match(value.to_s.strip)
+    return nil unless match
+
+    Date.new(match[3].to_i, match[2].to_i, match[1].to_i)
+  rescue ArgumentError
+    nil
+  end
 
   def assign_id_parts(stem)
     match = stem.match(/\A([A-Za-z]+)-(\d+)/)

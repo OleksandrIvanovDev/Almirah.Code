@@ -17,7 +17,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
     puts "\e[36mDecisions Overview: #{@id}\e[0m"
   end
 
-  def to_html(output_file_path) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def to_html(output_file_path) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity
     html_rows = []
     html_rows.append('')
     html_rows.append "<h1>#{@title}</h1>\n"
@@ -50,7 +50,8 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
       s += "\t\t<td class=\"item_status\">#{doc.current_status}</td>\n"
       title_html = doc.html_rel_path ? %(<a href="./#{doc.html_rel_path}" class="external">#{doc.title}</a>) : doc.title
       s += "\t\t<td class=\"item_text\" style='padding: 5px;'>#{title_html}</td>\n"
-      s += "\t\t<td class=\"item_meta\"></td>\n"
+      start_date_html = doc.start_date ? doc.start_date.strftime('%d-%m-%Y') : ''
+      s += "\t\t<td class=\"item_meta\">#{start_date_html}</td>\n"
       s += "\t\t<td class=\"item_meta\"></td>\n"
       s += "\t\t<td class=\"item_meta\"></td>\n"
       s += "</tr>\n"

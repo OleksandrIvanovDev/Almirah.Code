@@ -70,6 +70,7 @@ class DocFabric
     doc = Decision.new path
     DocFabric.parse_document doc
     doc.extract_current_status
+    doc.extract_start_date
     doc
   end
 
