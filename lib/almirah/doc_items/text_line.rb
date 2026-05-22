@@ -1,3 +1,5 @@
+require 'cgi'
+
 class TextLineToken
   attr_accessor :value
 
@@ -54,14 +56,27 @@ class SquareBracketRightAndParentheseLeft < TextLineToken
   end
 end
 
+class BacktickToken < TextLineToken
+  def initialize # rubocop:disable Lint/MissingSuper
+    @value = '`'
+  end
+end
+
+class InlineCodeToken < TextLineToken
+  def initialize(raw) # rubocop:disable Lint/MissingSuper
+    @value = raw
+  end
+end
+
 class TextLineParser
   attr_accessor :supported_tokens
 
-  def initialize # rubocop:disable Metrics/AbcSize
+  def initialize # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     @supported_tokens = []
     @supported_tokens.append(BoldAndItalicToken.new)
     @supported_tokens.append(BoldToken.new)
     @supported_tokens.append(ItalicToken.new)
+    @supported_tokens.append(BacktickToken.new)
     @supported_tokens.append(SquareBracketRightAndParentheseLeft.new)
     @supported_tokens.append(ParentheseLeft.new)
     @supported_tokens.append(ParentheseRight.new)
@@ -97,10 +112,42 @@ class TextLineParser
         end
       end
     end
-    result
+    fuse_backticks(result)
   end
 
   private
+
+  def fuse_backticks(tokens) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    result = []
+    i = 0
+    while i < tokens.length
+      if tokens[i].instance_of?(BacktickToken)
+        closer = next_backtick_index(tokens, i + 1)
+        if closer
+          raw = tokens[(i + 1)..(closer - 1)].map(&:value).join
+          result.append(InlineCodeToken.new(raw))
+          i = closer + 1
+        else
+          append_literal(result, '`')
+          i += 1
+        end
+      else
+        result.append(tokens[i])
+        i += 1
+      end
+    end
+    result
+  end
+
+  def next_backtick_index(tokens, start_idx)
+    idx = start_idx
+    while idx < tokens.length
+      return idx if tokens[idx].instance_of?(BacktickToken)
+
+      idx += 1
+    end
+    nil
+  end
 
   def emphasis_token?(token)
     token.is_a?(ItalicToken) || token.is_a?(BoldToken) || token.is_a?(BoldAndItalicToken)
@@ -163,6 +210,10 @@ class TextLineBuilderContext
   end
 
   def bold_and_italic(str)
+    str
+  end
+
+  def inline_code(str)
     str
   end
 
@@ -279,6 +330,9 @@ class TextLineBuilder
           ti = ti_starting_position + 1
         end
 
+      when 'InlineCodeToken'
+        result += @builder_context.inline_code(token_list[ti].value)
+        ti += 1
       when 'TextLineToken', 'ParentheseLeft', 'ParentheseRight', 'SquareBracketRight'
         result += token_list[ti].value
         ti += 1
@@ -314,6 +368,10 @@ class TextLine < TextLineBuilderContext
 
   def bold_and_italic(str)
     "<b><i>#{str}</i></b>"
+  end
+
+  def inline_code(str)
+    "<code class=\"inline\">#{CGI.escapeHTML(str)}</code>"
   end
 
   def link(link_text, link_url)
