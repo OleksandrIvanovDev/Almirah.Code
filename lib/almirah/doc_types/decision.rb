@@ -5,9 +5,9 @@ require_relative 'persistent_document'
 require_relative '../doc_items/heading'
 require_relative '../doc_items/markdown_table'
 
-class Decision < PersistentDocument # rubocop:disable Style/Documentation
+class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
-                :start_date, :specifications_path, :wrong_links_hash
+                :start_date, :target_release_version, :specifications_path, :wrong_links_hash
 
   def initialize(file_path)
     super
@@ -16,6 +16,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
     assign_id_parts(stem)
     @current_status = nil
     @start_date = nil
+    @target_release_version = nil
     @wrong_links_hash = {}
   end
 
@@ -48,7 +49,31 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation
     @start_date = dates.min
   end
 
+  def extract_target_release_version
+    @target_release_version = lookup_cell(
+      section_name: 'Software Versions',
+      key_column: 'Software Version Category',
+      value_column: 'Software Version ID',
+      key: 'Target Release Version'
+    )
+  end
+
   private
+
+  def lookup_cell(section_name:, key_column:, value_column:, key:) # rubocop:disable Metrics/AbcSize
+    table = find_section_table(section_name)
+    return nil if table.nil?
+
+    key_idx = column_index(table, key_column)
+    value_idx = column_index(table, value_column)
+    return nil if key_idx.nil? || value_idx.nil?
+
+    row = table.rows.find { |r| r[key_idx].to_s.strip == key }
+    return nil if row.nil?
+
+    cell = row[value_idx].to_s.strip
+    cell.empty? ? nil : cell
+  end
 
   def find_section_table(section_name) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     in_section = false

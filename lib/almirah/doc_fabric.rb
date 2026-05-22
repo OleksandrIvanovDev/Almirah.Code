@@ -71,6 +71,7 @@ class DocFabric
     DocFabric.parse_document doc
     doc.extract_current_status
     doc.extract_start_date
+    doc.extract_target_release_version
     doc
   end
 

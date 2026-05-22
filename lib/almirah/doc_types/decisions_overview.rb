@@ -32,6 +32,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
     html_rows.append "\t\t<th>Title</th>\n"
     html_rows.append "\t\t<th>Start Date</th>\n"
     html_rows.append "\t\t<th>Target Date</th>\n"
+    html_rows.append "\t\t<th title=\"Target Release Version\">Release</th>\n"
     html_rows.append "\t\t<th>Owner</th>\n"
     html_rows.append "</thead>\n"
 
@@ -53,6 +54,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
       start_date_html = doc.start_date ? doc.start_date.strftime('%d-%m-%Y') : ''
       s += "\t\t<td class=\"item_meta\">#{start_date_html}</td>\n"
       s += "\t\t<td class=\"item_meta\"></td>\n"
+      s += "\t\t<td class=\"item_meta\">#{doc.target_release_version}</td>\n"
       s += "\t\t<td class=\"item_meta\"></td>\n"
       s += "</tr>\n"
       html_rows.append s

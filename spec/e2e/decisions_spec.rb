@@ -328,7 +328,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       table_xpath = '//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th'
       header_cells = doc.xpath(table_xpath).map { |th| th.text.strip }
-      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Owner'])
+      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Release', 'Owner'])
     end
 
     # <REQ> Render the "*" in the Status table marker column as "▶" in the rendered HTML. >[SRS-050] </REQ>
@@ -606,6 +606,183 @@ RSpec.describe 'Decision Records', type: :aruba do
       row = doc.at_xpath('//a[@id="adr-405"]/ancestor::tr')
       cells = row.css('td.item_meta').map { |c| c.text.strip }
       expect(cells.first).to eq('')
+    end
+  end
+
+  context 'when a decision record has a Software Versions section with a Target Release Version row' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-500-versioned.md', <<~MD)
+        ---
+        title: "ADR-500: Versioned Record"
+        ---
+
+        # Software Versions
+
+        | Software Version Category | Software Version ID |
+        |---|---|
+        | Latest Released Version | 0.3.1 |
+        | Issue Found in Version | 0.4.0 |
+        | Target Release Version | 0.4.0 |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Expose Target Release Version attribute on each Decision Record. >[SRS-066] </REQ>
+    # <REQ> Render the Target Release Version attribute in the Release column. >[SRS-070] </REQ>
+    it 'renders the Target Release Version value in the Release column' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-500"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[2]).to eq('0.4.0')
+    end
+
+    # <REQ> Release column header carries title="Target Release Version". >[SRS-070] </REQ>
+    it 'tags the Release header with a Target Release Version title attribute' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      headers = doc.xpath('//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th')
+      release_header = headers.find { |th| th.text.strip == 'Release' }
+      expect(release_header).not_to be_nil
+      expect(release_header['title']).to eq('Target Release Version')
+    end
+
+    # <REQ> Release column is placed between Target Date and Owner. >[SRS-070] </REQ>
+    it 'places Release between Target Date and Owner in the overview' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      header_cells = doc.xpath('//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th').map { |th| th.text.strip }
+      release_index = header_cells.index('Release')
+      expect(header_cells[release_index - 1]).to eq('Target Date')
+      expect(header_cells[release_index + 1]).to eq('Owner')
+    end
+  end
+
+  context 'when the Software Versions table has columns in a non-default order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-501-reordered.md', <<~MD)
+        ---
+        title: "ADR-501: Reordered Software Versions"
+        ---
+
+        # Software Versions
+
+        | Software Version ID | Software Version Category |
+        |---|---|
+        | 0.3.1 | Latest Released Version |
+        | 0.5.0 | Target Release Version |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Columns identified by header text, not by position. >[SRS-067] </REQ>
+    it 'reads the Software Version ID column by header text regardless of position' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-501"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[2]).to eq('0.5.0')
+    end
+  end
+
+  context 'when a decision record has no Software Versions section' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-502-no-versions.md', <<~MD)
+        ---
+        title: "ADR-502: No Software Versions"
+        ---
+
+        body without a Software Versions section
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Target Release Version is undefined when section is missing. >[SRS-069] </REQ>
+    # <REQ> Release cell is empty when attribute is undefined. >[SRS-070] </REQ>
+    it 'leaves the Release cell empty' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-502"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[2]).to eq('')
+    end
+  end
+
+  context 'when the Software Versions table is missing the Target Release Version row' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-503-no-row.md', <<~MD)
+        ---
+        title: "ADR-503: Missing Target Row"
+        ---
+
+        # Software Versions
+
+        | Software Version Category | Software Version ID |
+        |---|---|
+        | Latest Released Version | 0.3.1 |
+        | Issue Found in Version | 0.4.0 |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Target Release Version is undefined when the row is missing. >[SRS-069] </REQ>
+    it 'leaves the Release cell empty when no Target Release Version row exists' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-503"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[2]).to eq('')
+    end
+  end
+
+  context 'when the Target Release Version cell is empty' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-504-empty-cell.md', <<~MD)
+        ---
+        title: "ADR-504: Empty Target Release Version"
+        ---
+
+        # Software Versions
+
+        | Software Version Category | Software Version ID |
+        |---|---|
+        | Latest Released Version | 0.3.1 |
+        | Target Release Version |  |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Target Release Version is undefined when the cell is empty. >[SRS-069] </REQ>
+    it 'leaves the Release cell empty when the source cell is empty' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-504"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[2]).to eq('')
+    end
+  end
+
+  context 'when the Target Release Version value is non-SemVer free text' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-505-freeform.md', <<~MD)
+        ---
+        title: "ADR-505: Freeform Version Value"
+        ---
+
+        # Software Versions
+
+        | Software Version Category | Software Version ID |
+        |---|---|
+        | Target Release Version | n/a |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Version value is passed through verbatim, no SemVer parsing. >[SRS-066] >[SRS-070] </REQ>
+    it 'passes free-text values through verbatim' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-505"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[2]).to eq('n/a')
     end
   end
 end
