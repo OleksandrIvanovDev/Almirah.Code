@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
+require 'date'
 require 'json'
 require_relative 'base_document'
 
-class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
+class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   attr_accessor :project
 
   def initialize(project)
@@ -66,12 +67,20 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
 
   private
 
-  def render_charts_grid
+  CHART_PALETTE = [
+    [54, 162, 235], [255, 99, 132], [255, 159, 64], [255, 205, 86],
+    [75, 192, 192], [153, 102, 255], [201, 203, 207]
+  ].freeze
+
+  def render_charts_grid # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     counts = @project.project_data.decisions.each_with_object(Hash.new(0)) do |item, cntr|
       cntr[item.record_type] += 1 if item.record_type
     end
     labels = counts.keys.sort
     data = labels.map { |k| counts[k] }
+    pie_colors = labels.each_with_index.map { |_, i| palette_rgba(i, 0.5) }
+
+    velocity = velocity_chart_data
 
     <<~HTML
       <div class="decisions_overview_charts">
@@ -82,15 +91,68 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation
       \t\t\t\ttype: 'pie',
       \t\t\t\tdata: {
       \t\t\t\t\tlabels: #{labels.to_json},
-      \t\t\t\t\tdatasets: [{ label: 'Decision records', data: #{data.to_json} }]
+      \t\t\t\t\tdatasets: [{
+      \t\t\t\t\t\tlabel: 'Decision records',
+      \t\t\t\t\t\tdata: #{data.to_json},
+      \t\t\t\t\t\tbackgroundColor: #{pie_colors.to_json},
+      \t\t\t\t\t\tborderWidth: 0
+      \t\t\t\t\t}]
       \t\t\t\t},
       \t\t\t\toptions: { plugins: { title: { display: true, text: 'Decision Records by Type' } } }
       \t\t\t});
       \t\t</script>
       \t</div>
-      \t<div class="chart_cell"></div>
+      \t<div class="chart_cell">
+      \t\t<canvas id="decisions_velocity_bar"></canvas>
+      \t\t<script>
+      \t\t\tnew Chart(document.getElementById('decisions_velocity_bar'), {
+      \t\t\t\ttype: 'bar',
+      \t\t\t\tdata: #{velocity.to_json},
+      \t\t\t\toptions: {
+      \t\t\t\t\tplugins: { title: { display: true, text: 'Decision Records by Status Over Time' } },
+      \t\t\t\t\tscales: { x: { stacked: true }, y: { stacked: true, ticks: { precision: 0 } } }
+      \t\t\t\t}
+      \t\t\t});
+      \t\t</script>
+      \t</div>
       \t<div class="chart_cell"></div>
       </div>
     HTML
+  end
+
+  def velocity_chart_data(reference_date: Date.today, weeks: 6) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    fridays = recent_fridays(reference_date, weeks)
+    segments = []
+    counts = {}
+
+    fridays.each_with_index do |friday, i|
+      @project.project_data.decisions.each do |doc|
+        status = doc.effective_status_on(friday)
+        next if status.nil?
+
+        unless counts.key?(status)
+          counts[status] = Array.new(fridays.length, 0)
+          segments << status
+        end
+        counts[status][i] += 1
+      end
+    end
+
+    {
+      labels: fridays.map { |f| f.strftime('%d-%m-%Y') },
+      datasets: segments.map { |s| { label: s, data: counts[s] } }
+    }
+  end
+
+  def palette_rgba(index, alpha)
+    r, g, b = CHART_PALETTE[index % CHART_PALETTE.length]
+    "rgba(#{r}, #{g}, #{b}, #{alpha})"
+  end
+
+  def recent_fridays(reference_date, count)
+    friday_wday = 5
+    days_back = (reference_date.wday - friday_wday) % 7
+    most_recent = reference_date - days_back
+    (0...count).to_a.reverse.map { |i| most_recent - (7 * i) }
   end
 end

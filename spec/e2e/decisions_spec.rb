@@ -785,4 +785,229 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(cells[2]).to eq('n/a')
     end
   end
+
+  # --- Velocity chart (ADR-182) -----------------------------------------------
+  #
+  # The chart shows record counts per status as of each of the last 6 Fridays.
+  # Tests use fixture dates safely in the past (2024) so records reliably appear
+  # in every bar regardless of when the suite is run.
+
+  def velocity_data_block(html)
+    block = html[/decisions_velocity_bar.*?data:\s*(\{.*?\}),\s*options:/m, 1]
+    JSON.parse(block)
+  end
+
+  context 'when the project has decision records with dated Status tables' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-600-old-impl.md', <<~MD)
+        ---
+        title: "ADR-600: Implemented Long Ago"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 01-01-2024 | Proposed |
+        |   | 02-01-2024 | Accepted |
+        | * | 03-01-2024 | Implemented |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Velocity chart placed in the second chart cell. >[SRS-071] </REQ>
+    it 'emits a stacked bar chart in the second chart cell' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(html).to include('id="decisions_velocity_bar"')
+      expect(html).to include("type: 'bar'")
+      expect(html).to match(/x:\s*\{\s*stacked:\s*true\s*\}/)
+      expect(html).to match(/y:\s*\{\s*stacked:\s*true/)
+    end
+
+    # <REQ> Six bars, Fridays ordered oldest-to-newest, DD-MM-YYYY labels. >[SRS-072] </REQ>
+    it 'renders six DD-MM-YYYY labels, 7 days apart, ending with the most recent Friday on or before today' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      labels = data['labels']
+      expect(labels.length).to eq(6)
+      labels.each { |l| expect(l).to match(/\A\d{2}-\d{2}-\d{4}\z/) }
+      dates = labels.map { |l| Date.strptime(l, '%d-%m-%Y') }
+      dates.each_cons(2) { |a, b| expect(b - a).to eq(7) }
+      expect(dates.last.wday).to eq(5)
+      expect(dates.last).to be <= Date.today
+      expect(Date.today - dates.last).to be < 7
+    end
+
+    # <REQ> Status as of date = latest parseable date <= date. >[SRS-073] </REQ>
+    it 'classifies an old fully-Implemented record as Implemented in every bar' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      implemented = data['datasets'].find { |d| d['label'] == 'Implemented' }
+      expect(implemented).not_to be_nil
+      expect(implemented['data']).to eq([1, 1, 1, 1, 1, 1])
+    end
+  end
+
+  context 'when a decision record is dated in the future' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-601-future.md', <<~MD)
+        ---
+        title: "ADR-601: Not Yet Proposed"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2030 | Proposed |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Record not yet proposed contributes to no bar. >[SRS-074] </REQ>
+    it 'contributes to no bar when its earliest date is after every Friday in the window' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      totals = Array.new(data['labels'].length, 0)
+      data['datasets'].each do |ds|
+        ds['data'].each_with_index { |v, i| totals[i] += v }
+      end
+      expect(totals).to eq([0, 0, 0, 0, 0, 0])
+    end
+  end
+
+  context 'when a decision record has no Status section' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-602-statusless.md', <<~MD)
+        ---
+        title: "ADR-602: No Status Section"
+        ---
+
+        body without status
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Records with no Status table contribute to no velocity bar. >[SRS-075] </REQ>
+    it 'leaves the chart datasets empty for a statusless record' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      totals = Array.new(data['labels'].length, 0)
+      data['datasets'].each do |ds|
+        ds['data'].each_with_index { |v, i| totals[i] += v }
+      end
+      expect(totals).to eq([0, 0, 0, 0, 0, 0])
+    end
+  end
+
+  context 'when decision records use mixed status vocabularies' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-603-impl.md', <<~MD)
+        ---
+        title: "ADR-603: Standard Workflow"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2024 | Implemented |
+      MD
+      write_file('myproject/decisions/issue-604-done.md', <<~MD)
+        ---
+        title: "ISSUE-604: Issue Workflow"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2024 | Done |
+      MD
+      write_file('myproject/decisions/enh-605-pending.md', <<~MD)
+        ---
+        title: "ENH-605: Enhancement Workflow"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2024 | Pending Review |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Status segments = union of every distinct status text. >[SRS-076] </REQ>
+    it 'creates a separate dataset for each distinct status text' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      labels = data['datasets'].map { |d| d['label'] }
+      expect(labels).to include('Implemented', 'Done', 'Pending Review')
+      data['datasets'].each do |ds|
+        next unless %w[Implemented Done].include?(ds['label']) || ds['label'] == 'Pending Review'
+
+        expect(ds['data']).to eq([1, 1, 1, 1, 1, 1])
+      end
+    end
+  end
+
+  context 'when a Status table has multiple rows on the same date' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-606-same-date.md', <<~MD)
+        ---
+        title: "ADR-606: Same-Date Rows"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 01-01-2024 | Proposed |
+        |   | 01-01-2024 | Accepted |
+        | * | 01-01-2024 | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Same-date tie broken by document order; later row wins. >[SRS-073] </REQ>
+    it 'picks the row that appears later in document order' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      in_progress = data['datasets'].find { |d| d['label'] == 'In-Progress' }
+      expect(in_progress).not_to be_nil
+      expect(in_progress['data']).to eq([1, 1, 1, 1, 1, 1])
+      proposed = data['datasets'].find { |d| d['label'] == 'Proposed' }
+      expect(proposed&.dig('data')).to be_nil.or(eq([0, 0, 0, 0, 0, 0]))
+    end
+  end
+
+  context 'when a Status table has rows whose dates straddle the chart window' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-607-mixed.md', <<~MD)
+        ---
+        title: "ADR-607: Mixed Past/Future Rows"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 01-01-2024 | Proposed |
+        | * | 02-01-2024 | Implemented |
+        |   | 01-01-2030 | Archived |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Future-dated rows are ignored for past Fridays. >[SRS-073] </REQ>
+    it 'ignores future-dated rows on Fridays earlier than their date' do
+      data = velocity_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      implemented = data['datasets'].find { |d| d['label'] == 'Implemented' }
+      expect(implemented).not_to be_nil
+      expect(implemented['data']).to eq([1, 1, 1, 1, 1, 1])
+      archived = data['datasets'].find { |d| d['label'] == 'Archived' }
+      expect(archived&.dig('data')).to be_nil.or(eq([0, 0, 0, 0, 0, 0]))
+    end
+  end
 end

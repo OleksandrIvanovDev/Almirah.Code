@@ -58,6 +58,31 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     )
   end
 
+  def effective_status_on(date) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    table = find_section_table('Status')
+    return nil if table.nil?
+
+    date_idx = column_index(table, 'Date')
+    status_idx = column_index(table, 'Status')
+    return nil if date_idx.nil? || status_idx.nil?
+
+    best_idx = nil
+    best_date = nil
+    table.rows.each_with_index do |row, i|
+      parsed = parse_dd_mm_yyyy(row[date_idx])
+      next if parsed.nil? || parsed > date
+
+      if best_date.nil? || parsed > best_date || (parsed == best_date && i > best_idx)
+        best_date = parsed
+        best_idx = i
+      end
+    end
+    return nil if best_idx.nil?
+
+    status = table.rows[best_idx][status_idx].to_s.strip
+    status.empty? ? nil : status
+  end
+
   private
 
   def lookup_cell(section_name:, key_column:, value_column:, key:) # rubocop:disable Metrics/AbcSize
