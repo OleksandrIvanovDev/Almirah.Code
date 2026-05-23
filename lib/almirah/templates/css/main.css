@@ -64,10 +64,13 @@ table.markdown_table th{
     background-color:#EEEEEE;
 }
 table.markdown_table td{
-    border: 1px solid #bbb; 
+    border: 1px solid #bbb;
     padding: 4px;
     display: table-cell;
     vertical-align: inherit;
+}
+table.markdown_table tr.current_status td {
+    background-color: #ffffee;
 }
 table.controlled{
     border: 1px solid #e4e4e4;
@@ -110,8 +113,31 @@ table.controlled td.item_id {
     width: 3%;
     text-align: center;
 }
+table.controlled td.item_type {
+    width: 5%;
+    text-align: center;
+    font-weight: normal;
+}
+table.controlled td.item_status {
+    width: 5%;
+    text-align: center;
+    white-space: nowrap;
+}
 table.controlled td.item_text{
     text-align: left;
+}
+.decisions_overview_charts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.decisions_overview_charts .chart_cell {
+    min-height: 240px;
+}
+.decisions_overview_charts .chart_cell canvas {
+    max-width: 100%;
+    max-height: 300px;
 }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
@@ -145,6 +171,15 @@ code {
     padding: 4px 1em 4px 4px;
     margin-top: 4px;
     margin-bottom: 4px;
+}
+code.inline {
+    display: inline;
+    background:#f4f4f4;
+    border: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 4px;
+    margin: 0;
 }
 div.todoblock {
     display: block;

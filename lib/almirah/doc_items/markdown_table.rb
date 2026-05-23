@@ -3,9 +3,10 @@
 require_relative 'doc_item'
 
 class MarkdownTable < DocItem
-  attr_accessor :column_names, :rows, :heading_row, :is_separator_detected, :column_aligns
+  attr_accessor :column_names, :rows, :heading_row, :is_separator_detected, :column_aligns,
+                :is_decision_status_table
 
-  def initialize(doc, heading_row)
+  def initialize(doc, heading_row) # rubocop:disable Metrics/MethodLength
     super(doc)
     @heading_row = heading_row
 
@@ -18,6 +19,7 @@ class MarkdownTable < DocItem
     @rows = []
     @is_separator_detected = false
     @column_aligns = []
+    @is_decision_status_table = false
   end
 
   def add_separator(line)
@@ -69,10 +71,17 @@ class MarkdownTable < DocItem
     s += " </thead>\n"
 
     @rows.each do |row|
-      s += "\t<tr>\n"
+      tr_class = if @is_decision_status_table && row[0].to_s.strip == '*'
+                   ' class="current_status"'
+                 else
+                   ''
+                 end
+      s += "\t<tr#{tr_class}>\n"
       row.each_with_index do |col, index|
-        if col.to_i.positive? && col.to_i.to_s == col  # autoalign cells with numbers
-          s += "\t\t<td style=\"text-align: center;\">#{col}</td>\n"
+        cell = col
+        cell = '▶' if @is_decision_status_table && index.zero? && col.strip == '*'
+        if cell.to_i.positive? && cell.to_i.to_s == cell  # autoalign cells with numbers
+          s += "\t\t<td style=\"text-align: center;\">#{cell}</td>\n"
         else
           align = ''
           case @column_aligns[index]
@@ -83,7 +92,7 @@ class MarkdownTable < DocItem
           when 'center'
             align = 'style="text-align: center;"'
           end
-          f_text = format_string(col)
+          f_text = format_string(cell)
           s += "\t\t<td #{align}>#{f_text}</td>\n"
         end
       end

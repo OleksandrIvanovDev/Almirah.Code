@@ -5,6 +5,8 @@ require_relative 'doc_types/protocol'
 require_relative 'doc_types/coverage'
 require_relative 'doc_types/implementation'
 require_relative 'doc_types/traceability'
+require_relative 'doc_types/decision'
+require_relative 'doc_types/decisions_overview'
 require_relative 'doc_parser'
 require_relative 'source_file_parser'
 require_relative 'dom/document'
@@ -64,6 +66,19 @@ class DocFabric
     doc
   end
 
+  def self.create_decision(path)
+    doc = Decision.new path
+    DocFabric.parse_document doc
+    doc.extract_current_status
+    doc.extract_start_date
+    doc.extract_target_release_version
+    doc
+  end
+
+  def self.create_decisions_overview(project)
+    DecisionsOverview.new project
+  end
+
   def self.create_source_file(repository_path, path, repository_name)
     doc = SourceFile.new repository_path, path, repository_name
     DocFabric.parse_source_file doc
@@ -78,7 +93,7 @@ class DocFabric
     DocParser.parse(doc, file_lines)
 
     # Build dom
-    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol)
+    doc.dom = Document.new(doc.headings) if doc.is_a?(Specification) || doc.is_a?(Protocol) || doc.is_a?(Decision)
   end
 
   def self.parse_source_file(doc)

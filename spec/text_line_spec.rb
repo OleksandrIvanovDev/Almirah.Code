@@ -125,4 +125,76 @@ describe 'TextLine' do
     ret_val = obj.format_string("***a***b***c***")
     expect(ret_val).to eq("<b><i>a</i></b>b<b><i>c</i></b>")
   end
+
+  it 'keeps a quoted asterisk "*" literal' do
+    obj = TextLine.new
+    ret_val = obj.format_string('only "*" markers were implemented')
+    expect(ret_val).to eq('only "*" markers were implemented')
+  end
+
+  it 'keeps two quoted asterisks "*" "*" literal in the same line' do
+    obj = TextLine.new
+    ret_val = obj.format_string('both "*" and "-" are valid')
+    expect(ret_val).to eq('both "*" and "-" are valid')
+  end
+
+  it 'still italicises a phrase whose first/last char is a quote: *"foo"*' do
+    obj = TextLine.new
+    ret_val = obj.format_string('*"foo"*')
+    expect(ret_val).to eq('<i>"foo"</i>')
+  end
+
+  it 'keeps an asterisk surrounded by spaces literal' do
+    obj = TextLine.new
+    ret_val = obj.format_string('a * lone * star')
+    expect(ret_val).to eq('a * lone * star')
+  end
+
+  it 'keeps a quoted double asterisk "**" literal' do
+    obj = TextLine.new
+    ret_val = obj.format_string('the "**" marker')
+    expect(ret_val).to eq('the "**" marker')
+  end
+
+  it 'wraps a `code span` in <code class="inline"> tags' do
+    obj = TextLine.new
+    ret_val = obj.format_string('call `foo()` here')
+    expect(ret_val).to eq('call <code class="inline">foo()</code> here')
+  end
+
+  it 'HTML-escapes < and > inside a code span' do
+    obj = TextLine.new
+    ret_val = obj.format_string('wrapped in `<i>...</i>`')
+    expect(ret_val).to eq('wrapped in <code class="inline">&lt;i&gt;...&lt;/i&gt;</code>')
+  end
+
+  it 'HTML-escapes ampersands inside a code span' do
+    obj = TextLine.new
+    ret_val = obj.format_string('use `A & B` form')
+    expect(ret_val).to eq('use <code class="inline">A &amp; B</code> form')
+  end
+
+  it 'leaves emphasis markers literal inside a code span' do
+    obj = TextLine.new
+    ret_val = obj.format_string('the `*foo*` marker')
+    expect(ret_val).to eq('the <code class="inline">*foo*</code> marker')
+  end
+
+  it 'handles two code spans on the same line' do
+    obj = TextLine.new
+    ret_val = obj.format_string('`a` and `b`')
+    expect(ret_val).to eq('<code class="inline">a</code> and <code class="inline">b</code>')
+  end
+
+  it 'leaves an unmatched single backtick as a literal character' do
+    obj = TextLine.new
+    ret_val = obj.format_string('this `is unfinished')
+    expect(ret_val).to eq('this `is unfinished')
+  end
+
+  it 'still italicises text after a closed code span' do
+    obj = TextLine.new
+    ret_val = obj.format_string('`code` then *italic*')
+    expect(ret_val).to eq('<code class="inline">code</code> then <i>italic</i>')
+  end
 end

@@ -887,6 +887,7 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     expect(doc.headings[0]).to eq(doc.items[0])
     expect(doc.items[1].parent_heading).to eq(doc.items[0])
   end
+  # <REQ> Unordered lists with "*" or "-" as the item marker. >[SRS-017] </REQ>
   it 'Recognizes Unordered List with no headings' do
     input_lines = []
     input_lines << '* This is a list item'
@@ -910,6 +911,86 @@ describe 'DocParser' do # rubocop:disable Metrics/BlockLength
     # headings
     expect(doc.headings[0]).to eq(doc.items[0])
     expect(doc.items[1].parent_heading).to eq(doc.items[0])
+  end
+  # <REQ> Unordered lists with "*" or "-" as the item marker. >[SRS-017] </REQ>
+  it 'Recognizes Unordered List with dash marker' do
+    input_lines = []
+    input_lines << '- This is a list item'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items.length).to eq 3
+    expect(doc.items[0]).to be_instance_of(Heading)
+    expect(doc.items[1]).to be_instance_of(MarkdownList)
+    expect(doc.items[2]).to be_instance_of(DocFooter)
+    expect(doc.items[1].is_ordered).to be false
+    expect(doc.items[1].rows[0]).to eq 'This is a list item'
+  end
+  # <REQ> Unordered lists with "*" or "-" as the item marker. >[SRS-017] </REQ>
+  it 'Recognizes Unordered List with multiple dash items' do
+    input_lines = []
+    input_lines << '- First item'
+    input_lines << '- Second item'
+    input_lines << '- Third item'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items[1]).to be_instance_of(MarkdownList)
+    expect(doc.items[1].rows).to eq(['First item', 'Second item', 'Third item'])
+  end
+  # <REQ> Unordered lists with "*" or "-" as the item marker. >[SRS-017] </REQ>
+  # <REQ> Nested levels of ordered and unordered lists. >[SRS-019] </REQ>
+  it 'Recognizes mixed-marker nested unordered list (star outer, dash inner)' do
+    input_lines = []
+    input_lines << '* Outer item'
+    input_lines << '  - Inner item'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    outer = doc.items[1]
+    expect(outer).to be_instance_of(MarkdownList)
+    # the outer item's text moves into the nested list's text label,
+    # and the parent's last row is replaced by the nested list
+    nested = outer.rows[0]
+    expect(nested).to be_instance_of(MarkdownList)
+    expect(nested.text).to eq 'Outer item'
+    expect(nested.is_ordered).to be false
+    expect(nested.rows[0]).to eq 'Inner item'
+  end
+  # <REQ> Unordered lists with "*" or "-" as the item marker. >[SRS-017] </REQ>
+  # <REQ> Nested levels of ordered and unordered lists. >[SRS-019] </REQ>
+  it 'Recognizes mixed-marker nested unordered list (dash outer, star inner)' do
+    input_lines = []
+    input_lines << '- Outer item'
+    input_lines << '  * Inner item'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    outer = doc.items[1]
+    expect(outer).to be_instance_of(MarkdownList)
+    nested = outer.rows[0]
+    expect(nested).to be_instance_of(MarkdownList)
+    expect(nested.text).to eq 'Outer item'
+    expect(nested.is_ordered).to be false
+    expect(nested.rows[0]).to eq 'Inner item'
+  end
+  # <REQ> Unordered lists with "*" or "-" as the item marker. >[SRS-017] </REQ>
+  # <REQ> Unordered lists with bold, italic, and mixed formatting. >[SRS-024] </REQ>
+  it 'Recognizes dash-marker list items with bold and italic formatting' do
+    input_lines = []
+    input_lines << '- *italic item*'
+    input_lines << '- **bold item**'
+    input_lines << '- ***mixed item***'
+    doc = Specification.new('C:/srs.md')
+
+    DocParser.parse(doc, input_lines)
+
+    expect(doc.items[1]).to be_instance_of(MarkdownList)
+    expect(doc.items[1].rows).to eq(['*italic item*', '**bold item**', '***mixed item***'])
   end
   it 'Recognizes Ordered List with no headings' do
     input_lines = []

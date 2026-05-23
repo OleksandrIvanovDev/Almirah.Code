@@ -37,13 +37,15 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     FileUtils.copy_entry(src_folder, dst_folder)
   end
 
-  def specifications_and_protocols # rubocop:disable Metrics/MethodLength
+  def specifications_and_protocols # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     parse_all_specifications
     parse_all_protocols
     parse_all_source_files
+    parse_decisions
     link_all_specifications
     link_all_protocols
     link_all_source_files
+    link_all_decisions
     check_wrong_specification_referenced
     create_index
     render_all_specifications(@project_data.specifications)
@@ -52,17 +54,21 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_protocols
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
+    render_decisions_overview
+    render_all_decisions
     render_index
     create_search_data
   end
 
-  def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength
+  def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     parse_all_specifications
     parse_test_run test_run
     parse_all_source_files
+    parse_decisions
     link_all_specifications
     link_all_protocols
     link_all_source_files
+    link_all_decisions
     check_wrong_specification_referenced
     create_index
     render_all_specifications(@project_data.specifications)
@@ -71,6 +77,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_protocols
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
+    render_decisions_overview
+    render_all_decisions
     render_index
     create_search_data
   end
@@ -114,6 +122,18 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
   end
 
+  def parse_decisions
+    path = @configuration.project_root_directory
+    decisions_root = "#{path}/decisions"
+    Dir.glob("#{decisions_root}/**/*.md").each do |f|
+      doc = DocFabric.create_decision(f)
+      rel_dir = File.dirname(f.sub("#{decisions_root}/", ''))
+      doc.html_rel_path = rel_dir == '.' ? "#{doc.id}.html" : "#{rel_dir}/#{doc.id}.html"
+      @project_data.decisions.append(doc)
+    end
+    BaseDocument.show_decisions_link = @project_data.decisions.any?
+  end
+
   def parse_test_run(test_run)
     path = @configuration.project_root_directory
     Dir.glob("#{path}/tests/runs/#{test_run}/**/*.md").each do |f|
@@ -153,6 +173,16 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @project_data.covered_specifications_dictionary.each do |_key, value|
       doc = DocFabric.create_coverage_matrix(value)
       @project_data.coverage_matrices.append doc
+    end
+  end
+
+  def link_all_decisions
+    @project_data.decisions.each do |d|
+      @project_data.specifications.each do |s|
+        next unless d.up_link_docs.key?(s.id.to_s)
+
+        DocLinker.link_decision_to_spec(d, s)
+      end
     end
   end
 
@@ -293,6 +323,33 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     doc.to_console
 
     doc.to_html("#{path}/build/")
+  end
+
+  def render_decisions_overview
+    return if @project_data.decisions.empty?
+
+    path = @configuration.project_root_directory
+    FileUtils.mkdir_p("#{path}/build/decisions")
+
+    doc = DocFabric.create_decisions_overview(@project)
+    doc.to_console
+    doc.to_html("#{path}/build/decisions/")
+  end
+
+  def render_all_decisions # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    return if @project_data.decisions.empty?
+
+    build_decisions_root = "#{@configuration.project_root_directory}/build/decisions"
+    @project_data.decisions.each do |doc|
+      out_dir_rel = File.dirname(doc.html_rel_path)
+      out_dir = out_dir_rel == '.' ? build_decisions_root : "#{build_decisions_root}/#{out_dir_rel}"
+      FileUtils.mkdir_p(out_dir)
+      depth = 1 + (out_dir_rel == '.' ? 0 : out_dir_rel.split('/').size)
+      doc.root_prefix = '../' * depth
+      doc.specifications_path = "./#{doc.root_prefix}specifications/"
+      doc.to_console
+      doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
+    end
   end
 
   def create_search_data

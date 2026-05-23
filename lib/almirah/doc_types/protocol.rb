@@ -2,9 +2,12 @@ require_relative "persistent_document"
 
 class Protocol < PersistentDocument
 
+    attr_accessor :specifications_path
+
     def initialize(fele_path)
         super
         @id = File.basename(fele_path, File.extname(fele_path)).downcase
+        @specifications_path = './../../../specifications/'
     end
 
     def to_html(nav_pane, output_file_path)

@@ -101,13 +101,14 @@ class TestStepReferenceColumn < ControlledTableColumn # rubocop:disable Style/Do
 
   def to_html # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     s = ''
+    specifications_path = @parent_row.parent_doc.specifications_path
     if @up_link_ids
       if @up_link_ids.length == 1
         if tmp = /^([a-zA-Z]+)-\d+/.match(@up_link_ids[0])
           up_link_doc_name = tmp[1].downcase
         end
         s += "\t\t<td class=\"item_id\" style=\"text-align: center;\">\
-                    <a href=\"./../../../specifications/#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
+                    <a href=\"#{specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
                     class=\"external\" title=\"Linked to\">#{@up_link_ids[0]}</a></td>\n"
       else
         s += "\t\t<td class=\"item_id\" style=\"text-align: center;\">"
@@ -120,7 +121,7 @@ class TestStepReferenceColumn < ControlledTableColumn # rubocop:disable Style/Do
           if tmp = /^([a-zA-Z]+)-\d+/.match(lnk)
             up_link_doc_name = tmp[1].downcase
           end
-          s += "\t\t\t<a href=\"./../../../specifications/#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
+          s += "\t\t\t<a href=\"#{specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
                     class=\"external\" title=\"Verifies\">#{lnk}</a>\n<br>"
         end
         s += '</div>'
@@ -184,7 +185,7 @@ class ControlledTable < DocItem # rubocop:disable Style/Documentation
           end
         end
 
-      elsif index + 2 == columns.length # it is expected that test step result is placed to the pre-last column only
+      elsif (index + 2 == columns.length) && @parent_doc.instance_of?(Protocol) # test step result column applies only to Protocols
 
         col = TestStepResultColumn.new element
         new_row.columns.append col
