@@ -78,6 +78,8 @@ Almirah gem has the right to expect the following folder structure:
 ```bash
 project_root_directory
 |
++-- decisions/
+|
 +-- specifications/
 |  |
 |  +-- SPA/   
