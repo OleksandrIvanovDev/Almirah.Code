@@ -115,7 +115,7 @@ class ControlledParagraph < Paragraph
         dr_doc = @decision_record_links[0].parent_doc
         s += "\t\t<td class=\"item_id\">\
             <a href=\"./../../decisions/#{dr_doc.html_rel_path}\" \
-            class=\"external\" title=\"Decision Record\">#{dr_doc.id}</a></td>\n"
+            class=\"external\" title=\"Decision Record\">#{dr_doc.id.upcase}</a></td>\n"
       else
         s += "\t\t<td class=\"item_id\">"
         s += "<div id=\"DR_#{@id}\" style=\"display: block;\">"
@@ -126,7 +126,7 @@ class ControlledParagraph < Paragraph
         @decision_record_links.each do |lnk|
           dr_doc = lnk.parent_doc
           s += "\t\t\t<a href=\"./../../decisions/#{dr_doc.html_rel_path}\" \
-            class=\"external\" title=\"Referenced in\">#{dr_doc.id}</a>\n<br>"
+            class=\"external\" title=\"Referenced in\">#{dr_doc.id.upcase}</a>\n<br>"
         end
         s += '</div>'
         s += "</td>\n"

@@ -62,9 +62,9 @@ RSpec.describe 'Affected Documents', type: :aruba do
       req2_row = rows.find { |tr| tr.css('td.item_id a[name="REQ-002"]').any? }
       req1_dr = req1_row.css('td').last.css('a').first
       req2_dr = req2_row.css('td').last.css('a').first
-      expect(req1_dr.text.strip).to eq('adr-300')
+      expect(req1_dr.text.strip).to eq('ADR-300')
       expect(req1_dr['href']).to eq('./../../decisions/adr-300.html')
-      expect(req2_dr.text.strip).to eq('adr-300')
+      expect(req2_dr.text.strip).to eq('ADR-300')
       expect(req2_dr['href']).to eq('./../../decisions/adr-300.html')
     end
   end
@@ -111,7 +111,7 @@ RSpec.describe 'Affected Documents', type: :aruba do
       expect(collapsed['onclick']).to include('decisionLink_OnClick')
       expanded_texts = expanded.map(&:text).map(&:strip)
       expanded_hrefs = expanded.map { |a| a['href'] }
-      expect(expanded_texts).to contain_exactly('adr-310', 'adr-311')
+      expect(expanded_texts).to contain_exactly('ADR-310', 'ADR-311')
       expect(expanded_hrefs).to contain_exactly('./../../decisions/adr-310.html',
                                                 './../../decisions/adr-311.html')
     end
@@ -212,7 +212,7 @@ RSpec.describe 'Affected Documents', type: :aruba do
       dr_cell = row.css('td').last
       single_link = dr_cell.css('a').first
       expect(dr_cell.css('div#DR_REQ-001').any?).to be false
-      expect(single_link.text.strip).to eq('adr-350')
+      expect(single_link.text.strip).to eq('ADR-350')
       expect(single_link['href']).to eq('./../../decisions/adr-350.html')
     end
   end
@@ -251,7 +251,7 @@ RSpec.describe 'Affected Documents', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       row = doc.css('table.controlled tr').find { |tr| tr.css('td.item_id a[name="REQ-001"]').any? }
       dr_link = row.css('td').last.css('a').first
-      expect(dr_link.text.strip).to eq('issue-340')
+      expect(dr_link.text.strip).to eq('ISSUE-340')
       expect(dr_link['href']).to eq('./../../decisions/issues/issue-340.html')
     end
   end
