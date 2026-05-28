@@ -16,7 +16,7 @@ class SpecificationsDb
     @specifications.each do |sp|
       sp.items.each do |i|
         if (i.instance_of? Paragraph) or (i.instance_of? ControlledParagraph)
-          e = { 'document' => i.parent_doc.title, \
+          e = { 'doc_title' => i.parent_doc.title, \
                 'doc_color' => i.parent_doc.color, \
                 'text' => i.text, \
                 'heading_url' => i.parent_heading.get_url, \
@@ -36,7 +36,7 @@ class SpecificationsDb
     item_to_process.rows.each do |r|
       if r.is_a?(MarkdownList)
         f_text = r.text
-        e = {   'document' => item_for_reference.parent_doc.title, \
+        e = {   'doc_title' => item_for_reference.parent_doc.title, \
                 'doc_color' => item_for_reference.parent_doc.color, \
                 'text' => f_text, \
                 'heading_url' => item_for_reference.parent_heading.get_url, \
@@ -45,7 +45,7 @@ class SpecificationsDb
         add_markdown_list_item_to_db(data, item_for_reference, r)
       else
         f_text = r
-        e = {   'document' => item_for_reference.parent_doc.title, \
+        e = {   'doc_title' => item_for_reference.parent_doc.title, \
                 'doc_color' => item_for_reference.parent_doc.color, \
                 'text' => f_text, \
                 'heading_url' => item_for_reference.parent_heading.get_url, \
@@ -61,7 +61,7 @@ class SpecificationsDb
     item_to_process.rows.each do |row|
       table_text += "| #{row.join(' | ')} |"
     end
-    e = {   'document' => item_for_reference.parent_doc.title, \
+    e = {   'doc_title' => item_for_reference.parent_doc.title, \
             'doc_color' => item_for_reference.parent_doc.color, \
             'text' => table_text, \
             'heading_url' => item_for_reference.parent_heading.get_url, \
