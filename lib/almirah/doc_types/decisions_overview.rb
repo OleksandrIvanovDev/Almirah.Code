@@ -72,6 +72,10 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     [75, 192, 192], [153, 102, 255], [201, 203, 207]
   ].freeze
 
+  # Records with a missing or ambiguous current-status marker are surfaced under
+  # this category as a data-quality indicator rather than being silently dropped.
+  UNDEFINED_STATUS_LABEL = 'Undefined'
+
   def render_charts_grid # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     counts = @project.project_data.decisions.each_with_object(Hash.new(0)) do |item, cntr|
       cntr[item.record_type] += 1 if item.record_type
@@ -81,6 +85,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     pie_colors = labels.each_with_index.map { |_, i| palette_rgba(i, 0.5) }
 
     velocity = velocity_chart_data
+    status_dist = status_distribution_chart_data
 
     <<~HTML
       <div class="decisions_overview_charts">
@@ -115,7 +120,20 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
       \t\t\t});
       \t\t</script>
       \t</div>
-      \t<div class="chart_cell"></div>
+      \t<div class="chart_cell">
+      \t\t<canvas id="decisions_status_bar"></canvas>
+      \t\t<script>
+      \t\t\tnew Chart(document.getElementById('decisions_status_bar'), {
+      \t\t\t\ttype: 'bar',
+      \t\t\t\tdata: #{status_dist.to_json},
+      \t\t\t\toptions: {
+      \t\t\t\t\tindexAxis: 'y',
+      \t\t\t\t\tplugins: { title: { display: true, text: 'Decision Records by Current Status' }, legend: { display: false } },
+      \t\t\t\t\tscales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      \t\t\t\t}
+      \t\t\t});
+      \t\t</script>
+      \t</div>
       </div>
     HTML
   end
@@ -141,6 +159,32 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     {
       labels: fridays.map { |f| f.strftime('%d-%m-%Y') },
       datasets: segments.map { |s| { label: s, data: counts[s] } }
+    }
+  end
+
+  # Tally each decision record under its current status (the "*"-marked Status
+  # row). Records whose current status is undefined fall under "Undefined", which
+  # is ordered last; real statuses keep first-seen order. The count is baked into
+  # each label so small categories stay legible on a linear axis next to a
+  # dominant one.
+  def status_distribution_chart_data # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    counts = Hash.new(0)
+    keys = []
+    @project.project_data.decisions.each do |doc|
+      status = doc.current_status
+      key = status.nil? || status.strip.empty? ? UNDEFINED_STATUS_LABEL : status
+      keys << key unless counts.key?(key)
+      counts[key] += 1
+    end
+    keys << UNDEFINED_STATUS_LABEL if keys.delete(UNDEFINED_STATUS_LABEL)
+
+    colors = keys.each_with_index.map do |k, i|
+      k == UNDEFINED_STATUS_LABEL ? palette_rgba(CHART_PALETTE.length - 1, 0.5) : palette_rgba(i, 0.5)
+    end
+    {
+      labels: keys.map { |k| "#{k} (#{counts[k]})" },
+      datasets: [{ label: 'Decision records', data: keys.map { |k| counts[k] },
+                   backgroundColor: colors, borderWidth: 0 }]
     }
   end
 
