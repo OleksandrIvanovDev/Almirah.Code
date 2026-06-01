@@ -25,7 +25,6 @@ class SourceFile < PersistentDocument
     depth = relative_path.count('/') + 1 # +1 for the repository folder
     depth += 1 # for the source_files folder
     @specifications_path = "./#{'../' * depth}specifications/"
-    puts @specifications_path
   end
 
   def to_console
