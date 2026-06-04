@@ -26,6 +26,15 @@ module ConsoleReporter
     emit(label, value, 96) # cyan highlight
   end
 
+  def warn(label, value)
+    emit(label, value.to_s, 91) # red highlight
+  end
+
+  # Colourises a detail line with the same red as warn (TTY-gated).
+  def warn_detail(text)
+    colorize(text, 91)
+  end
+
   def emit(label, value, color_code)
     dotted = "#{label} ".ljust(COLUMN, '.')
     puts "#{dotted} #{colorize(value, color_code)}"

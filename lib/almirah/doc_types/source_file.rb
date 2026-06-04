@@ -77,13 +77,10 @@ class SourceFile < PersistentDocument
     @html_file_path = output_file_path
     FileUtils.mkdir_p(File.dirname(output_file_path))
 
-    # Calculate the relative path depth to determine correct number of parent directory symbols
-    relative_path = @path.sub("#{@root_path}/", '')
-    depth = relative_path.count('/') + 1 # +1 for the repository folder
-    depth += 1 # for the source_files folder
-    css_path = "#{'../' * depth}css/main.css"
-    js_path = "#{'../' * depth}scripts/main.js"
-    index_path = "#{'../' * depth}index.html"
+    @output_rel_path = output_file_path.split('/build/', 2).last
+    css_path = rel_to('css/main.css')
+    js_path = rel_to('scripts/main.js')
+    index_path = rel_to('index.html')
 
     file = File.open(output_file_path, 'w')
     file_data.each do |s|

@@ -63,7 +63,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
       link = doc.at_css('#decisions_menu_item')
       expect(link).not_to be_nil
-      expect(link['href']).to eq('./decisions/overview.html')
+      expect(link['href']).to eq('decisions/overview.html')
       expect(link.text).to include('Decision Records')
       expect(link.at_css('i')['class']).to include('fa-gavel')
     end
@@ -73,7 +73,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       link = doc.at_css('#decisions_menu_item')
       expect(link).not_to be_nil
-      expect(link['href']).to eq('./../../decisions/overview.html')
+      expect(link['href']).to eq('../../decisions/overview.html')
     end
 
     # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
@@ -81,7 +81,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       link = doc.at_css('#decisions_menu_item')
       expect(link).not_to be_nil
-      expect(link['href']).to eq('./overview.html')
+      expect(link['href']).to eq('overview.html')
     end
 
     # <REQ> Render each decision record to an HTML page named after the Decision Record ID. >[SRS-047] </REQ>
@@ -99,7 +99,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(css_hrefs).to include('../css/main.css')
       expect(js_srcs).to include('../scripts/main.js')
       expect(doc.at_css('#index_menu_item')['href']).to eq('../index.html')
-      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../decisions/overview.html')
+      expect(doc.at_css('#decisions_menu_item')['href']).to eq('overview.html')
     end
 
     # <REQ> Title click in the overview navigates to the rendered decision page. >[SRS-042] </REQ>
@@ -142,7 +142,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(css_hrefs).to include('../../css/main.css')
       expect(js_srcs).to include('../../scripts/main.js')
       expect(doc.at_css('#index_menu_item')['href']).to eq('../../index.html')
-      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../../decisions/overview.html')
+      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../overview.html')
     end
 
     # <REQ> Title click in the overview navigates to the rendered decision page. >[SRS-042] </REQ>

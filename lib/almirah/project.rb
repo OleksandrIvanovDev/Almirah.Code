@@ -61,6 +61,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_decisions
     render_index
     create_search_data
+    report_broken_links
     report_rendered
   end
 
@@ -86,6 +87,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_decisions
     render_index
     create_search_data
+    report_broken_links
     report_rendered
   end
 
@@ -95,12 +97,23 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     ConsoleReporter.result('rendering HTML', File.join(base, 'build', 'index.html'))
   end
 
+  # Reports cross-document links that could not be resolved (ADR-186, SRS-094),
+  # naming the linking document. The build still completes.
+  def report_broken_links
+    broken = TextLine.broken_links
+    return if broken.empty?
+
+    ConsoleReporter.warn('broken links', broken.length)
+    broken.each { |b| puts ConsoleReporter.warn_detail("  #{b[:document] || '?'}: #{b[:target]}") }
+  end
+
   # Assigns each document its generated output path (relative to the build root)
   # and registers it for cross-document link resolution (ADR-186). Runs after all
   # documents are parsed and before any rendering, so link targets are known.
   def build_link_registry # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     reg = @project_data.link_registry
     TextLine.link_registry = reg
+    TextLine.reset_broken_links
     @project_data.specifications.each do |d|
       d.output_rel_path = "specifications/#{d.id}/#{d.id}.html"
       reg.register(d)
