@@ -12,7 +12,7 @@ class MarkdownTable < DocItem
 
     res = /^[|](.*[|])/.match(heading_row)
     @column_names = if res
-                      res[1].split('|')
+                      split_table_cells(res[1])
                     else
                       ['# ERROR# ']
                     end
@@ -49,7 +49,7 @@ class MarkdownTable < DocItem
   end
 
   def add_row(row)
-    columns = row.split('|')
+    columns = split_table_cells(row)
     @rows.append(columns.map!(&:strip))
     true
   end
