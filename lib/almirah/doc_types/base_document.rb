@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class BaseDocument # rubocop:disable Style/Documentation
-  attr_accessor :title, :id, :dom, :headings
+  attr_accessor :title, :id, :dom, :headings, :output_rel_path
 
   class << self
     attr_accessor :show_decisions_link

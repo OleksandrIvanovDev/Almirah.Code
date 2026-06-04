@@ -10,6 +10,7 @@ require_relative 'project/doc_linker'
 require_relative 'project_configuration'
 require_relative 'project/project_data'
 require_relative 'console_reporter'
+require_relative 'relative_url'
 
 class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   attr_accessor :index, :project, :configuration, :project_data
@@ -48,6 +49,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_source_files
     link_all_decisions
     check_wrong_specification_referenced
+    build_link_registry
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
@@ -72,6 +74,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_source_files
     link_all_decisions
     check_wrong_specification_referenced
+    build_link_registry
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
@@ -90,6 +93,30 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     root = @configuration.project_root_directory
     base = root == Dir.pwd ? '.' : root
     ConsoleReporter.result('rendering HTML', File.join(base, 'build', 'index.html'))
+  end
+
+  # Assigns each document its generated output path (relative to the build root)
+  # and registers it for cross-document link resolution (ADR-186). Runs after all
+  # documents are parsed and before any rendering, so link targets are known.
+  def build_link_registry # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    reg = @project_data.link_registry
+    @project_data.specifications.each do |d|
+      d.output_rel_path = "specifications/#{d.id}/#{d.id}.html"
+      reg.register(d)
+    end
+    @project_data.protocols.each do |d|
+      d.output_rel_path = "tests/protocols/#{d.id}/#{d.id}.html"
+      reg.register(d)
+    end
+    @project_data.decisions.each do |d|
+      d.output_rel_path = "decisions/#{d.html_rel_path}"
+      reg.register(d)
+    end
+    @project_data.source_files.each do |d|
+      rel = d.path.sub("#{d.root_path}/", '')
+      d.output_rel_path = "source_files/#{d.repository}/#{rel}.html"
+      reg.register(d)
+    end
   end
 
   def parse_all_specifications
