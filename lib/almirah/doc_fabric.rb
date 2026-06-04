@@ -17,12 +17,6 @@ class DocFabric
   @@spec_colors = %w[cff4d2 fbeee6 ffcad4 bce6ff e4dfd9 f9e07f cbe54e d3e7ee eab595 86e3c3
                      ffdca2 ffffff ffdd94 d0e6a5 ffb284 f3dbcf c9bbc8 c6c09c]
 
-  def self.add_lazy_doc_id(path)
-    if res = /(\w+)[.]md$/.match(path)
-      TextLine.add_lazy_doc_id(res[1])
-    end
-  end
-
   def self.create_specification(path)
     color = @@spec_colors[@@color_index]
     @@color_index += 1

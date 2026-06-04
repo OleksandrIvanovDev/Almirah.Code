@@ -100,6 +100,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   # documents are parsed and before any rendering, so link targets are known.
   def build_link_registry # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     reg = @project_data.link_registry
+    TextLine.link_registry = reg
     @project_data.specifications.each do |d|
       d.output_rel_path = "specifications/#{d.id}/#{d.id}.html"
       reg.register(d)
@@ -121,12 +122,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
   def parse_all_specifications
     path = @configuration.project_root_directory
-    # do a lasy pass first to get the list of documents id
     Dir.glob("#{path}/specifications/**/*.md").each do |f|
-      DocFabric.add_lazy_doc_id(f)
-    end
-    # parse documents in the second pass
-    Dir.glob("#{path}/specifications/**/*.md").each do |f| # rubocop:disable Style/CombinableLoops
       doc = DocFabric.create_specification(f)
       @project_data.specifications.append(doc)
       @project_data.specifications_dictionary[doc.id.to_s.downcase] = doc

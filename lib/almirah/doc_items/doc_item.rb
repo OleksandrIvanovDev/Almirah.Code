@@ -19,4 +19,8 @@ class DocItem < TextLine # rubocop:disable Style/Documentation
   def get_url
     ''
   end
+
+  def owner_document
+    @parent_doc
+  end
 end

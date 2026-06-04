@@ -1,4 +1,5 @@
 require 'cgi'
+require_relative '../relative_url'
 
 class TextLineToken
   attr_accessor :value
@@ -345,11 +346,22 @@ class TextLineBuilder
 end
 
 class TextLine < TextLineBuilderContext
-  @@lazy_doc_id_dict = {}
+  @@link_registry = nil # rubocop:disable Style/ClassVars
 
-  def self.add_lazy_doc_id(id)
-    doc_id = id.to_s.downcase
-    @@lazy_doc_id_dict[doc_id] = doc_id
+  class << self
+    def link_registry=(registry)
+      @@link_registry = registry # rubocop:disable Style/ClassVars
+    end
+
+    def link_registry
+      @@link_registry
+    end
+  end
+
+  # The document that owns this text line. Used to resolve cross-document links
+  # relative to the current page. nil for stand-alone text (e.g. unit tests).
+  def owner_document
+    nil
   end
 
   def format_string(str)
@@ -375,29 +387,33 @@ class TextLine < TextLineBuilderContext
   end
 
   def link(link_text, link_url)
-    # define default result first
-    result = "<a target=\"_blank\" rel=\"noopener\" href=\"#{link_url}\" class=\"external\">#{link_text}</a>"
-
-    lazy_doc_id = nil
-    anchor = nil
-
-    if res = /(\w+)[.]md$/.match(link_url)          # link
-      lazy_doc_id = res[1].to_s.downcase
-
-    elsif res = /(\w*)[.]md(#.*)$/.match(link_url)  # link with anchor
-      if res && res.length > 2
-        lazy_doc_id = res[1]
-        anchor = res[2]
-      end
+    target, fragment = resolve_cross_document_link(link_url.to_s)
+    if target
+      href = RelativeUrl.between(owner_document.output_rel_path, target.output_rel_path, fragment: fragment)
+      "<a href=\"#{href}\" class=\"external\">#{link_text}</a>"
+    else
+      "<a target=\"_blank\" rel=\"noopener\" href=\"#{link_url}\" class=\"external\">#{link_text}</a>"
     end
+  end
 
-    if lazy_doc_id && @@lazy_doc_id_dict.key?(lazy_doc_id)
-      result = if anchor
-                 "<a href=\".\\..\\#{lazy_doc_id}\\#{lazy_doc_id}.html#{anchor}\" class=\"external\">#{link_text}</a>"
-               else
-                 "<a href=\".\\..\\#{lazy_doc_id}\\#{lazy_doc_id}.html\" class=\"external\">#{link_text}</a>"
-               end
-    end
-    result
+  private
+
+  # Resolves a native Markdown link "[text](relative/path.md#fragment)" to a
+  # managed document by resolving the relative path against the owning document's
+  # source directory (ADR-186). Returns [target_document, fragment_or_nil] or nil.
+  def resolve_cross_document_link(raw) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    path_part, _sep, fragment = raw.partition('#')
+    return nil unless path_part =~ /\.(md|markdown)\z/i
+
+    doc = owner_document
+    return nil unless doc&.output_rel_path && doc.respond_to?(:path) && doc.path
+
+    registry = TextLine.link_registry
+    return nil unless registry
+
+    target = registry.find_by_source(File.expand_path(path_part, File.dirname(doc.path)))
+    return nil unless target
+
+    [target, fragment.empty? ? nil : fragment]
   end
 end
