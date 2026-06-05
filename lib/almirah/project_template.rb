@@ -14,6 +14,7 @@ class ProjectTemplate # rubocop:disable Style/Documentation
     create_architecture
     create_tests
     create_test_runs
+    create_decisions
   end
 
   def create_requirements
@@ -265,7 +266,7 @@ class ProjectTemplate # rubocop:disable Style/Documentation
   end
 
   def run_test_003
-    path = File.join(@project_root, 'tests/runs/010/tq-002')
+    path = File.join(@project_root, 'tests/runs/010/tq-001')
     FileUtils.mkdir_p path
 
     file_content = <<~EOS
@@ -291,6 +292,93 @@ class ProjectTemplate # rubocop:disable Style/Documentation
     EOS
 
     path = File.join(path, 'tq-001.md')
+    file = File.open(path, 'w')
+    file.puts file_content
+    file.close
+  end
+
+  def create_decisions
+    path = File.join(@project_root, 'decisions')
+    FileUtils.mkdir_p path
+
+    file_content = <<~EOS
+      ---
+      title: "ADR-001: Start Project Decision"
+      ---
+
+      # Status
+
+      |  | Date | Status |
+      |:---:|---|---|
+      | * | #{Time.now.strftime('%d-%m-%Y')} | Proposed |
+
+      # Context
+
+      This is an example decision record. It demonstrates how Almirah captures a
+      decision and links it to the requirements it affects.
+
+      # Decision
+
+      Describe the decision here. The leading "*" in the Status table marks the
+      current state of the record.
+
+      # Scope
+
+      | Item | Status | Start Date | Target Date | Description |
+      |---|---|---|---|---|
+      | Requirements | To Do | | | |
+      | Code | To Do | | | |
+      | Tests | To Do | | | |
+
+      # Out of Scope
+
+      The ADR contains the most important sections with no detailed content.
+
+      # Consequences
+
+      ## Positive
+
+      An ADR example will clearly show the approach Almirah framework use for any software changes.
+
+      ## Negative
+
+      The format of this ADR can be different that is required for the real project.
+
+      ## Neutral
+
+      TBD
+
+      # Alternatives Considered
+
+      - **Add an empty `decisions/` directory only.** Rejected: an empty folder neither teaches the format nor causes the overview page to render, so it would not exercise the feature.
+
+      # Affected Documents
+
+      Table below shows a requirement whose text this decision creates or updates.
+
+      | # | Proposed Text | Req-ID |
+      |---|---|---|
+      | 1 | This is a first requirement (controlled paragraph with ID equal to "REQ-001"). | >[REQ-001] |
+
+      # Software Versions
+
+      | Software Version Category | Software Version ID |
+      |---|---|
+      | Latest Released Version | n/a |
+      | Issue Found in Version | n/a |
+      | Target Release Version | 0.0.1 |
+
+      # References
+
+      TBD
+
+      # Review Evidences
+
+      TBD
+
+    EOS
+
+    path = File.join(path, 'adr-001-start-project-decision.md')
     file = File.open(path, 'w')
     file.puts file_content
     file.close
