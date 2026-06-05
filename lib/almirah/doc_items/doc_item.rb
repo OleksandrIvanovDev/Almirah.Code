@@ -19,4 +19,16 @@ class DocItem < TextLine # rubocop:disable Style/Documentation
   def get_url
     ''
   end
+
+  # Splits a Markdown table row into its cell strings, treating a backslash-escaped
+  # pipe (\|) as a literal character within a cell rather than a column separator
+  # (e.g. a "|" inside an inline code span such as `[[target\|alias]]`). The escaping
+  # backslash is dropped so the cell renders the intended literal pipe.
+  def split_table_cells(row)
+    row.split(/(?<!\\)\|/).map { |cell| cell.gsub('\\|', '|') }
+  end
+
+  def owner_document
+    @parent_doc
+  end
 end

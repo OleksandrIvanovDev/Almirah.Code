@@ -1,4 +1,6 @@
 require 'cgi'
+require 'uri'
+require_relative '../relative_url'
 
 class TextLineToken
   attr_accessor :value
@@ -50,6 +52,18 @@ class SquareBracketRight < TextLineToken
   end
 end
 
+class DoubleSquareBracketLeft < TextLineToken
+  def initialize # rubocop:disable Lint/MissingSuper
+    @value = '[['
+  end
+end
+
+class DoubleSquareBracketRight < TextLineToken
+  def initialize # rubocop:disable Lint/MissingSuper
+    @value = ']]'
+  end
+end
+
 class SquareBracketRightAndParentheseLeft < TextLineToken
   def initialize
     @value = ']('
@@ -77,6 +91,8 @@ class TextLineParser
     @supported_tokens.append(BoldToken.new)
     @supported_tokens.append(ItalicToken.new)
     @supported_tokens.append(BacktickToken.new)
+    @supported_tokens.append(DoubleSquareBracketLeft.new)
+    @supported_tokens.append(DoubleSquareBracketRight.new)
     @supported_tokens.append(SquareBracketRightAndParentheseLeft.new)
     @supported_tokens.append(ParentheseLeft.new)
     @supported_tokens.append(ParentheseRight.new)
@@ -220,6 +236,10 @@ class TextLineBuilderContext
   def link(_link_text, link_url)
     link_url
   end
+
+  def wiki_link(inner)
+    "[[#{inner}]]"
+  end
 end
 
 class TextLineBuilder
@@ -229,7 +249,7 @@ class TextLineBuilder
     @builder_context = builder_context
   end
 
-  def restore(token_list)
+  def restore(token_list) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
     result = ''
     return '' if token_list.nil?
 
@@ -296,6 +316,25 @@ class TextLineBuilder
           result += '***'
           ti = ti_starting_position + 1
         end
+      when 'DoubleSquareBracketLeft'
+        # wiki/Obsidian link: collect raw text up to the closing "]]"
+        is_found = false
+        ti_starting_position = ti
+        tii = ti + 1
+        while tii < tl
+          if token_list[tii].instance_of?(DoubleSquareBracketRight)
+            inner = token_list[(ti + 1)..(tii - 1)].map(&:value).join
+            result += @builder_context.wiki_link(inner)
+            ti = tii + 1
+            is_found = true
+            break
+          end
+          tii += 1
+        end
+        unless is_found
+          result += '[['
+          ti = ti_starting_position + 1
+        end
       when 'SquareBracketLeft'
         # try to find closing part
         is_found = false
@@ -333,7 +372,7 @@ class TextLineBuilder
       when 'InlineCodeToken'
         result += @builder_context.inline_code(token_list[ti].value)
         ti += 1
-      when 'TextLineToken', 'ParentheseLeft', 'ParentheseRight', 'SquareBracketRight'
+      when 'TextLineToken', 'ParentheseLeft', 'ParentheseRight', 'SquareBracketRight', 'DoubleSquareBracketRight'
         result += token_list[ti].value
         ti += 1
       else
@@ -345,11 +384,37 @@ class TextLineBuilder
 end
 
 class TextLine < TextLineBuilderContext
-  @@lazy_doc_id_dict = {}
+  @@link_registry = nil # rubocop:disable Style/ClassVars
+  @@broken_links = [] # rubocop:disable Style/ClassVars
 
-  def self.add_lazy_doc_id(id)
-    doc_id = id.to_s.downcase
-    @@lazy_doc_id_dict[doc_id] = doc_id
+  class << self
+    def link_registry=(registry)
+      @@link_registry = registry # rubocop:disable Style/ClassVars
+    end
+
+    def link_registry
+      @@link_registry
+    end
+
+    # Cross-document links that could not be resolved to a managed document,
+    # collected during rendering for reporting (ADR-186, SRS-094).
+    def broken_links
+      @@broken_links
+    end
+
+    def reset_broken_links
+      @@broken_links = [] # rubocop:disable Style/ClassVars
+    end
+
+    def record_broken_link(document, target)
+      @@broken_links << { document: document&.id, target: target }
+    end
+  end
+
+  # The document that owns this text line. Used to resolve cross-document links
+  # relative to the current page. nil for stand-alone text (e.g. unit tests).
+  def owner_document
+    nil
   end
 
   def format_string(str)
@@ -374,30 +439,60 @@ class TextLine < TextLineBuilderContext
     "<code class=\"inline\">#{CGI.escapeHTML(str)}</code>"
   end
 
-  def link(link_text, link_url)
-    # define default result first
-    result = "<a target=\"_blank\" rel=\"noopener\" href=\"#{link_url}\" class=\"external\">#{link_text}</a>"
-
-    lazy_doc_id = nil
-    anchor = nil
-
-    if res = /(\w+)[.]md$/.match(link_url)          # link
-      lazy_doc_id = res[1].to_s.downcase
-
-    elsif res = /(\w*)[.]md(#.*)$/.match(link_url)  # link with anchor
-      if res && res.length > 2
-        lazy_doc_id = res[1]
-        anchor = res[2]
-      end
+  def link(link_text, link_url) # rubocop:disable Metrics/MethodLength
+    raw = link_url.to_s
+    kind, target, fragment = classify_markdown_link(raw)
+    case kind
+    when :internal
+      href = RelativeUrl.between(owner_document.output_rel_path, target.output_rel_path, fragment: fragment)
+      "<a href=\"#{href}\" class=\"external\">#{link_text}</a>"
+    when :broken
+      TextLine.record_broken_link(owner_document, raw)
+      "<a href=\"#{raw}\" class=\"broken_link\" title=\"Unresolved cross-document link\">#{link_text}</a>"
+    else
+      "<a target=\"_blank\" rel=\"noopener\" href=\"#{raw}\" class=\"external\">#{link_text}</a>"
     end
+  end
 
-    if lazy_doc_id && @@lazy_doc_id_dict.key?(lazy_doc_id)
-      result = if anchor
-                 "<a href=\".\\..\\#{lazy_doc_id}\\#{lazy_doc_id}.html#{anchor}\" class=\"external\">#{link_text}</a>"
-               else
-                 "<a href=\".\\..\\#{lazy_doc_id}\\#{lazy_doc_id}.html\" class=\"external\">#{link_text}</a>"
-               end
+  # Resolves an Obsidian/wiki link "[[target#fragment|alias]]" to a managed
+  # document by its unique id/filename, independent of folder (ADR-186).
+  def wiki_link(inner) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/AbcSize,Metrics/MethodLength
+    link_part, sep, alias_text = inner.partition('|')
+    target, _hash, fragment = link_part.partition('#')
+    display = (sep.empty? ? link_part : alias_text).strip
+    display = link_part.strip if display.empty?
+
+    doc = TextLine.link_registry&.find_by_id(target.strip)
+    if doc && owner_document&.output_rel_path
+      href = RelativeUrl.between(owner_document.output_rel_path, doc.output_rel_path,
+                                 fragment: fragment.strip.empty? ? nil : fragment.strip)
+      "<a href=\"#{href}\" class=\"external\">#{CGI.escapeHTML(display)}</a>"
+    elsif owner_document&.output_rel_path
+      TextLine.record_broken_link(owner_document, "[[#{inner}]]")
+      "<span class=\"broken_link\" title=\"Unresolved wiki link\">#{CGI.escapeHTML(display)}</span>"
+    else
+      "[[#{inner}]]"
     end
-    result
+  end
+
+  private
+
+  # Classifies a Markdown link target as :internal (a managed document, resolved
+  # against the owning document's source directory), :broken (a local .md path
+  # that does not resolve), or :external (everything else). ADR-186.
+  def classify_markdown_link(raw) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    path_part, _sep, fragment = raw.partition('#')
+    path_part = URI::DEFAULT_PARSER.unescape(path_part) # decode %20 etc. to match the real file path
+    return [:external] unless local_markdown_path?(path_part)
+
+    doc = owner_document
+    return [:external] unless doc&.output_rel_path && doc.respond_to?(:path) && doc.path && TextLine.link_registry
+
+    target = TextLine.link_registry.find_by_source(File.expand_path(path_part, File.dirname(doc.path)))
+    target ? [:internal, target, fragment.empty? ? nil : fragment] : [:broken]
+  end
+
+  def local_markdown_path?(path_part)
+    path_part.match?(/\.(md|markdown)\z/i) && !path_part.match?(%r{\A[a-z][a-z0-9+.\-]*://}i)
   end
 end

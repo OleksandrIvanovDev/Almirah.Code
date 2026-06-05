@@ -217,6 +217,41 @@ RSpec.describe 'Affected Documents', type: :aruba do
     end
   end
 
+  context 'when an Affected Documents row cell contains a backslash-escaped pipe' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/specifications/req/req.md', <<~MD)
+        # Requirements
+
+        [REQ-001] A first requirement.
+      MD
+      write_file('myproject/decisions/adr-360-escaped-pipe.md', <<~MD)
+        ---
+        title: "ADR-360: Escaped pipe in Proposed Text"
+        ---
+
+        # Affected Documents
+
+        | # | Proposed Text | Req-ID |
+        |---|---|---|
+        | 1 | Support an alias `[[target\\|display text]]` rendering the display text. | >[REQ-001] |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A backslash-escaped pipe inside a cell is a literal "|", not a column separator. >[SRS-052] </REQ>
+    it 'keeps the row at three columns and renders the literal pipe' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/adr-360.html')))
+      data_row = doc.css('table tr').find { |tr| tr.css('td a[name="adr-360.1"]').any? }
+      expect(data_row).not_to be_nil
+      expect(data_row.css('td').length).to eq(3)
+      code = data_row.css('td code.inline').first
+      expect(code.text).to eq('[[target|display text]]')
+      ref_link = data_row.css('td').last.css('a').first
+      expect(ref_link.text.strip).to eq('REQ-001')
+    end
+  end
+
   context 'when a decision record lives in a nested subfolder' do
     before do
       write_file('myproject/project.yml', "specifications:\n  input: []\n")

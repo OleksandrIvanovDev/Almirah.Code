@@ -9,6 +9,8 @@ require_relative 'search/specifications_db'
 require_relative 'project/doc_linker'
 require_relative 'project_configuration'
 require_relative 'project/project_data'
+require_relative 'console_reporter'
+require_relative 'relative_url'
 
 class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   attr_accessor :index, :project, :configuration, :project_data
@@ -47,6 +49,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_source_files
     link_all_decisions
     check_wrong_specification_referenced
+    build_link_registry
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
@@ -58,6 +61,8 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_decisions
     render_index
     create_search_data
+    report_broken_links
+    report_rendered
   end
 
   def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
@@ -70,6 +75,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     link_all_source_files
     link_all_decisions
     check_wrong_specification_referenced
+    build_link_registry
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
@@ -81,20 +87,60 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_decisions
     render_index
     create_search_data
+    report_broken_links
+    report_rendered
+  end
+
+  def report_rendered
+    root = @configuration.project_root_directory
+    base = root == Dir.pwd ? '.' : root
+    ConsoleReporter.result('rendering HTML', File.join(base, 'build', 'index.html'))
+  end
+
+  # Reports cross-document links that could not be resolved (ADR-186, SRS-094),
+  # naming the linking document. The build still completes.
+  def report_broken_links
+    broken = TextLine.broken_links
+    return if broken.empty?
+
+    ConsoleReporter.warn('broken links', broken.length)
+    broken.each { |b| puts ConsoleReporter.warn_detail("  #{b[:document] || '?'}: #{b[:target]}") }
+  end
+
+  # Assigns each document its generated output path (relative to the build root)
+  # and registers it for cross-document link resolution (ADR-186). Runs after all
+  # documents are parsed and before any rendering, so link targets are known.
+  def build_link_registry # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    reg = @project_data.link_registry
+    TextLine.link_registry = reg
+    TextLine.reset_broken_links
+    @project_data.specifications.each do |d|
+      d.output_rel_path = "specifications/#{d.id}/#{d.id}.html"
+      reg.register(d)
+    end
+    @project_data.protocols.each do |d|
+      d.output_rel_path = "tests/protocols/#{d.id}/#{d.id}.html"
+      reg.register(d)
+    end
+    @project_data.decisions.each do |d|
+      d.output_rel_path = "decisions/#{d.html_rel_path}"
+      reg.register(d)
+    end
+    @project_data.source_files.each do |d|
+      rel = d.path.sub("#{d.root_path}/", '')
+      d.output_rel_path = "source_files/#{d.repository}/#{rel}.html"
+      reg.register(d)
+    end
   end
 
   def parse_all_specifications
     path = @configuration.project_root_directory
-    # do a lasy pass first to get the list of documents id
     Dir.glob("#{path}/specifications/**/*.md").each do |f|
-      DocFabric.add_lazy_doc_id(f)
-    end
-    # parse documents in the second pass
-    Dir.glob("#{path}/specifications/**/*.md").each do |f| # rubocop:disable Style/CombinableLoops
       doc = DocFabric.create_specification(f)
       @project_data.specifications.append(doc)
       @project_data.specifications_dictionary[doc.id.to_s.downcase] = doc
     end
+    ConsoleReporter.count('parsing specifications', @project_data.specifications.length)
   end
 
   def parse_all_protocols
@@ -103,6 +149,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       doc = DocFabric.create_protocol(f)
       @project_data.protocols.append(doc)
     end
+    ConsoleReporter.count('parsing test protocols', @project_data.protocols.length)
   end
 
   def parse_all_source_files
@@ -132,6 +179,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       @project_data.decisions.append(doc)
     end
     BaseDocument.show_decisions_link = @project_data.decisions.any?
+    ConsoleReporter.count('parsing decisions', @project_data.decisions.length)
   end
 
   def parse_test_run(test_run)
@@ -158,6 +206,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
         @project_data.traceability_matrices.append doc
       end
     end
+    ConsoleReporter.count('traceability matrices', @project_data.traceability_matrices.length)
   end
 
   def link_all_protocols # rubocop:disable Metrics/MethodLength
@@ -174,16 +223,20 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       doc = DocFabric.create_coverage_matrix(value)
       @project_data.coverage_matrices.append doc
     end
+    ConsoleReporter.count('coverage matrices', @project_data.coverage_matrices.length)
   end
 
   def link_all_decisions
+    number_of_links = 0
     @project_data.decisions.each do |d|
       @project_data.specifications.each do |s|
         next unless d.up_link_docs.key?(s.id.to_s)
 
         DocLinker.link_decision_to_spec(d, s)
+        number_of_links += 1
       end
     end
+    ConsoleReporter.count('decision links', number_of_links)
   end
 
   def link_all_source_files
@@ -194,6 +247,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       doc = DocFabric.create_implementation_document(value)
       @project_data.implementation_matrices.append doc
     end
+    ConsoleReporter.count('implementation matrices', @project_data.implementation_matrices.length)
   end
 
   def check_wrong_specification_referenced # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
@@ -267,14 +321,12 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     @index = Index.new(@project)
   end
 
-  def render_all_specifications(spec_list) # rubocop:disable Metrics/MethodLength
+  def render_all_specifications(spec_list)
     path = @configuration.project_root_directory
 
     FileUtils.mkdir_p("#{path}/build/specifications")
 
     spec_list.each do |doc|
-      doc.to_console
-
       img_src_dir = "#{path}/specifications/#{doc.id}/img"
       img_dst_dir = "#{path}/build/specifications/#{doc.id}/img"
 
@@ -310,8 +362,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     FileUtils.mkdir_p("#{path}/build/source_files")
 
     @project_data.source_files.each do |doc|
-      doc.to_console
-
       doc.to_html("#{path}/build/source_files/")
     end
   end
@@ -320,8 +370,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     path = @configuration.project_root_directory
 
     doc = @index
-    doc.to_console
-
     doc.to_html("#{path}/build/")
   end
 
@@ -332,7 +380,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     FileUtils.mkdir_p("#{path}/build/decisions")
 
     doc = DocFabric.create_decisions_overview(@project)
-    doc.to_console
     doc.to_html("#{path}/build/decisions/")
   end
 
@@ -347,7 +394,6 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       depth = 1 + (out_dir_rel == '.' ? 0 : out_dir_rel.split('/').size)
       doc.root_prefix = '../' * depth
       doc.specifications_path = "./#{doc.root_prefix}specifications/"
-      doc.to_console
       doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
     end
   end

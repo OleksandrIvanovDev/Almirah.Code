@@ -63,7 +63,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
       link = doc.at_css('#decisions_menu_item')
       expect(link).not_to be_nil
-      expect(link['href']).to eq('./decisions/overview.html')
+      expect(link['href']).to eq('decisions/overview.html')
       expect(link.text).to include('Decision Records')
       expect(link.at_css('i')['class']).to include('fa-gavel')
     end
@@ -73,7 +73,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       link = doc.at_css('#decisions_menu_item')
       expect(link).not_to be_nil
-      expect(link['href']).to eq('./../../decisions/overview.html')
+      expect(link['href']).to eq('../../decisions/overview.html')
     end
 
     # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
@@ -81,7 +81,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       link = doc.at_css('#decisions_menu_item')
       expect(link).not_to be_nil
-      expect(link['href']).to eq('./overview.html')
+      expect(link['href']).to eq('overview.html')
     end
 
     # <REQ> Render each decision record to an HTML page named after the Decision Record ID. >[SRS-047] </REQ>
@@ -99,7 +99,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(css_hrefs).to include('../css/main.css')
       expect(js_srcs).to include('../scripts/main.js')
       expect(doc.at_css('#index_menu_item')['href']).to eq('../index.html')
-      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../decisions/overview.html')
+      expect(doc.at_css('#decisions_menu_item')['href']).to eq('overview.html')
     end
 
     # <REQ> Title click in the overview navigates to the rendered decision page. >[SRS-042] </REQ>
@@ -142,7 +142,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(css_hrefs).to include('../../css/main.css')
       expect(js_srcs).to include('../../scripts/main.js')
       expect(doc.at_css('#index_menu_item')['href']).to eq('../../index.html')
-      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../../decisions/overview.html')
+      expect(doc.at_css('#decisions_menu_item')['href']).to eq('../overview.html')
     end
 
     # <REQ> Title click in the overview navigates to the rendered decision page. >[SRS-042] </REQ>
@@ -649,7 +649,8 @@ RSpec.describe 'Decision Records', type: :aruba do
     # <REQ> Release column is placed between Target Date and Owner. >[SRS-070] </REQ>
     it 'places Release between Target Date and Owner in the overview' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
-      header_cells = doc.xpath('//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th').map { |th| th.text.strip }
+      xpath = '//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th'
+      header_cells = doc.xpath(xpath).map { |th| th.text.strip }
       release_index = header_cells.index('Release')
       expect(header_cells[release_index - 1]).to eq('Target Date')
       expect(header_cells[release_index + 1]).to eq('Owner')
@@ -1008,6 +1009,102 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(implemented['data']).to eq([1, 1, 1, 1, 1, 1])
       archived = data['datasets'].find { |d| d['label'] == 'Archived' }
       expect(archived&.dig('data')).to be_nil.or(eq([0, 0, 0, 0, 0, 0]))
+    end
+  end
+
+  def status_data_block(html)
+    block = html[/decisions_status_bar.*?data:\s*(\{.*?\}),\s*options:/m, 1]
+    JSON.parse(block)
+  end
+
+  # Count for the category whose label starts with the given status text.
+  def status_count(data, status)
+    idx = data['labels'].index { |l| l.start_with?("#{status} (") }
+    idx && data['datasets'][0]['data'][idx]
+  end
+
+  def write_status_record(id, title, status_rows)
+    rows = status_rows.map { |marker, date, status| "| #{marker} | #{date} | #{status} |" }.join("\n")
+    write_file("myproject/decisions/#{id}.md", <<~MD)
+      ---
+      title: "#{title}"
+      ---
+
+      # Status
+
+      |  | Date | Status |
+      |:---:|---|---|
+      #{rows}
+    MD
+  end
+
+  context 'when decision records have current statuses' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_status_record('adr-700-impl-a', 'ADR-700', [['*', '01-01-2025', 'Implemented']])
+      write_status_record('adr-701-impl-b', 'ADR-701', [['*', '01-01-2025', 'Implemented']])
+      write_status_record('adr-702-prop', 'ADR-702', [['*', '01-01-2025', 'Proposed']])
+      write_status_record('adr-703-lower', 'ADR-703', [['*', '01-01-2025', 'proposed']])
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A horizontal bar chart of records by current status sits in the third chart cell. >[SRS-083] </REQ>
+    it 'emits a horizontal bar chart after the velocity chart' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(html).to include('id="decisions_status_bar"')
+      expect(html).to match(/decisions_status_bar.*?type:\s*'bar'/m)
+      expect(html).to match(/decisions_status_bar.*?indexAxis:\s*'y'/m)
+      expect(html.index('decisions_status_bar')).to be > html.index('decisions_velocity_bar')
+    end
+
+    # <REQ> Records counted under their *-marked current status, matched case-sensitively. >[SRS-084] </REQ>
+    it 'counts records under their current status and keeps case-distinct statuses separate' do
+      data = status_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      expect(status_count(data, 'Implemented')).to eq(2)
+      expect(status_count(data, 'Proposed')).to eq(1)
+      expect(status_count(data, 'proposed')).to eq(1)
+    end
+
+    # <REQ> Linear scale with the count shown in each bar label. >[SRS-086] </REQ>
+    it 'uses a linear scale and shows the count in every label' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(html).to match(/decisions_status_bar.*?beginAtZero:\s*true/m)
+      expect(html).not_to match(/decisions_status_bar.*?type:\s*'logarithmic'/m)
+      data = status_data_block(html)
+      data['labels'].each { |l| expect(l).to match(/\(\d+\)\z/) }
+    end
+
+    # <REQ> No "Undefined" category when every record has a defined current status. >[SRS-085] </REQ>
+    it 'omits the Undefined category when all records have a defined status' do
+      data = status_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      expect(data['labels']).to all(satisfy { |l| !l.start_with?('Undefined (') })
+    end
+  end
+
+  context 'when decision records have missing or ambiguous current-status markers' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_status_record('adr-710-defined', 'ADR-710', [['*', '01-01-2025', 'Implemented']])
+      # no marker at all -> current status undefined
+      write_status_record('adr-711-no-marker', 'ADR-711', [[' ', '01-01-2025', 'Proposed']])
+      # two markers -> current status ambiguous, also undefined
+      write_status_record('adr-712-two-markers', 'ADR-712',
+                          [['*', '01-01-2025', 'Proposed'], ['*', '02-01-2025', 'Accepted']])
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Records with a missing or ambiguous marker are grouped under "Undefined". >[SRS-085] </REQ>
+    it 'groups both the markerless and the multi-marker record under Undefined' do
+      data = status_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      expect(status_count(data, 'Undefined')).to eq(2)
+      expect(status_count(data, 'Implemented')).to eq(1)
+    end
+
+    # <REQ> The "Undefined" category is ordered last, after all real statuses. >[SRS-087] </REQ>
+    it 'places the Undefined category last' do
+      data = status_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      undefined_idx = data['labels'].index { |l| l.start_with?('Undefined (') }
+      expect(undefined_idx).to eq(data['labels'].length - 1)
     end
   end
 end

@@ -154,6 +154,11 @@ a:active {
     text-decoration: none;
     display: inline-block;
 }
+a.broken_link, a.broken_link:link, a.broken_link:visited, span.broken_link {
+    color: #c00;
+    text-decoration: underline wavy #c00;
+    cursor: help;
+}
 div.blockquote {
     display: block;
     background:#f9f9fb;

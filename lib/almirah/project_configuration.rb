@@ -4,7 +4,7 @@ class ProjectConfiguration
     attr_accessor :project_root_directory, :parameters
 
     def initialize(path)
-        @project_root_directory = path
+        @project_root_directory = File.expand_path(path)
         @parameters = {}
         load_project_file
     end

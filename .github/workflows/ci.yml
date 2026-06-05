@@ -38,7 +38,11 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+      - uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
       - name: Run E2E tests
+        env:
+          BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: bundle exec rspec spec/e2e/
 
   # RuboCop is excluded until pre-existing offenses in lib/ are resolved.

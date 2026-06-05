@@ -151,7 +151,7 @@ class ControlledTable < DocItem # rubocop:disable Style/Documentation
   end
 
   def add_row(row)
-    columns = row.split('|')
+    columns = split_table_cells(row)
 
     @rows.append(format_columns(columns))
 
