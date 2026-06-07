@@ -11,7 +11,7 @@ class DocSection
     s = ''
     s += "\t<li onclick=\"nav_toggle_expand_list(this, event)\">" \
       '<span class="fa-li"><i class="fa fa-minus-square-o"> </i></span>'
-    s += "<a href=\"##{@heading.anchor_id}\">#{@heading.get_section_info}</a>\n"
+    s += "<a href=\"##{@heading.anchor_id}\">#{@heading.get_section_info_html}</a>\n"
     unless @sections.empty?
       s += "\t\t<ul class=\"fa-ul\">\n"
       @sections.each do |sub_section|

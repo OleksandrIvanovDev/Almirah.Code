@@ -19,7 +19,7 @@ class CodeBlock < DocItem
         end
         s += "<code>"
         @code_lines.each do |l|
-            s += l + " </br>"
+            s += escape_text(l) + " </br>" # ADR-188/SRS-096: code content is inert text
         end
         s += "</code>\n"
         return s

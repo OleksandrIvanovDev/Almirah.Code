@@ -57,8 +57,26 @@ class Heading < Paragraph
     end
   end
 
+  # As get_section_info but with the author-supplied text HTML-escaped for safe
+  # interpolation into rendered HTML (headings, TOC, traceability). ADR-188/SRS-096.
+  def get_section_info_html
+    if level.zero? # Doc Title
+      escape_text(@text)
+    else
+      "#{@section_number} #{escape_text(@text)}"
+    end
+  end
+
   def get_anchor_text
-    "#{@section_number}-#{getTextWithoutSpaces}"
+    "#{@section_number}-#{anchor_slug}"
+  end
+
+  # The anchor is a generated identifier emitted into name/href attributes, so it
+  # must not carry the HTML-significant characters that author heading text may
+  # contain (ADR-188). Stripping them keeps the anchor inert and self-consistent
+  # across the heading, its self-link, and the table of contents.
+  def anchor_slug
+    getTextWithoutSpaces.gsub(/[<>"'&]/, '')
   end
 
   def get_markdown_anchor_text
@@ -72,10 +90,10 @@ class Heading < Paragraph
       @@html_table_render_in_progress = false
     end
     heading_level = level.to_s
-    heading_text = get_section_info
+    heading_text = get_section_info_html
     if level.zero?
-      heading_level = 1.to_s # Render Doc Title as a regular h1
-      heading_text = @text    # Doc Title does not have a section number
+      heading_level = 1.to_s        # Render Doc Title as a regular h1
+      heading_text = escape_text(@text) # Doc Title does not have a section number
     end
     s += "<a name=\"#{@anchor_id}\"></a>\n"
     s += "<h#{heading_level}> #{heading_text} <a href=\"\##{@anchor_id}\" class=\"heading_anchor\">"
