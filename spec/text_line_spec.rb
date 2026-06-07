@@ -129,19 +129,19 @@ describe 'TextLine' do
   it 'keeps a quoted asterisk "*" literal' do
     obj = TextLine.new
     ret_val = obj.format_string('only "*" markers were implemented')
-    expect(ret_val).to eq('only "*" markers were implemented')
+    expect(ret_val).to eq('only &quot;*&quot; markers were implemented')
   end
 
   it 'keeps two quoted asterisks "*" "*" literal in the same line' do
     obj = TextLine.new
     ret_val = obj.format_string('both "*" and "-" are valid')
-    expect(ret_val).to eq('both "*" and "-" are valid')
+    expect(ret_val).to eq('both &quot;*&quot; and &quot;-&quot; are valid')
   end
 
   it 'still italicises a phrase whose first/last char is a quote: *"foo"*' do
     obj = TextLine.new
     ret_val = obj.format_string('*"foo"*')
-    expect(ret_val).to eq('<i>"foo"</i>')
+    expect(ret_val).to eq('<i>&quot;foo&quot;</i>')
   end
 
   it 'keeps an asterisk surrounded by spaces literal' do
@@ -153,7 +153,7 @@ describe 'TextLine' do
   it 'keeps a quoted double asterisk "**" literal' do
     obj = TextLine.new
     ret_val = obj.format_string('the "**" marker')
-    expect(ret_val).to eq('the "**" marker')
+    expect(ret_val).to eq('the &quot;**&quot; marker')
   end
 
   it 'wraps a `code span` in <code class="inline"> tags' do
