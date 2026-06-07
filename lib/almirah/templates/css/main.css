@@ -1,3 +1,8 @@
+html {
+    /* Leave room for the fixed #top_nav so in-page anchor links
+       are not hidden behind it when navigating to them. */
+    scroll-padding-top: 40px;
+}
 body {
     font-family: Verdana, sans-serif;
     font-size: 12px;
