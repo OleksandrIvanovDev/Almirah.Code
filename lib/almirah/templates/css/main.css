@@ -229,7 +229,9 @@ img{
     background: #EEEEEE;
     border: 1px solid #ddd;
     position: fixed;
-    height: 100%;       /* 100% Full-height */
+    top: 0;             /* Anchor top and bottom so the pane spans exactly the   */
+    bottom: 0;          /* viewport; padding/border stay inside the border box so */
+                        /* overflow-y scroll can reach the last items.            */
     visibility: hidden;
     z-index: 1;
     overflow-y: auto;
