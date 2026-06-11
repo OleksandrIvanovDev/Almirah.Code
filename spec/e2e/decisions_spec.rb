@@ -609,6 +609,154 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  context 'when a decision record has target dates in both Status and Scope tables' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-410-both.md', <<~MD)
+        ---
+        title: "ADR-410: Latest Wins"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        |   | 15-05-2026 | Proposed |
+        | * | 17-05-2026 | Accepted |
+
+        # Scope
+
+        | Item | Status | Start Date | Target Date | Description |
+        |---|---|---|---|---|
+        | Code | Proposed | 10-05-2026 | 22-05-2026 | Later target |
+        | Tests | Proposed | 12-05-2026 | 20-05-2026 | Earlier target |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Target Date is the latest of Status Date and Scope Target Date columns. >[SRS-102] </REQ>
+    # <REQ> Target Date is rendered in the existing Target Date column, DD-MM-YYYY. >[SRS-106] </REQ>
+    it 'picks the latest date across both tables and renders it on the overview' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-410"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[1]).to eq('22-05-2026')
+    end
+  end
+
+  context 'when a decision record with no Scope table has only Status dates' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-411-status-only.md', <<~MD)
+        ---
+        title: "ADR-411: Status Only"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 12-05-2026 | Proposed |
+        |   | 18-05-2026 | Accepted |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Falls back to the Status Date column when Scope is missing. >[SRS-102] </REQ>
+    it 'uses the latest Status table date' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-411"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[1]).to eq('18-05-2026')
+    end
+  end
+
+  context 'when a decision record has no Status table but has Scope target dates' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-412-scope-only.md', <<~MD)
+        ---
+        title: "ADR-412: Scope Only"
+        ---
+
+        # Scope
+
+        | Item | Status | Start Date | Target Date | Description |
+        |---|---|---|---|---|
+        | Code | Proposed | 09-05-2026 | 14-05-2026 | Work |
+        | Tests | Proposed | 11-05-2026 | 16-05-2026 | More work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Falls back to the Scope Target Date column when Status is missing. >[SRS-102] </REQ>
+    it 'uses the latest Scope Target Date column value' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-412"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[1]).to eq('16-05-2026')
+    end
+  end
+
+  context 'when neither table has a parseable target date' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-413-nodates.md', <<~MD)
+        ---
+        title: "ADR-413: No Parseable Dates"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | TBD | Proposed |
+
+        # Scope
+
+        | Item | Status | Start Date | Target Date | Description |
+        |---|---|---|---|---|
+        | Code | Proposed |  |  | Free text |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Target Date is undefined when no date is parseable. >[SRS-105] </REQ>
+    # <REQ> Target Date cell is empty when the attribute is undefined. >[SRS-106] </REQ>
+    it 'leaves the Target Date cell empty without raising' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-413"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[1]).to eq('')
+    end
+  end
+
+  context 'when the Scope table has its Target Date column in a non-default order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-414-reordered.md', <<~MD)
+        ---
+        title: "ADR-414: Reordered Columns"
+        ---
+
+        # Scope
+
+        | Description | Target Date | Item | Start Date |
+        |---|---|---|---|
+        | Free text | 07-05-2026 | Code | 01-05-2026 |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Columns are identified by header text, not by position. >[SRS-104] </REQ>
+    it 'reads the Target Date column by header text regardless of position' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+      row = doc.at_xpath('//a[@id="adr-414"]/ancestor::tr')
+      cells = row.css('td.item_meta').map { |c| c.text.strip }
+      expect(cells[1]).to eq('07-05-2026')
+    end
+  end
+
   context 'when a decision record has a Software Versions section with a Target Release Version row' do
     before do
       write_file('myproject/project.yml', "specifications:\n  input: []\n")
