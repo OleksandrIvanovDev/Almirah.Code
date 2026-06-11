@@ -20,6 +20,12 @@ bundle exec rspec spec/doc_parser_spec.rb -e "Recognizes Heading1"
 
 # Lint
 rubocop
+
+# Build aand Install
+gem uninstall -aIx Almirah || true
+gem build almirah.gemspec
+version=$(ruby -e "puts Gem::Specification.load('almirah.gemspec').version")
+gem install "Almirah-${version}.gem"
 ```
 
 The `.rspec` file sets defaults: color output, doc format, random order.
