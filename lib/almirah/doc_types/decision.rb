@@ -7,7 +7,7 @@ require_relative '../doc_items/markdown_table'
 
 class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
-                :start_date, :target_release_version, :specifications_path, :wrong_links_hash
+                :start_date, :target_date, :target_release_version, :specifications_path, :wrong_links_hash
 
   def initialize(file_path)
     super
@@ -16,6 +16,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     assign_id_parts(stem)
     @current_status = nil
     @start_date = nil
+    @target_date = nil
     @target_release_version = nil
     @wrong_links_hash = {}
   end
@@ -47,6 +48,11 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
   def extract_start_date
     dates = collect_dates('Status', 'Date') + collect_dates('Scope', 'Start Date')
     @start_date = dates.min
+  end
+
+  def extract_target_date
+    dates = collect_dates('Status', 'Date') + collect_dates('Scope', 'Target Date')
+    @target_date = dates.max
   end
 
   def extract_target_release_version

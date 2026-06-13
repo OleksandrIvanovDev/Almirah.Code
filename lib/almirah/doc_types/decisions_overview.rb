@@ -54,7 +54,8 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
       s += "\t\t<td class=\"item_text\" style='padding: 5px;'>#{title_html}</td>\n"
       start_date_html = doc.start_date ? doc.start_date.strftime('%d-%m-%Y') : ''
       s += "\t\t<td class=\"item_meta\">#{start_date_html}</td>\n"
-      s += "\t\t<td class=\"item_meta\"></td>\n"
+      target_date_html = doc.target_date ? doc.target_date.strftime('%d-%m-%Y') : ''
+      s += "\t\t<td class=\"item_meta\">#{target_date_html}</td>\n"
       s += "\t\t<td class=\"item_meta\">#{doc.target_release_version}</td>\n"
       s += "\t\t<td class=\"item_meta\"></td>\n"
       s += "</tr>\n"

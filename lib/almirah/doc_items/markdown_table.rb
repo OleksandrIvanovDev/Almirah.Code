@@ -65,7 +65,7 @@ class MarkdownTable < DocItem
     s += "\t<thead>"
 
     @column_names.each do |h|
-      s += " <th>#{h}</th>"
+      s += " <th>#{format_string(h.strip)}</th>"
     end
 
     s += " </thead>\n"

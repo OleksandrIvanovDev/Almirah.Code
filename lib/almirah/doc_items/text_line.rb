@@ -1,6 +1,7 @@
 require 'cgi'
 require 'uri'
 require_relative '../relative_url'
+require_relative '../html_safe'
 
 class TextLineToken
   attr_accessor :value
@@ -217,6 +218,12 @@ class TextLineParser
 end
 
 class TextLineBuilderContext
+  # Literal (non-markup) text run. Subclasses encode it for the HTML context;
+  # the base context leaves it untouched for plain reconstruction/unit tests.
+  def literal_text(str)
+    str
+  end
+
   def italic(str)
     str
   end
@@ -363,7 +370,11 @@ class TextLineBuilder
           tii += 1
         end
         if is_found
-          result += @builder_context.link(restore(sub_list_url_text), restore(sub_list_url_address))
+          # URL is reconstructed raw (not via restore) so scheme classification
+          # and file-path resolution see the original characters; link() applies
+          # attribute escaping and the scheme allow-list (ADR-188).
+          raw_url = (sub_list_url_address || []).map(&:value).join
+          result += @builder_context.link(restore(sub_list_url_text), raw_url)
         else
           result += '['
           ti = ti_starting_position + 1
@@ -373,7 +384,7 @@ class TextLineBuilder
         result += @builder_context.inline_code(token_list[ti].value)
         ti += 1
       when 'TextLineToken', 'ParentheseLeft', 'ParentheseRight', 'SquareBracketRight', 'DoubleSquareBracketRight'
-        result += token_list[ti].value
+        result += @builder_context.literal_text(token_list[ti].value)
         ti += 1
       else
         ti += 1
@@ -384,6 +395,8 @@ class TextLineBuilder
 end
 
 class TextLine < TextLineBuilderContext
+  include HtmlSafe
+
   @@link_registry = nil # rubocop:disable Style/ClassVars
   @@broken_links = [] # rubocop:disable Style/ClassVars
 
@@ -423,6 +436,11 @@ class TextLine < TextLineBuilderContext
     tlb.restore(tlp.tokenize(str))
   end
 
+  # Literal text run, HTML-escaped for element content (ADR-188, SRS-096).
+  def literal_text(str)
+    escape_text(str)
+  end
+
   def italic(str)
     "<i>#{str}</i>"
   end
@@ -445,12 +463,15 @@ class TextLine < TextLineBuilderContext
     case kind
     when :internal
       href = RelativeUrl.between(owner_document.output_rel_path, target.output_rel_path, fragment: fragment)
-      "<a href=\"#{href}\" class=\"external\">#{link_text}</a>"
+      "<a href=\"#{escape_attr(href)}\" class=\"external\">#{link_text}</a>"
     when :broken
       TextLine.record_broken_link(owner_document, raw)
-      "<a href=\"#{raw}\" class=\"broken_link\" title=\"Unresolved cross-document link\">#{link_text}</a>"
+      "<a href=\"#{escape_attr(raw)}\" class=\"broken_link\" title=\"Unresolved cross-document link\">#{link_text}</a>"
     else
-      "<a target=\"_blank\" rel=\"noopener\" href=\"#{raw}\" class=\"external\">#{link_text}</a>"
+      url = safe_url(raw)
+      return link_text if url.nil? # disallowed scheme: render inert (ADR-188, SRS-098)
+
+      "<a target=\"_blank\" rel=\"noopener\" href=\"#{escape_attr(url)}\" class=\"external\">#{link_text}</a>"
     end
   end
 

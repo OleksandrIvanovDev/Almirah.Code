@@ -27,6 +27,14 @@ RSpec.describe LinkRegistry do
     expect(registry.find_by_id('adr-200')).to equal(doc)
   end
 
+  it 'also finds a document by its full filename stem, not only its id (SRS-090)' do
+    doc = doc_class.new('adr-170', '/proj/decisions/adr-170-introduce-decision-records.md', 'decisions/adr-170.html')
+    registry.register(doc)
+    expect(registry.find_by_id('adr-170')).to equal(doc)
+    expect(registry.find_by_id('adr-170-introduce-decision-records')).to equal(doc)
+    expect(registry.collisions).to be_empty
+  end
+
   it 'does not index a source path for a document without one' do
     doc = doc_class.new('index', nil, 'index.html')
     registry.register(doc)

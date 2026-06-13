@@ -75,7 +75,7 @@ class Traceability < BaseDocument
                 top_item.down_links.each do |bottom_item|
                     id_color = "style='background-color: ##{bottom_item.parent_doc.color};'"
                     bottom_f_text = bottom_item.format_string( bottom_item.text )
-                    document_section = bottom_item.parent_heading.get_section_info
+                    document_section = bottom_item.parent_heading.get_section_info_html
                     s += "\t<tr>\n"
                     s += "\t\t<td class=\"item_id\"><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"
                     s += "\t\t<td class=\"item_text\" style='width: 34%;'>#{top_f_text}</td>\n"
@@ -105,7 +105,7 @@ class Traceability < BaseDocument
                     if bottom_item.parent_doc.id == @bottom_doc.id
 
                         bottom_f_text = bottom_item.format_string( bottom_item.text )
-                        document_section = bottom_item.parent_heading.get_section_info
+                        document_section = bottom_item.parent_heading.get_section_info_html
 
                         s += "\t<tr>\n"
                         s += "\t\t<td class=\"item_id\" #{id_color}><a href=\"./../#{top_item.parent_doc.id}/#{top_item.parent_doc.id}.html##{top_item.id}\" class=\"external\">#{top_item.id}</a></td>\n"

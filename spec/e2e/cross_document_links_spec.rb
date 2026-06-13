@@ -51,6 +51,7 @@ RSpec.describe 'cross-document links', type: :aruba do
       Decision link: [second](../rely/adr-701-second.md).
       Spec link: [AAA req](../../specifications/aaa/aaa.md).
       Wiki: [[adr-701]].
+      Wiki by filename: [[adr-701-second]].
       Wiki alias: [[adr-701|the second decision]].
       Wiki anchor: [[aaa#AAA-001]].
     MD
@@ -115,6 +116,13 @@ RSpec.describe 'cross-document links', type: :aruba do
   it 'resolves a [[wiki]] link by id regardless of folder' do
     link = link_by_text(page('decisions/relx/adr-700.html'), 'adr-701')
     expect(link['href']).to eq('../rely/adr-701.html')
+  end
+
+  # <REQ> A double-bracket wiki link resolves by full filename, not only by id. >[SRS-090] </REQ>
+  it 'resolves a [[wiki]] link by full filename stem' do
+    link = link_by_text(page('decisions/relx/adr-700.html'), 'adr-701-second')
+    expect(link['href']).to eq('../rely/adr-701.html')
+    expect(link['class'].to_s).not_to include('broken_link')
   end
 
   # <REQ> A double-bracket link with an alias renders the alias as its visible text. >[SRS-091] </REQ>

@@ -64,7 +64,7 @@ class Document
 
   def section_tree_to_html
     s = ''
-    s += "<a href=\"##{@root_section.heading.anchor_id}\">#{@root_section.heading.get_section_info}</a>\n"
+    s += "<a href=\"##{@root_section.heading.anchor_id}\">#{@root_section.heading.get_section_info_html}</a>\n"
     unless @root_section.sections.empty?
       s += "\t<ul class=\"fa-ul\" style=\"margin-top: 2px;\">\n"
       @root_section.sections.each do |sub_section|
