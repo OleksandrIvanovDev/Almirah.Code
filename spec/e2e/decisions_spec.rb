@@ -1255,4 +1255,398 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(undefined_idx).to eq(data['labels'].length - 1)
     end
   end
+
+  # --- Owner column & Work-In-Progress by Owner chart (ADR-193) ----------------
+  #
+  # The overview gains an Owner column populated from the Scope table, and the
+  # left chart cell becomes a Work-In-Progress by Owner bar chart (with a dashed
+  # reference line at the configured wip_limit) in place of the type pie. The WIP
+  # chart's data block is hand-written JS rather than to_json, so its arrays are
+  # extracted individually instead of being parsed as a whole.
+
+  def wip_block(html)
+    html[/decisions_wip_bar.*?\}\);/m, 0]
+  end
+
+  def wip_labels(html)
+    JSON.parse(wip_block(html)[/labels:\s*(\[[^\]]*\])/, 1])
+  end
+
+  def wip_bars(html)
+    JSON.parse(wip_block(html)[/In-progress items', data:\s*(\[[^\]]*\])/, 1])
+  end
+
+  def wip_colors(html)
+    JSON.parse(wip_block(html)[/backgroundColor:\s*(\[[^\]]*\])/, 1])
+  end
+
+  def wip_limit_line(html)
+    JSON.parse(wip_block(html)[/WIP limit', data:\s*(\[[^\]]*\])/, 1])
+  end
+
+  # The bar height for a given owner, or nil when that owner has no bar.
+  def wip_count(html, owner)
+    idx = wip_labels(html).index(owner)
+    idx && wip_bars(html)[idx]
+  end
+
+  # The Owner cell (last item_meta cell) of the overview row for a decision id.
+  def owner_cell(id)
+    doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+    row = doc.at_xpath(%(//a[@id="#{id}"]/ancestor::tr))
+    row.css('td.item_meta').last.text.strip
+  end
+
+  context 'when decision records have Scope owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-800-owned.md', <<~MD)
+        ---
+        title: "ADR-800: Owned Work"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | analysis work |
+        | 2 | Code | DEV | To Do | code work |
+        | 3 | Tests | TEST | To Do | test work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The WIP-by-Owner chart replaces the type pie in the first chart cell. >[SRS-111] </REQ>
+    it 'emits a Work In Progress by Owner chart and no longer emits the type pie' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(html).to include('id="decisions_wip_bar"')
+      expect(html).to include('Work In Progress by Owner')
+      expect(html).not_to include('decisions_type_pie')
+      expect(html.index('decisions_wip_bar')).to be < html.index('decisions_velocity_bar')
+    end
+
+    # <REQ> The freeze limit renders as a dashed line dataset using core Chart.js. >[SRS-111] </REQ>
+    it 'draws the wip_limit as a dashed line dataset' do
+      block = wip_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      expect(block).to match(/type:\s*'line'/)
+      expect(block).to match(/borderDash/)
+    end
+
+    # <REQ> The distinct owners are rendered in the overview Owner column. >[SRS-110] </REQ>
+    it 'lists the record distinct owners in the Owner column' do
+      expect(owner_cell('adr-800')).to eq('BA, DEV, TEST')
+    end
+  end
+
+  context 'when a record is in its Analysis phase' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-801-analysis.md', <<~MD)
+        ---
+        title: "ADR-801: In Analysis"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | analysis |
+        | 2 | Requirements | BA | Done | done reqs |
+        | 3 | Code | DEV | To Do | code |
+        | 4 | Tests | TEST | To Do | tests |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Every owner is shown; the in-progress row counts, idle roles render at zero. >[SRS-111] </REQ>
+    it 'shows every owner, counting the analyst over zero and idle roles at zero' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_labels(html)).to eq(%w[BA DEV TEST])
+      expect(wip_count(html, 'BA')).to eq(1)
+      expect(wip_count(html, 'DEV')).to eq(0)
+      expect(wip_count(html, 'TEST')).to eq(0)
+    end
+
+    # <REQ> A Done Scope row contributes no work in progress. >[SRS-111] </REQ>
+    it 'does not count a Done row toward its owner' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      # BA owns both the In-Progress Analysis and the Done Requirements; only the former counts.
+      expect(wip_count(html, 'BA')).to eq(1)
+    end
+  end
+
+  context 'when the Scope table has Owner and Status in a non-default order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-802-reordered.md', <<~MD)
+        ---
+        title: "ADR-802: Reordered"
+        ---
+
+        # Scope
+
+        | Status | Description | Item | Owner |
+        |---|---|---|---|
+        | In-Progress | work | Analysis | BA |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Owner and Status are located by header text, not column position. >[SRS-108] </REQ>
+    it 'reads Owner and Status by header text regardless of position' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(owner_cell('adr-802')).to eq('BA')
+      expect(wip_count(html, 'BA')).to eq(1)
+    end
+  end
+
+  context 'when a Scope table repeats and interleaves owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-803-repeat.md', <<~MD)
+        ---
+        title: "ADR-803: Repeated Owners"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | Done | a |
+        | 2 | Requirements | DEV | Done | b |
+        | 3 | Code | BA | To Do | c |
+        | 4 | Tests | TEST | To Do | d |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Owner cell shows each owner once, in first-seen order. >[SRS-108] >[SRS-110] </REQ>
+    it 'shows the distinct owners once in first-seen order' do
+      expect(owner_cell('adr-803')).to eq('BA, DEV, TEST')
+    end
+  end
+
+  context 'when a decision record has no Owner column' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-804-noowner.md', <<~MD)
+        ---
+        title: "ADR-804: No Owner Column"
+        ---
+
+        # Scope
+
+        | # | Item | Status | Description |
+        |---|---|---|---|
+        | 1 | Analysis | In-Progress | work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> No Owner column yields an empty owner list and an empty overview cell. >[SRS-109] </REQ>
+    it 'leaves the Owner cell empty and adds nothing to the WIP chart' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(owner_cell('adr-804')).to eq('')
+      expect(wip_labels(html)).to be_empty
+    end
+  end
+
+  context 'when a decision record has a blank Owner cell' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-805-blankowner.md', <<~MD)
+        ---
+        title: "ADR-805: Blank Owner"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis |  | In-Progress | work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A blank Owner cell contributes no owner. >[SRS-109] </REQ>
+    it 'treats a blank Owner cell as no owner' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(owner_cell('adr-805')).to eq('')
+      expect(wip_labels(html)).to be_empty
+    end
+  end
+
+  context 'when a decision record has no Scope table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-806-noscope.md', <<~MD)
+        ---
+        title: "ADR-806: No Scope"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2025 | Accepted |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A record with no Scope table has an empty owner list. >[SRS-109] </REQ>
+    it 'leaves the Owner cell empty' do
+      expect(owner_cell('adr-806')).to eq('')
+    end
+  end
+
+  context 'when project.yml sets a custom planning wip_limit' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+        planning:
+          wip_limit: 3
+      YML
+      write_file('myproject/decisions/adr-807-overloaded.md', <<~MD)
+        ---
+        title: "ADR-807: Overloaded BA"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | a |
+        | 2 | Requirements | BA | In-Progress | b |
+        | 3 | Design | BA | In-Progress | c |
+        | 4 | Review | BA | In-Progress | d |
+        | 5 | Code | DEV | In-Progress | e |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The reference line reflects the configured wip_limit. >[SRS-111] >[SRS-112] </REQ>
+    it 'draws the reference line at the configured limit' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_limit_line(html).uniq).to eq([3])
+    end
+
+    # <REQ> An owner above the limit is drawn in the warning colour. >[SRS-111] </REQ>
+    it 'colours the over-limit owner with the warning colour' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      colors = wip_colors(html)
+      ba_idx = wip_labels(html).index('BA')
+      dev_idx = wip_labels(html).index('DEV')
+      expect(colors[ba_idx]).to include('255, 99, 132')      # BA = 4 > 3 -> warning
+      expect(colors[dev_idx]).not_to include('255, 99, 132') # DEV = 1 <= 3 -> normal
+    end
+  end
+
+  context 'when planning wip_limit is absent' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-808-default.md', <<~MD)
+        ---
+        title: "ADR-808: Default Limit"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | a |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> An absent wip_limit falls back to a default of 2. >[SRS-112] </REQ>
+    it 'defaults the reference line to 2' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_limit_line(html).uniq).to eq([2])
+    end
+  end
+
+  context 'when planning wip_limit is invalid' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+        planning:
+          wip_limit: 0
+      YML
+      write_file('myproject/decisions/adr-809-invalid.md', <<~MD)
+        ---
+        title: "ADR-809: Invalid Limit"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | a |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A non-positive or non-integer wip_limit falls back to the default of 2. >[SRS-112] </REQ>
+    it 'falls back to the default of 2 for a non-positive value' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_limit_line(html).uniq).to eq([2])
+    end
+  end
+
+  context 'when the record lifecycle status differs from its Scope row statuses' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Lifecycle says Implemented, but a Scope row is still In-Progress.
+      write_file('myproject/decisions/adr-810-mismatch.md', <<~MD)
+        ---
+        title: "ADR-810: Status Mismatch"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2025 | Implemented |
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | still going |
+      MD
+      # Lifecycle says In-Progress, but every Scope row is To Do.
+      write_file('myproject/decisions/adr-811-quiet.md', <<~MD)
+        ---
+        title: "ADR-811: Quiet"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2025 | In-Progress |
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | To Do | not started |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> WIP reads the per-row Status, independent of the record lifecycle status. >[SRS-107] >[SRS-111] </REQ>
+    it 'counts an in-progress Scope row even when the lifecycle status is Implemented' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_count(html, 'BA')).to eq(1)
+    end
+
+    # <REQ> A To Do Scope row adds no WIP even when the lifecycle status is In-Progress. >[SRS-107] >[SRS-111] </REQ>
+    it 'shows an idle owner at zero even when its lifecycle status is In-Progress' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_count(html, 'DEV')).to eq(0)
+    end
+  end
 end

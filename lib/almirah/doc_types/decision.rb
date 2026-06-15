@@ -7,7 +7,8 @@ require_relative '../doc_items/markdown_table'
 
 class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
-                :start_date, :target_date, :target_release_version, :specifications_path, :wrong_links_hash
+                :start_date, :target_date, :target_release_version, :specifications_path, :wrong_links_hash,
+                :owners
 
   def initialize(file_path)
     super
@@ -19,6 +20,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     @target_date = nil
     @target_release_version = nil
     @wrong_links_hash = {}
+    @owners = []
   end
 
   def to_console
@@ -62,6 +64,43 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
       value_column: 'Software Version ID',
       key: 'Target Release Version'
     )
+  end
+
+  # The distinct, first-seen-ordered list of non-empty Owner cells in the Scope
+  # table. Empty when there is no Scope table, no Owner column, or no owner values.
+  # The Owner column is located by header text, not position.
+  def extract_owners
+    @owners = []
+    table = find_section_table('Scope')
+    return if table.nil?
+
+    owner_idx = column_index(table, 'Owner')
+    return if owner_idx.nil?
+
+    table.rows.each do |row|
+      owner = row[owner_idx].to_s.strip
+      @owners << owner unless owner.empty? || @owners.include?(owner)
+    end
+  end
+
+  # One entry per Scope row whose row Status is In-Progress, yielding that row's
+  # owner. Rows without an owner, or not In-Progress, contribute nothing. The
+  # per-row Status is read directly and is independent of the record's lifecycle
+  # status. Owner and Status columns are located by header text, not position.
+  def in_progress_owner_tally # rubocop:disable Metrics/AbcSize
+    table = find_section_table('Scope')
+    return [] if table.nil?
+
+    owner_idx = column_index(table, 'Owner')
+    status_idx = column_index(table, 'Status')
+    return [] if owner_idx.nil? || status_idx.nil?
+
+    table.rows.filter_map do |row|
+      owner = row[owner_idx].to_s.strip
+      next if owner.empty?
+
+      owner if row[status_idx].to_s.strip == 'In-Progress'
+    end
   end
 
   def effective_status_on(date) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity

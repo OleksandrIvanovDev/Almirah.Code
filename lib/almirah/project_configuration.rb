@@ -1,6 +1,8 @@
 require 'yaml'
 
 class ProjectConfiguration
+    DEFAULT_WIP_LIMIT = 2
+
     attr_accessor :project_root_directory, :parameters
 
     def initialize(path)
@@ -29,6 +31,18 @@ class ProjectConfiguration
         return @parameters['repositories'] if @parameters.key? 'repositories'
 
         []
+    end
+
+    def get_wip_limit
+        return DEFAULT_WIP_LIMIT unless @parameters.is_a?(Hash)
+
+        planning = @parameters['planning']
+        return DEFAULT_WIP_LIMIT unless planning.is_a?(Hash)
+
+        value = planning['wip_limit']
+        return DEFAULT_WIP_LIMIT unless value.is_a?(Integer) && value.positive?
+
+        value
     end
 
     def is_spec_db_shall_be_created
