@@ -35,6 +35,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     html_rows.append "\t\t<th>Target Date</th>\n"
     html_rows.append "\t\t<th title=\"Target Release Version\">Release</th>\n"
     html_rows.append "\t\t<th>Owner</th>\n"
+    html_rows.append "\t\t<th title=\"Cross-record full-kit readiness\">Kit</th>\n"
     html_rows.append "</thead>\n"
 
     sorted_items = @project.project_data.decisions.sort_by do |d|
@@ -58,6 +59,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
       s += "\t\t<td class=\"item_meta\">#{target_date_html}</td>\n"
       s += "\t\t<td class=\"item_meta\">#{doc.target_release_version}</td>\n"
       s += "\t\t<td class=\"item_meta\">#{doc.owners.join(', ')}</td>\n"
+      s += kit_overview_cell(doc)
       s += "</tr>\n"
       html_rows.append s
     end
@@ -67,6 +69,19 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   end
 
   private
+
+  # Cross-record full-kit readiness for a record (ADR-194), rendered as text:
+  # empty when the record declares no Depends On prerequisites, "Ready" when
+  # every Scope row is kitted, "Blocked" (warning colour) otherwise. A record
+  # blocked while having a started row (a cross-record violation) is emphasised,
+  # matching the console warning.
+  def kit_overview_cell(doc)
+    return "\t\t<td class=\"item_kit\"></td>\n" unless doc.declared_dependencies?
+    return "\t\t<td class=\"item_kit kit_ready\">Ready</td>\n" if doc.fully_kitted?
+
+    weight = doc.kit_started_violation? ? ' font-weight: bold;' : ''
+    "\t\t<td class=\"item_kit kit_blocked\" style=\"color: #c0392b;#{weight}\">Blocked</td>\n"
+  end
 
   CHART_PALETTE = [
     [54, 162, 235], [255, 99, 132], [255, 159, 64], [255, 205, 86],

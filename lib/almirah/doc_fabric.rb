@@ -68,6 +68,7 @@ class DocFabric
     doc.extract_target_date
     doc.extract_target_release_version
     doc.extract_owners
+    doc.extract_scope_table
     doc
   end
 

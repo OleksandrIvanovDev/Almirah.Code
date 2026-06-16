@@ -8,6 +8,7 @@ require_relative 'doc_items/todo_block'
 require_relative 'doc_items/controlled_paragraph'
 require_relative 'doc_items/markdown_table'
 require_relative 'doc_items/controlled_table'
+require_relative 'doc_items/scope_table'
 require_relative 'doc_items/image'
 require_relative 'doc_items/markdown_list'
 require_relative 'doc_items/doc_footer'
@@ -248,9 +249,14 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
             if temp_md_table
               if temp_md_table.is_separator_detected # if there is a separator
-                # check if parent doc is a Protocol, or a Decision Record inside an "Affected Documents" section
-                if doc.instance_of?(Protocol) ||
-                   (doc.instance_of?(Decision) && in_section?(doc, 'Affected Documents'))
+                # A Decision Record's Scope table is parsed into a purpose-built
+                # ScopeTable (ADR-194); a Protocol, or a Decision inside an
+                # "Affected Documents" section, into a ControlledTable.
+                if doc.instance_of?(Decision) && in_section?(doc, 'Scope') &&
+                   temp_md_table.instance_of?(MarkdownTable)
+                  temp_md_table = ScopeTable.new(doc, temp_md_table)
+                elsif doc.instance_of?(Protocol) ||
+                      (doc.instance_of?(Decision) && in_section?(doc, 'Affected Documents'))
                   # check if it is a controlled table
                   tmp = /(.*)\s+>\[(\S*)\]/.match(row)
                   if tmp && (temp_md_table.instance_of? MarkdownTable)

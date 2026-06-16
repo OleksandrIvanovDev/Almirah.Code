@@ -54,6 +54,13 @@ class MarkdownTable < DocItem
     true
   end
 
+  # Header-addressed cell grid (each row an array of stripped cell strings).
+  # Named alongside ScopeTable#cells so Decision's Scope/Status/version readers
+  # can treat either table type uniformly (ADR-194).
+  def cells
+    @rows
+  end
+
   def to_html
     s = ''
     if @@html_table_render_in_progress

@@ -4,11 +4,12 @@ require 'date'
 require_relative 'persistent_document'
 require_relative '../doc_items/heading'
 require_relative '../doc_items/markdown_table'
+require_relative '../doc_items/scope_table'
 
 class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
                 :start_date, :target_date, :target_release_version, :specifications_path, :wrong_links_hash,
-                :owners
+                :owners, :scope_table
 
   def initialize(file_path)
     super
@@ -77,10 +78,39 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     owner_idx = column_index(table, 'Owner')
     return if owner_idx.nil?
 
-    table.rows.each do |row|
+    table.cells.each do |row|
       owner = row[owner_idx].to_s.strip
       @owners << owner unless owner.empty? || @owners.include?(owner)
     end
+  end
+
+  # The parsed Scope ScopeTable (ADR-194), or nil when the record has no Scope
+  # section. Memoised so the work-item network and the readers share one table.
+  def extract_scope_table
+    table = find_section_table('Scope')
+    @scope_table = table.is_a?(ScopeTable) ? table : nil
+  end
+
+  # The Scope rows as WorkItem nodes (ADR-194); empty when there is no ScopeTable.
+  def scope_work_items
+    @scope_table ? @scope_table.work_items : []
+  end
+
+  # A record declares prerequisites when any of its rows carries a Depends On
+  # reference; the overview Kit column is empty otherwise.
+  def declared_dependencies?
+    scope_work_items.any? { |wi| wi.depends_on_refs.any? }
+  end
+
+  # Kitted when every one of its work items is (a record with no rows is kitted).
+  def fully_kitted?
+    scope_work_items.all?(&:fully_kitted?)
+  end
+
+  # A started row blocked by an unsatisfied cross-record predecessor — the
+  # overview emphasises such a record, matching the console warning.
+  def kit_started_violation?
+    scope_work_items.any?(&:cross_record_violation?)
   end
 
   # One entry per Scope row whose row Status is In-Progress, yielding that row's
@@ -95,7 +125,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     status_idx = column_index(table, 'Status')
     return [] if owner_idx.nil? || status_idx.nil?
 
-    table.rows.filter_map do |row|
+    table.cells.filter_map do |row|
       owner = row[owner_idx].to_s.strip
       next if owner.empty?
 
@@ -156,7 +186,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
         elsif in_section && item.level <= section_level
           return nil
         end
-      elsif in_section && item.is_a?(MarkdownTable)
+      elsif in_section && (item.is_a?(MarkdownTable) || item.is_a?(ScopeTable))
         return item
       end
     end
@@ -170,7 +200,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     col_index = column_index(table, column_name)
     return [] if col_index.nil?
 
-    table.rows.filter_map { |row| parse_dd_mm_yyyy(row[col_index]) }
+    table.cells.filter_map { |row| parse_dd_mm_yyyy(row[col_index]) }
   end
 
   def column_index(table, column_name)

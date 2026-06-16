@@ -328,7 +328,8 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       table_xpath = '//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th'
       header_cells = doc.xpath(table_xpath).map { |th| th.text.strip }
-      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Release', 'Owner'])
+      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Release', 'Owner',
+                                  'Kit'])
     end
 
     # <REQ> Render the "*" in the Status table marker column as "▶" in the rendered HTML. >[SRS-050] </REQ>
