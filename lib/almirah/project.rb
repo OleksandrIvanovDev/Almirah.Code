@@ -177,9 +177,24 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
       rel_dir = File.dirname(f.sub("#{decisions_root}/", ''))
       doc.html_rel_path = rel_dir == '.' ? "#{doc.id}.html" : "#{rel_dir}/#{doc.id}.html"
       @project_data.decisions.append(doc)
+      add_to_decision_group(doc, rel_dir)
     end
     BaseDocument.show_decisions_link = @project_data.decisions.any?
     ConsoleReporter.count('parsing decisions', @project_data.decisions.length)
+  end
+
+  # Add a decision record to its planning group, keyed on the first-level folder
+  # under decisions/ (a record directly under decisions/ has rel_dir '.', kept as
+  # its own '.' group rather than dropped). Groups are single-key hashes appended
+  # in folder-encounter order; the matching one is reused. See ADR-197.
+  def add_to_decision_group(doc, rel_dir)
+    group_name = rel_dir.split('/').first
+    group = @project_data.decision_groups.find { |g| g.key?(group_name) }
+    if group.nil?
+      @project_data.decision_groups.append({ group_name => [doc] })
+    else
+      group[group_name].append(doc)
+    end
   end
 
   def parse_test_run(test_run)
