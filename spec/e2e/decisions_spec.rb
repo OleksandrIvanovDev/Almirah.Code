@@ -1650,4 +1650,528 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(wip_count(html, 'DEV')).to eq(0)
     end
   end
+
+  # ----- ADR-194: phase ordering, dependency readiness, full kit -----
+
+  # The overview Kit cell node for a decision id (nil when the row is absent).
+  def kit_node(id)
+    doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+    row = doc.at_xpath(%(//a[@id="#{id}"]/ancestor::tr))
+    row&.at_css('td.item_kit')
+  end
+
+  def kit_cell(id)
+    kit_node(id)&.text&.strip
+  end
+
+  # The Depends On links (hrefs) of the Scope row whose Item cell equals `item`,
+  # on the given decision page.
+  def scope_row_links(page, item)
+    scope_row_cells(page, item).css('a.external').map { |a| a['href'] }
+  end
+
+  # The unresolved (broken-link span) texts of that same Scope row.
+  def scope_row_unresolved(page, item)
+    scope_row_cells(page, item).css('span.broken_link').map { |s| s.text.strip }
+  end
+
+  def scope_row_cells(page, item)
+    doc = Nokogiri::HTML(File.read(expand_path(page)))
+    row = doc.css('table.markdown_table tr').find do |tr|
+      tr.css('td').any? { |c| c.text.strip == item }
+    end
+    row || Nokogiri::XML.fragment('')
+  end
+
+  context 'when a started Scope row has an unfinished lower-numbered step' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-410-phase.md', <<~MD)
+        ---
+        title: "ADR-410: Phase order"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Requirements | BA | To Do |
+        | 2 | Code | DEV | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A started row with an unfinished lower step is reported; build still completes. >[SRS-114] </REQ>
+    it 'reports the phase-order violation naming the row and the blocking step' do
+      expect(last_command_started.stdout)
+        .to match(/phase order: adr-410\.2\.Code started before adr-410\.1\.Requirements/)
+    end
+
+    # <REQ> Phase-order violations are non-failing advisories; the build completes. >[SRS-114] </REQ>
+    it 'still renders the overview' do
+      expect(File.exist?(expand_path('myproject/build/decisions/overview.html'))).to be true
+    end
+
+    # <REQ> The Kit column is cross-record only; it is empty when the record declares no Depends On. >[SRS-119] </REQ>
+    it 'leaves the Kit cell empty (a phase-order issue is intra-record, not a Depends On)' do
+      expect(kit_cell('adr-410')).to eq('')
+    end
+  end
+
+  context 'when Scope rows share a step number or omit the # column' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # adr-420: two rows share step 1 (concurrent), one started one not -> no violation
+      write_file('myproject/decisions/adr-420-concurrent.md', <<~MD)
+        ---
+        title: "ADR-420: Concurrent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | In-Progress |
+        | 1 | Requirements | BA | To Do |
+      MD
+      # adr-421: no # column -> intrinsic row order; row 2 started before row 1 done -> violation
+      write_file('myproject/decisions/adr-421-roworder.md', <<~MD)
+        ---
+        title: "ADR-421: Row order"
+        ---
+
+        # Scope
+
+        | Item | Owner | Status |
+        |---|---|---|
+        | Requirements | BA | To Do |
+        | Code | DEV | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Rows sharing a step number are concurrent, not blocked by each other. >[SRS-113] </REQ>
+    it 'does not flag equal-numbered rows as a phase-order violation' do
+      expect(last_command_started.stdout).not_to match(/phase order: adr-420/)
+    end
+
+    # <REQ> With no # column the intrinsic row order applies. >[SRS-113] >[SRS-114] </REQ>
+    it 'uses row order when the # column is absent' do
+      expect(last_command_started.stdout)
+        .to match(/phase order: adr-421\.2\.Code started before adr-421\.1\.Requirements/)
+    end
+  end
+
+  context 'when one record Depends On another in the same group' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/release x/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | In-Progress |
+      MD
+      write_file('myproject/decisions/release x/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | To Do |
+        | 2 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A Depends On reference resolves to the target's work item of the same activity type. >[SRS-115] </REQ>
+    it 'aligns each Depends On row to the prerequisite row of the same activity type' do
+      page = 'myproject/build/decisions/release x/adr-2.html'
+      expect(scope_row_links(page, 'Analysis')).to eq(['adr-1.html#adr-1.scope.1'])
+      expect(scope_row_links(page, 'Code')).to eq(['adr-1.html#adr-1.scope.2'])
+    end
+
+    # <REQ> A dependent's Analysis is met by the prerequisite's Analysis, not its Code. >[SRS-115] >[SRS-116] </REQ>
+    it 'derives readiness from the activity-aligned predecessor, not the whole record' do
+      # ADR-1.Analysis is Done but ADR-1.Code is In-Progress: ADR-2 is blocked overall
+      # because ADR-2.Code depends on the not-yet-Done ADR-1.Code.
+      expect(kit_cell('adr-2')).to eq('Blocked')
+    end
+
+    # <REQ> The Owner does not affect Depends On resolution. >[SRS-115] </REQ>
+    it 'is unaffected by the differing owners on the two records' do
+      expect(scope_row_links('myproject/build/decisions/release x/adr-2.html', 'Analysis'))
+        .to eq(['adr-1.html#adr-1.scope.1'])
+    end
+  end
+
+  context 'when a prerequisite work item is Done' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+      MD
+      write_file('myproject/decisions/g/adr-2-ready.md', <<~MD)
+        ---
+        title: "ADR-2: Ready"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A row is kitted when its resolved predecessor's Status is Done. >[SRS-116] >[SRS-119] </REQ>
+    it 'renders Ready and reports no kit violation' do
+      expect(kit_cell('adr-2')).to eq('Ready')
+      expect(last_command_started.stdout).not_to match(/kit violations/)
+    end
+  end
+
+  context 'when a started row is blocked by an unsatisfied cross-record predecessor' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | In-Progress |
+      MD
+      write_file('myproject/decisions/g/adr-2-started.md', <<~MD)
+        ---
+        title: "ADR-2: Started"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A started row with a not-Done resolved predecessor is a cross-record violation. >[SRS-117] </REQ>
+    it 'reports the cross-record kit violation naming the row and the predecessor' do
+      expect(last_command_started.stdout).to match(/not kitted: adr-2\.1\.Code needs adr-1\.1\.Code/)
+    end
+
+    # <REQ> The overview emphasises a record blocked while having a started row. >[SRS-117] >[SRS-119] </REQ>
+    it 'renders Blocked and emphasises the cell' do
+      node = kit_node('adr-2')
+      expect(node.text.strip).to eq('Blocked')
+      expect(node['style']).to include('font-weight: bold')
+    end
+  end
+
+  context 'when the dependent activity is absent from the prerequisite' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # ADR-1 has Analysis + Code but no Tests row.
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | Done |
+      MD
+      write_file('myproject/decisions/g/adr-2-tests.md', <<~MD)
+        ---
+        title: "ADR-2: Tests"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Tests | TEST | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Resolution falls back to the nearest earlier activity when no exact match exists. >[SRS-115] </REQ>
+    it 'falls back to the nearest earlier activity (Code) for a Tests row' do
+      expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Tests'))
+        .to eq(['adr-1.html#adr-1.scope.2'])
+    end
+  end
+
+  context 'when a Depends On crosses into another planning group' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/release a/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | In-Progress |
+      MD
+      write_file('myproject/decisions/release b/adr-3-cross.md', <<~MD)
+        ---
+        title: "ADR-3: Cross group"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A cross-group Depends On blocks readiness until the predecessor is Done. >[SRS-116] >[SRS-117] </REQ>
+    it 'blocks the dependent on its cross-group predecessor' do
+      expect(kit_cell('adr-3')).to eq('Blocked')
+    end
+
+    # <REQ> A real record in another group is honoured, never warned as unresolved. >[SRS-118] </REQ>
+    it 'does not warn about the cross-group reference' do
+      expect(last_command_started.stdout).not_to match(/unresolved Depends On/)
+    end
+
+    # <REQ> The cross-group link resolves across the folder boundary to the aligned row. >[SRS-115] </REQ>
+    it 'deep-links across the group folders to the aligned row' do
+      expect(scope_row_links('myproject/build/decisions/release b/adr-3.html', 'Code'))
+        .to eq(['../release%20a/adr-1.html#adr-1.scope.1'])
+    end
+  end
+
+  context 'when a Depends On reference does not resolve' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-5-bad.md', <<~MD)
+        ---
+        title: "ADR-5: Bad ref"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-999] | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> An unresolved Depends On reference is reported without failing the build. >[SRS-118] </REQ>
+    it 'reports the unresolved reference and still renders' do
+      expect(last_command_started.stdout).to match(/unresolved Depends On: adr-5 -> ADR-999/)
+      expect(File.exist?(expand_path('myproject/build/decisions/overview.html'))).to be true
+    end
+
+    # <REQ> An unresolved reference renders as a broken-link span in the Scope table. >[SRS-118] </REQ>
+    it 'renders the unresolved reference as a broken link' do
+      expect(scope_row_unresolved('myproject/build/decisions/adr-5.html', 'Code')).to eq(['ADR-999'])
+    end
+  end
+
+  context 'when records differ in their declared prerequisites and readiness' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # adr-1: no Depends On -> empty Kit
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+      MD
+      # adr-2: depends on adr-1 (Done) -> Ready
+      write_file('myproject/decisions/g/adr-2-ready.md', <<~MD)
+        ---
+        title: "ADR-2: Ready"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | To Do |
+      MD
+      # adr-3: depends on adr-2 (To Do, not Done) -> Blocked
+      write_file('myproject/decisions/g/adr-3-blocked.md', <<~MD)
+        ---
+        title: "ADR-3: Blocked"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-2] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Kit column is empty, Ready, or Blocked per the record's prerequisites. >[SRS-119] </REQ>
+    it 'renders empty / Ready / Blocked across the three records' do
+      expect(kit_cell('adr-1')).to eq('')
+      expect(kit_cell('adr-2')).to eq('Ready')
+      expect(kit_cell('adr-3')).to eq('Blocked')
+    end
+  end
+
+  context 'when the record lifecycle status diverges from its Scope row statuses' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-06-2026 | Implemented |
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | To Do |
+      MD
+      write_file('myproject/decisions/g/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Readiness reads the bounded per-row Status, never the record lifecycle status. >[SRS-116] </REQ>
+    it 'treats an Implemented record with a To Do Scope row as not Done' do
+      expect(kit_cell('adr-2')).to eq('Blocked')
+    end
+  end
+
+  context 'when a record has both a Scope and an Affected Documents table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/specifications/req/req.md', "# Requirements\n\n[REQ-001] A requirement.\n")
+      write_file('myproject/decisions/g/adr-1-both.md', <<~MD)
+        ---
+        title: "ADR-1: Both tables"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | Done |
+
+        # Affected Documents
+
+        | # | Proposed Text | Req-ID |
+        |---|---|---|
+        | 1 | First. | >[REQ-001] |
+        | 2 | Second. | >[REQ-001] |
+      MD
+      write_file('myproject/decisions/g/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Scope row anchors are namespaced so they do not collide with Affected Documents. >[SRS-113] </REQ>
+    it 'emits distinct, non-colliding anchors for the two tables' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/g/adr-1.html')))
+      ids = doc.xpath('//*[starts-with(@id, "adr-1.")]/@id').map(&:value)
+      expect(ids).to contain_exactly('adr-1.1', 'adr-1.2', 'adr-1.scope.1', 'adr-1.scope.2')
+    end
+
+    # <REQ> A Depends On link targets the namespaced Scope anchor of the aligned row. >[SRS-115] </REQ>
+    it 'links a dependent to the namespaced Scope anchor' do
+      expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Code'))
+        .to eq(['adr-1.html#adr-1.scope.2'])
+    end
+  end
+
+  context 'when a Depends On target has no # step column' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-nostep.md', <<~MD)
+        ---
+        title: "ADR-1: No step column"
+        ---
+
+        # Scope
+
+        | Item | Owner | Status |
+        |---|---|---|
+        | Code | DEV | Done |
+      MD
+      write_file('myproject/decisions/g/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> With no step column on the target there is no anchor, so the link opens the record. >[SRS-115] </REQ>
+    it 'links to the record page without a fragment' do
+      expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Code')).to eq(['adr-1.html'])
+    end
+  end
 end
