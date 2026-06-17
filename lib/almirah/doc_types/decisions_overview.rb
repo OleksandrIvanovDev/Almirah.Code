@@ -100,7 +100,44 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     days = scheduler.day_count
     return '' if items.empty? || owners.empty? || days.zero?
 
-    gantt_grid(owners, items, scheduler, days)
+    grid = gantt_grid(owners, items, scheduler, days)
+    items.any?(&:cross_record_violation?) ? grid + gantt_pulse_script : grid
+  end
+
+  # Slow background pulse for blocked bars (cosmetic; no decision record). A
+  # small inline script eases each blocked bar between its own status colour and
+  # the Chart.js red over a 2.4s, six-phase cycle. The bar's border is untouched,
+  # and the pulse is skipped under prefers-reduced-motion.
+  def gantt_pulse_script
+    <<~'JS'
+      <script>
+      (function () {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+        var target = [255, 99, 132];
+        var steps = [0, 1 / 5, 1 / 3, 1, 1 / 3, 1 / 5];
+        var bars = document.querySelectorAll('.workitem_gantt .gantt_blocked');
+        if (!bars.length) { return; }
+        var items = [];
+        bars.forEach(function (el) {
+          var m = getComputedStyle(el).backgroundColor.match(/\d+/g);
+          if (!m) { return; }
+          var base = [parseInt(m[0], 10), parseInt(m[1], 10), parseInt(m[2], 10)];
+          var phases = steps.map(function (t) {
+            return 'rgb(' + Math.round(base[0] + (target[0] - base[0]) * t) + ',' +
+                            Math.round(base[1] + (target[1] - base[1]) * t) + ',' +
+                            Math.round(base[2] + (target[2] - base[2]) * t) + ')';
+          });
+          el.style.transition = 'background-color 0.4s linear';
+          items.push({ el: el, phases: phases });
+        });
+        var i = 0;
+        setInterval(function () {
+          i = (i + 1) % 6;
+          items.forEach(function (it) { it.el.style.backgroundColor = it.phases[i]; });
+        }, 400);
+      })();
+      </script>
+    JS
   end
 
   def gantt_grid(owners, items, scheduler, days)
