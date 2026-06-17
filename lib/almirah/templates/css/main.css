@@ -154,7 +154,7 @@ table.controlled td.item_text{
 }
 .workitem_gantt .gantt_grid {
     display: grid;
-    gap: 2px;
+    gap: 0;
     width: max-content;
     padding: 4px;
 }
@@ -171,6 +171,7 @@ table.controlled td.item_text{
 }
 .workitem_gantt .gantt_corner {
     top: 0;
+    border-bottom: 1px solid #bbb;
     z-index: 3;
 }
 .workitem_gantt .gantt_day_head {
@@ -180,11 +181,13 @@ table.controlled td.item_text{
     text-align: center;
     font-size: 11px;
     color: #57606a;
+    border-bottom: 1px solid #bbb;
     z-index: 1;
 }
 .workitem_gantt .gantt_bar {
     font-size: 11px;
     line-height: 1.5;
+    margin: 1px;
     padding: 1px 5px;
     border-radius: 3px;
     overflow: hidden;
