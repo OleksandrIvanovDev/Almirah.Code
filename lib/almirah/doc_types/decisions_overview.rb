@@ -3,8 +3,12 @@
 require 'date'
 require 'json'
 require_relative 'base_document'
+require_relative '../html_safe'
+require_relative '../project/work_item_scheduler'
 
 class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
+  include HtmlSafe
+
   attr_accessor :project
 
   def initialize(project)
@@ -24,6 +28,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     html_rows.append "<h1>#{@title}</h1>\n"
 
     html_rows.append render_charts_grid
+    html_rows.append render_workitem_gantt
 
     html_rows.append "<table class=\"controlled decisions_overview\">\n"
     html_rows.append "\t<thead>\n"
@@ -81,6 +86,71 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
 
     weight = doc.kit_started_violation? ? ' font-weight: bold;' : ''
     "\t\t<td class=\"item_kit kit_blocked\" style=\"color: #c0392b;#{weight}\">Blocked</td>\n"
+  end
+
+  # The resource-swimlane Gantt of the WorkItem network (ADR-198), placed between
+  # the charts grid and the records table. One lane per owner (the same global
+  # roster the WIP chart uses), an abstract day-index axis, and a constant-
+  # duration bar per work item positioned by WorkItemScheduler (forward pass +
+  # per-owner resource levelling). Omitted when there is nothing to schedule.
+  def render_workitem_gantt
+    items = @project.project_data.work_items.values
+    owners = ordered_owners(in_progress_tally)
+    scheduler = WorkItemScheduler.new(items)
+    days = scheduler.day_count
+    return '' if items.empty? || owners.empty? || days.zero?
+
+    gantt_grid(owners, items, scheduler, days)
+  end
+
+  def gantt_grid(owners, items, scheduler, days)
+    starts = scheduler.start_days
+    cols = "var(--gantt-owner-width) repeat(#{days}, var(--gantt-day-width))"
+    rows = [%(<div class="workitem_gantt">\n), %(\t<div class="gantt_grid" style="grid-template-columns: #{cols};">\n)]
+    rows.concat(gantt_header(days))
+    owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 2, items, starts, scheduler)) }
+    rows << "\t</div>\n" << "</div>\n"
+    rows.join
+  end
+
+  # Header row: the sticky corner over the Owner column, then one numbered cell
+  # per day column.
+  def gantt_header(days)
+    cells = [%(\t\t<div class="gantt_corner" style="grid-row: 1; grid-column: 1;">Owner</div>\n)]
+    (1..days).each do |d|
+      cells << %(\t\t<div class="gantt_day_head" style="grid-row: 1; grid-column: #{d + 1};">#{d}</div>\n)
+    end
+    cells
+  end
+
+  # One owner lane: the sticky owner label plus that owner's scheduled bars.
+  def gantt_lane(owner, row, items, starts, scheduler)
+    cells = [%(\t\t<div class="gantt_owner" style="grid-row: #{row}; grid-column: 1;">#{escape_text(owner)}</div>\n)]
+    items.select { |wi| wi.owner == owner }.each do |wi|
+      cells << gantt_bar(wi, row, starts[wi], scheduler.duration_for(wi))
+    end
+    cells
+  end
+
+  # A single work-item bar spanning its duration from its start day, coloured by
+  # row Status and emphasised when it is a started-but-blocked cross-record
+  # violation (matching the Kit cell).
+  def gantt_bar(work_item, row, start, span)
+    classes = ['gantt_bar', gantt_status_class(work_item)]
+    classes << 'gantt_blocked' if work_item.cross_record_violation?
+    preds = work_item.predecessor_items.map(&:id)
+    tip = preds.empty? ? 'No predecessors' : "After: #{preds.join(', ')}"
+    label = "#{work_item.record_id.upcase} #{work_item.activity}"
+    %(\t\t<div class="#{classes.join(' ')}" style="grid-row: #{row}; ) +
+      %(grid-column: #{start + 1} / span #{span};" title="#{escape_attr(tip)}">#{escape_text(label)}</div>\n)
+  end
+
+  def gantt_status_class(work_item)
+    case work_item.status
+    when 'Done' then 'gantt_done'
+    when 'In-Progress' then 'gantt_inprogress'
+    else 'gantt_todo'
+    end
   end
 
   CHART_PALETTE = [

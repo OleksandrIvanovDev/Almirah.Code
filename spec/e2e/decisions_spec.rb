@@ -2174,4 +2174,197 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Code')).to eq(['adr-1.html'])
     end
   end
+
+  # ----- ADR-198: work-item swimlane Gantt on the overview -----
+
+  def overview_doc
+    Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+  end
+
+  def gantt_container(doc = overview_doc)
+    doc.at_css('div.workitem_gantt')
+  end
+
+  # The owner-lane labels, top to bottom.
+  def gantt_lanes(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_owner').map { |o| o.text.strip }
+  end
+
+  # Geometry of the bar whose label is "<record> <activity>": its grid-column
+  # start, day span, grid-row, and CSS class list. nil when no such bar.
+  def gantt_bar(label, doc = overview_doc)
+    node = doc.css('div.workitem_gantt .gantt_bar').find { |b| b.text.strip == label }
+    return nil unless node
+
+    col = node['style'].match(%r{grid-column:\s*(\d+)\s*/\s*span\s*(\d+)})
+    row = node['style'].match(/grid-row:\s*(\d+)/)
+    { start: col[1].to_i, span: col[2].to_i, row: row[1].to_i, classes: node['class'].split }
+  end
+
+  context 'when the overview renders the work-item Gantt' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | Done |
+      MD
+      write_file('myproject/decisions/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | In-Progress |
+        | 2 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The overview renders a work-item schedule between the charts and the records table. >[SRS-136] </REQ>
+    it 'places the Gantt container between the charts grid and the records table' do
+      doc = overview_doc
+      nodes = doc.css('div.decisions_overview_charts, div.workitem_gantt, table.decisions_overview')
+      expect(nodes.map { |n| n.name == 'table' ? 'table' : n['class'].split.first })
+        .to eq(%w[decisions_overview_charts workitem_gantt table])
+    end
+
+    # <REQ> One lane per owner named across all records, in the shared roster order. >[SRS-136] </REQ>
+    it 'draws one lane per owner across all records' do
+      expect(gantt_lanes).to eq(%w[BA DEV])
+    end
+
+    # <REQ> Each work item is a bar of constant three-day duration. >[SRS-137] </REQ>
+    it 'spans every bar three day-columns' do
+      %w[Analysis Code].each do |item|
+        expect(gantt_bar("ADR-1 #{item}")[:span]).to eq(3)
+        expect(gantt_bar("ADR-2 #{item}")[:span]).to eq(3)
+      end
+    end
+
+    # <REQ> A bar starts no earlier than the latest finish of its predecessors (intra-record step). >[SRS-138] </REQ>
+    it 'starts a later step after its earlier same-record step finishes' do
+      analysis = gantt_bar('ADR-1 Analysis')
+      code = gantt_bar('ADR-1 Code')
+      expect(code[:start]).to be >= (analysis[:start] + analysis[:span])
+    end
+
+    # <REQ> A bar starts no earlier than the latest finish of its cross-record predecessor. >[SRS-138] </REQ>
+    it 'starts the dependent record after its activity-aligned predecessor finishes' do
+      base = gantt_bar('ADR-1 Analysis')
+      dependent = gantt_bar('ADR-2 Analysis')
+      expect(dependent[:start]).to be >= (base[:start] + base[:span])
+    end
+
+    # <REQ> Work items sharing an owner do not overlap; the lane is serialised. >[SRS-139] </REQ>
+    it 'serialises the two BA work items so their day spans do not overlap' do
+      first = gantt_bar('ADR-1 Analysis')
+      second = gantt_bar('ADR-2 Analysis')
+      expect(first[:row]).to eq(second[:row])
+      expect(second[:start]).to be >= (first[:start] + first[:span])
+    end
+
+    # <REQ> Each bar indicates its row Status. >[SRS-140] </REQ>
+    it 'colours each bar by its row Status' do
+      expect(gantt_bar('ADR-1 Analysis')[:classes]).to include('gantt_done')
+      expect(gantt_bar('ADR-2 Analysis')[:classes]).to include('gantt_inprogress')
+      expect(gantt_bar('ADR-2 Code')[:classes]).to include('gantt_todo')
+    end
+
+    # <REQ> The schedule is deterministic across runs. >[SRS-139] </REQ>
+    it 'produces an identical Gantt on a second run' do
+      first = gantt_container.to_html
+      run_command_and_stop('almirah please myproject')
+      expect(gantt_container.to_html).to eq(first)
+    end
+  end
+
+  context 'when unlinked work items have different owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-30-parallel.md', <<~MD)
+        ---
+        title: "ADR-30: Parallel"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 1 | Code | DEV | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Different-owner work items with no dependency share day columns (run in parallel). >[SRS-139] </REQ>
+    it 'starts both bars on the same day column' do
+      expect(gantt_bar('ADR-30 Analysis')[:start]).to eq(gantt_bar('ADR-30 Code')[:start])
+    end
+  end
+
+  context 'when a started work item is blocked by an unfinished cross-record predecessor' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/grp/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | To Do |
+      MD
+      write_file('myproject/decisions/grp/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A started-but-blocked work item is visually emphasised. >[SRS-140] </REQ>
+    it 'marks the blocked bar with the violation emphasis' do
+      expect(gantt_bar('ADR-2 Code')[:classes]).to include('gantt_blocked')
+    end
+  end
+
+  context 'when no decision record declares Scope owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-40-plain.md', <<~MD)
+        ---
+        title: "ADR-40: Plain"
+        ---
+
+        ## Context
+
+        A record with no Scope table.
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt container is omitted when there is nothing to schedule. >[SRS-136] </REQ>
+    it 'omits the Gantt container' do
+      expect(gantt_container).to be_nil
+    end
+  end
 end
