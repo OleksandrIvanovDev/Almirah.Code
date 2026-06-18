@@ -2367,4 +2367,104 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(gantt_container).to be_nil
     end
   end
+
+  # ----- ADR-201: group-segmented Gantt with a Buffer lane -----
+
+  # The group band cells, left to right: each cell's label, grid-column start and span.
+  def gantt_bands(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_release_band').map do |c|
+      col = c['style'].match(%r{grid-column:\s*(\d+)\s*/\s*span\s*(\d+)})
+      { name: c.text.strip, start: col[1].to_i, span: col[2].to_i }
+    end
+  end
+
+  def buffer_bar_starts(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_buffer_bar').map { |b| b['style'][/grid-column:\s*(\d+)/, 1].to_i }
+  end
+
+  def grid_row(node)
+    node['style'][/grid-row:\s*(\d+)/, 1].to_i
+  end
+
+  context 'when records span multiple decision groups' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/group-a/adr-10-a.md', <<~MD)
+        ---
+        title: "ADR-10: A"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Code | DEV | To Do |
+      MD
+      write_file('myproject/decisions/group-b/adr-20-b.md', <<~MD)
+        ---
+        title: "ADR-20: B"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-10] | To Do |
+        | 2 | Code | DEV | >[ADR-10] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The schedule is segmented into one block per group, in folder-encounter order. >[SRS-141] </REQ>
+    it 'draws one group band per folder, left to right in encounter order' do
+      bands = gantt_bands
+      expect(bands.map { |b| b[:name] }).to eq(%w[group-a group-b])
+      expect(bands[0][:start]).to be < bands[1][:start]
+    end
+
+    # <REQ> A group band spans its block's day columns, with a gutter between blocks. >[SRS-142] </REQ>
+    it 'spans each band over its block and leaves a gutter before the next block' do
+      bands = gantt_bands
+      expect(bands[1][:start]).to be > (bands[0][:start] + bands[0][:span])
+    end
+
+    # <REQ> A predecessor in another group is treated as an already-available input. >[SRS-143] </REQ>
+    it 'starts a cross-group dependent at its own block day one, not after its predecessor' do
+      group_b_start = gantt_bands.find { |b| b[:name] == 'group-b' }[:start]
+      expect(gantt_bar('ADR-20 Analysis')[:start]).to eq(group_b_start)
+    end
+
+    # <REQ> The same owner in different groups runs in parallel, not serialised across blocks. >[SRS-143] </REQ>
+    it 'does not serialise the same owner across different group blocks' do
+      bands = gantt_bands
+      expect(gantt_bar('ADR-10 Analysis')[:start]).to eq(bands.find { |b| b[:name] == 'group-a' }[:start])
+      expect(gantt_bar('ADR-20 Analysis')[:start]).to eq(bands.find { |b| b[:name] == 'group-b' }[:start])
+    end
+
+    # <REQ> The Buffer lane renders one buffer bar per group, after that group's last work item. >[SRS-144] </REQ>
+    it 'renders a Buffer lane with one placeholder buffer bar per group after its work' do
+      doc = overview_doc
+      expect(doc.css('div.workitem_gantt .gantt_buffer').map { |n| n.text.strip }).to eq(['Buffer'])
+      starts = buffer_bar_starts(doc)
+      expect(starts.length).to eq(2)
+      code_a = gantt_bar('ADR-10 Code', doc)
+      expect(starts.min).to be >= (code_a[:start] + code_a[:span])
+    end
+
+    # <REQ> The Buffer lane is the last row, below every owner lane. >[SRS-144] </REQ>
+    it 'places the Buffer lane below every owner lane' do
+      doc = overview_doc
+      buffer_row = grid_row(doc.at_css('div.workitem_gantt .gantt_buffer'))
+      owner_rows = doc.css('div.workitem_gantt .gantt_owner').map { |o| grid_row(o) }
+      expect(owner_rows).to all(be < buffer_row)
+    end
+
+    # <REQ> The segmented layout is identical across runs. >[SRS-145] </REQ>
+    it 'produces an identical segmented Gantt on a second run' do
+      first = gantt_container.to_html
+      run_command_and_stop('almirah please myproject')
+      expect(gantt_container.to_html).to eq(first)
+    end
+  end
 end

@@ -88,20 +88,79 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     "\t\t<td class=\"item_kit kit_blocked\" style=\"color: #c0392b;#{weight}\">Blocked</td>\n"
   end
 
-  # The resource-swimlane Gantt of the WorkItem network (ADR-198), placed between
-  # the charts grid and the records table. One lane per owner (the same global
-  # roster the WIP chart uses), an abstract day-index axis, and a constant-
-  # duration bar per work item positioned by WorkItemScheduler (forward pass +
-  # per-owner resource levelling). Omitted when there is nothing to schedule.
-  def render_workitem_gantt
-    items = @project.project_data.work_items.values
-    owners = ordered_owners(in_progress_tally)
-    scheduler = WorkItemScheduler.new(items)
-    days = scheduler.day_count
-    return '' if items.empty? || owners.empty? || days.zero?
+  # Day columns inserted between adjacent group blocks (ADR-201).
+  GANTT_GUTTER_DAYS = 1
+  # Placeholder project-buffer length until ADR-195 computes the real buffer.
+  BUFFER_PLACEHOLDER_DAYS = 2
 
-    grid = gantt_grid(owners, items, scheduler, days)
-    items.any?(&:cross_record_violation?) ? grid + gantt_pulse_script : grid
+  # The group-segmented resource-swimlane Gantt of the WorkItem network (ADR-198,
+  # segmented by ADR-201), placed between the charts grid and the records table.
+  # Each decision group (ADR-197) becomes a block laid left to right; within a
+  # block, one lane per owner (the shared WIP roster) carries a constant-duration
+  # bar per work item positioned by WorkItemScheduler. A group band row labels
+  # each block and a Buffer lane closes the grid below the owner lanes. Omitted
+  # when there is nothing to schedule.
+  def render_workitem_gantt
+    blocks = gantt_blocks
+    owners = ordered_owners(in_progress_tally)
+    return '' if blocks.empty? || owners.empty?
+
+    total_days = blocks.last[:offset] + blocks.last[:width]
+    grid = gantt_grid(owners, blocks, total_days)
+    gantt_any_blocked?(blocks) ? grid + gantt_pulse_script : grid
+  end
+
+  # True when any scheduled work item is a started-but-blocked cross-record
+  # violation, so the pulse script is worth emitting.
+  def gantt_any_blocked?(blocks)
+    blocks.any? { |b| b[:items].any?(&:cross_record_violation?) }
+  end
+
+  # One block per decision group (ADR-197) that has work items, in decision_groups
+  # (folder-encounter) order. Each block runs WorkItemScheduler over only its own
+  # items, so a cross-group predecessor falls away as an already-available input
+  # (ADR-201); blocks are offset left to right with a one-column gutter between.
+  def gantt_blocks
+    offset = 0
+    grouped_work_items.each_with_object([]) do |(name, items), blocks|
+      scheduler = WorkItemScheduler.new(items)
+      next if scheduler.day_count.zero?
+
+      offset += GANTT_GUTTER_DAYS unless blocks.empty?
+      block = gantt_block(name, items, scheduler, offset)
+      blocks << block
+      offset += block[:width]
+    end
+  end
+
+  # One block descriptor: its group name, work items, schedule, per-work-item
+  # start days, the work span and (placeholder) buffer in day columns, and the
+  # left-to-right column offset of the block's first day.
+  def gantt_block(name, items, scheduler, offset)
+    work_days = scheduler.day_count
+    buffer = buffer_for(name)
+    { name:, items:, scheduler:, starts: scheduler.start_days,
+      work_days:, buffer:, width: work_days + buffer, offset: }
+  end
+
+  # [[group-name, [WorkItem, ...]], ...] in decision_groups order, only groups
+  # with at least one work item. Items are the canonical objects from
+  # project_data.work_items, gathered by their record's decision group.
+  def grouped_work_items
+    by_record = @project.project_data.work_items.values.group_by(&:record_id)
+    @project.project_data.decision_groups.filter_map do |group|
+      name = group.keys.first
+      items = group.values.first.flat_map { |doc| by_record[doc.id] || [] }
+      [name, items] unless items.empty?
+    end
+  end
+
+  # Placeholder project-buffer length (day columns) for a group's block. ADR-201
+  # reserves the Buffer lane and this hook; ADR-195 overrides it with the computed
+  # ceil(buffer_ratio * sum(safe - focused)) over the group's critical chain,
+  # mirroring WorkItemScheduler#duration_for.
+  def buffer_for(_group_name)
+    BUFFER_PLACEHOLDER_DAYS
   end
 
   # Slow background pulse for blocked bars (cosmetic; no decision record). A
@@ -140,31 +199,66 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     JS
   end
 
-  def gantt_grid(owners, items, scheduler, days)
-    starts = scheduler.start_days
-    cols = "var(--gantt-owner-width) repeat(#{days}, var(--gantt-day-width))"
+  def gantt_grid(owners, blocks, total_days)
+    cols = "var(--gantt-owner-width) repeat(#{total_days}, var(--gantt-day-width))"
     rows = [%(<div class="workitem_gantt">\n), %(\t<div class="gantt_grid" style="grid-template-columns: #{cols};">\n)]
-    rows.concat(gantt_header(days))
-    owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 2, items, starts, scheduler)) }
+    rows.concat(gantt_header(blocks))
+    rows.concat(gantt_group_band(blocks))
+    owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 3, blocks)) }
+    rows.concat(gantt_buffer_lane(blocks, owners.length + 3))
     rows << "\t</div>\n" << "</div>\n"
     rows.join
   end
 
   # Header row: the sticky corner over the Owner column, then one numbered cell
-  # per day column.
-  def gantt_header(days)
+  # per day column within each block (the index resets per block; the gutter
+  # columns between blocks stay blank).
+  def gantt_header(blocks)
     cells = [%(\t\t<div class="gantt_corner" style="grid-row: 1; grid-column: 1;">Owner</div>\n)]
-    (1..days).each do |d|
-      cells << %(\t\t<div class="gantt_day_head" style="grid-row: 1; grid-column: #{d + 1};">#{d}</div>\n)
+    blocks.each do |b|
+      (1..b[:width]).each do |d|
+        col = b[:offset] + d + 1
+        cells << %(\t\t<div class="gantt_day_head" style="grid-row: 1; grid-column: #{col};">#{d}</div>\n)
+      end
     end
     cells
   end
 
-  # One owner lane: the sticky owner label plus that owner's scheduled bars.
-  def gantt_lane(owner, row, items, starts, scheduler)
+  # The group band row (ADR-201): one labelled cell per block spanning that
+  # block's day columns -- the conventional Gantt group line between the day
+  # header and the lanes -- with a sticky-left corner over the Owner column.
+  def gantt_group_band(blocks)
+    cells = [%(\t\t<div class="gantt_band_corner" style="grid-row: 2; grid-column: 1;"></div>\n)]
+    blocks.each do |b|
+      style = %(grid-row: 2; grid-column: #{b[:offset] + 2} / span #{b[:width]};)
+      cells << %(\t\t<div class="gantt_release_band" style="#{style}">#{escape_text(b[:name])}</div>\n)
+    end
+    cells
+  end
+
+  # The Buffer lane (ADR-201), the last row below the owner lanes: one placeholder
+  # buffer bar per block, placed in the day columns immediately after that group's
+  # last work item and spanning its buffer length (sized by ADR-195 later).
+  def gantt_buffer_lane(blocks, row)
+    cells = [%(\t\t<div class="gantt_buffer" style="grid-row: #{row}; grid-column: 1;">Buffer</div>\n)]
+    blocks.each do |b|
+      next if b[:buffer].zero?
+
+      tip = "Placeholder project buffer (#{b[:buffer]}d) -- sized by ADR-195"
+      style = %(grid-row: #{row}; grid-column: #{b[:offset] + b[:work_days] + 2} / span #{b[:buffer]};)
+      cells << %(\t\t<div class="gantt_buffer_bar" style="#{style}" title="#{escape_attr(tip)}">buffer</div>\n)
+    end
+    cells
+  end
+
+  # One owner lane across all blocks: the sticky owner label plus that owner's
+  # scheduled bars in each block, offset into the block's day columns.
+  def gantt_lane(owner, row, blocks)
     cells = [%(\t\t<div class="gantt_owner" style="grid-row: #{row}; grid-column: 1;">#{escape_text(owner)}</div>\n)]
-    items.select { |wi| wi.owner == owner }.each do |wi|
-      cells << gantt_bar(wi, row, starts[wi], scheduler.duration_for(wi))
+    blocks.each do |b|
+      b[:items].select { |wi| wi.owner == owner }.each do |wi|
+        cells << gantt_bar(wi, row, b[:offset] + b[:starts][wi], b[:scheduler].duration_for(wi))
+      end
     end
     cells
   end

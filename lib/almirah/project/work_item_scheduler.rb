@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'set'
+
 # Lays the WorkItem network (ADR-194) on an abstract day axis for the overview
 # swimlane Gantt (ADR-198). It performs a deterministic forward pass over the
 # dependency edges and then levels each owner's lane so two work items of the
@@ -20,6 +22,7 @@ class WorkItemScheduler
   def initialize(work_items, duration: DEFAULT_DURATION)
     @items = work_items
     @duration = duration
+    @item_set = work_items.to_set
   end
 
   # { work_item => start_day }, day index 1-based. Empty when there are no items.
@@ -59,7 +62,7 @@ class WorkItemScheduler
   # its owner's next free day, then advances that owner's free cursor past it.
   def place(work_item, owner_free)
     owner = work_item.owner
-    dep_finish = work_item.predecessor_items.map { |p| @ends[p] || 1 }.max || 1
+    dep_finish = scoped_predecessors(work_item).map { |p| @ends[p] || 1 }.max || 1
     finish = (@starts[work_item] = [dep_finish, owner_free[owner]].max) + duration_for(work_item)
     @ends[work_item] = finish
     owner_free[owner] = finish unless owner.empty?
@@ -80,12 +83,20 @@ class WorkItemScheduler
     return memo[work_item] if memo.key?(work_item)
     return 1 if stack.include?(work_item)
 
-    preds = work_item.predecessor_items
+    preds = scoped_predecessors(work_item)
     return (memo[work_item] = 1) if preds.empty?
 
     stack.push(work_item)
     earliest = preds.map { |p| dependency_start(p, memo, stack) + duration_for(p) }.max
     stack.pop
     memo[work_item] = earliest
+  end
+
+  # Predecessors inside this scheduler's own item set. A predecessor scheduled in
+  # another scope (e.g. a different decision group, ADR-201) is treated as an
+  # already-available external input: it is dropped here and imposes no finish
+  # constraint, so the dependent simply starts at day 1 with respect to it.
+  def scoped_predecessors(work_item)
+    work_item.predecessor_items.select { |p| @item_set.include?(p) }
   end
 end

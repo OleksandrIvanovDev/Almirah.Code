@@ -159,7 +159,9 @@ table.controlled td.item_text{
     padding: 4px;
 }
 .workitem_gantt .gantt_corner,
-.workitem_gantt .gantt_owner {
+.workitem_gantt .gantt_owner,
+.workitem_gantt .gantt_band_corner,
+.workitem_gantt .gantt_buffer {
     position: sticky;
     left: 0;
     background: #fff;
@@ -200,6 +202,35 @@ table.controlled td.item_text{
 .workitem_gantt .gantt_inprogress { background: #ffffdd; color: #333; box-shadow: inset 0 0 0 1px #bbb; }
 .workitem_gantt .gantt_done { background: #cfc; color: #57606a; box-shadow: inset 0 0 0 1px #e1e4e8; }
 .workitem_gantt .gantt_blocked { box-shadow: inset 0 0 0 1px #bbb; }
+.workitem_gantt .gantt_release_band {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #57606a;
+    background: #eef1f4;
+    border-bottom: 1px solid #e1e4e8;
+    border-left: 1px solid #d0d7de;
+    padding: 2px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.workitem_gantt .gantt_buffer { color: #9a6700; }
+.workitem_gantt .gantt_buffer_bar {
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 1px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #9a6700;
+    background: repeating-linear-gradient(45deg, #ffe9b3, #ffe9b3 5px, #fff3d4 5px, #fff3d4 10px);
+    box-shadow: inset 0 0 0 1px #e0c068;
+    cursor: default;
+}
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,
