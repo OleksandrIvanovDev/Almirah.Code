@@ -60,6 +60,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_decisions_overview
+    render_critical_chain_page
     render_all_decisions
     render_index
     create_search_data
@@ -88,6 +89,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_decisions_overview
+    render_critical_chain_page
     render_all_decisions
     render_index
     create_search_data
@@ -505,6 +507,16 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     FileUtils.mkdir_p("#{path}/build/decisions")
 
     doc = DocFabric.create_decisions_overview(@project)
+    doc.to_html("#{path}/build/decisions/")
+  end
+
+  def render_critical_chain_page
+    return if @project_data.decisions.empty?
+
+    path = @configuration.project_root_directory
+    FileUtils.mkdir_p("#{path}/build/decisions")
+
+    doc = DocFabric.create_critical_chain_page(@project)
     doc.to_html("#{path}/build/decisions/")
   end
 

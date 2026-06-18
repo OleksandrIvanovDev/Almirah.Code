@@ -295,6 +295,16 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       expect(doc.at_css('#decisions_menu_item')).to be_nil
     end
+
+    it 'does not create build/decisions/critical-chain.html' do
+      expect(File.exist?(expand_path('myproject/build/decisions/critical-chain.html'))).to be false
+    end
+
+    # <REQ> The Critical Chain link is shown exactly when the Decision Records link is. >[SRS-146] </REQ>
+    it 'does not add the Critical Chain link to the index page' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
+      expect(doc.at_css('#critical_chain_menu_item')).to be_nil
+    end
   end
 
   context 'when a decision record has a single "*" current-status marker' do
@@ -2470,7 +2480,11 @@ RSpec.describe 'Decision Records', type: :aruba do
 
   # ----- ADR-195: estimates, critical chain, and project buffer -----
 
-  def cc_chain_rows(doc = overview_doc)
+  def critical_chain_doc
+    Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/critical-chain.html')))
+  end
+
+  def cc_chain_rows(doc = critical_chain_doc)
     doc.css('div.critical_chain table.cc_chain tr')
        .map { |r| r.css('td').map { |c| c.text.strip } }.reject(&:empty?)
   end
@@ -2501,9 +2515,9 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(gantt_bar('ADR-50 Tests')[:span]).to eq(2)
     end
 
-    # <REQ> The overview renders the critical chain, its buffer, and projected duration. >[SRS-124], >[SRS-127] </REQ>
+    # <REQ> The dedicated page renders the chain, buffer, and projected duration. >[SRS-124], >[SRS-127] </REQ>
     it 'renders the critical chain view with buffer and projected duration' do
-      doc = overview_doc
+      doc = critical_chain_doc
       expect(cc_chain_rows(doc)).to eq([%w[ADR-50 Analysis BA 2], %w[ADR-50 Code DEV 3], %w[ADR-50 Tests TEST 2]])
       expect(doc.at_css('div.critical_chain .cc_buffer').text).to include('4 working days')      # ceil(0.5 * (2+3+3))
       expect(doc.at_css('div.critical_chain .cc_projected').text).to include('11 working days')  # 7 + 4
@@ -2536,9 +2550,8 @@ RSpec.describe 'Decision Records', type: :aruba do
 
     # <REQ> A group with no estimated work is marked unestimated, with no buffer. >[SRS-127] </REQ>
     it 'marks the group unestimated and renders no buffer bar' do
-      doc = overview_doc
-      expect(doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
-      expect(doc.css('div.workitem_gantt .gantt_buffer_bar')).to be_empty
+      expect(critical_chain_doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
+      expect(overview_doc.css('div.workitem_gantt .gantt_buffer_bar')).to be_empty
     end
   end
 
@@ -2563,7 +2576,43 @@ RSpec.describe 'Decision Records', type: :aruba do
     # <REQ> The configured buffer ratio scales the project buffer. >[SRS-126] </REQ>
     it 'applies the configured buffer ratio of 1.0' do
       # safety = (4-2) + (6-3) = 5, buffer = ceil(1.0 * 5)
-      expect(overview_doc.at_css('div.critical_chain .cc_buffer').text).to include('5 working days')
+      expect(critical_chain_doc.at_css('div.critical_chain .cc_buffer').text).to include('5 working days')
+    end
+  end
+
+  # ----- ENH-202: Critical Chain moved to a dedicated page with a menu link -----
+
+  context 'when decision records carry estimates (ENH-202 page and menu)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plan/adr-80-est.md', <<~MD)
+        ---
+        title: "ADR-80: Estimated"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The critical chain renders on the dedicated page, not on the overview. >[SRS-127] </REQ>
+    it 'renders the chain on the dedicated page and removes it from the overview' do
+      expect(overview_doc.at_css('div.critical_chain')).to be_nil
+      expect(cc_chain_rows).to eq([%w[ADR-80 Analysis BA 2], %w[ADR-80 Code DEV 3]])
+    end
+
+    # <REQ> A "Critical Chain" menu link sits immediately after the Decision Records link. >[SRS-146] </REQ>
+    it 'adds a Critical Chain top-menu link immediately after Decision Records' do
+      ids = overview_doc.css('a[id$="_menu_item"]').map { |a| a['id'] }
+      expect(ids.index('critical_chain_menu_item')).to eq(ids.index('decisions_menu_item') + 1)
+      link = overview_doc.at_css('#critical_chain_menu_item')
+      expect(link.text).to include('Critical Chain')
+      expect(link['href']).to include('critical-chain.html')
     end
   end
 end

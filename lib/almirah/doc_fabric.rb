@@ -7,6 +7,7 @@ require_relative 'doc_types/implementation'
 require_relative 'doc_types/traceability'
 require_relative 'doc_types/decision'
 require_relative 'doc_types/decisions_overview'
+require_relative 'doc_types/critical_chain_page'
 require_relative 'doc_parser'
 require_relative 'source_file_parser'
 require_relative 'dom/document'
@@ -74,6 +75,10 @@ class DocFabric
 
   def self.create_decisions_overview(project)
     DecisionsOverview.new project
+  end
+
+  def self.create_critical_chain_page(project)
+    CriticalChainPage.new project
   end
 
   def self.create_source_file(repository_path, path, repository_name)
