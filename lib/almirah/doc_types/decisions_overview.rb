@@ -103,7 +103,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   # when there is nothing to schedule.
   def render_workitem_gantt
     blocks = gantt_blocks
-    owners = ordered_owners(in_progress_tally)
+    owners = consensus_owner_order
     return '' if blocks.empty? || owners.empty?
 
     total_days = blocks.last[:offset] + blocks.last[:width]
@@ -369,6 +369,48 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
       doc.owners.each { |owner| first_seen << owner unless first_seen.include?(owner) }
     end
     first_seen.sort_by { |owner| [-tally[owner], first_seen.index(owner)] }
+  end
+
+  # The owner order for the Gantt lanes (ADR-204): the workflow sequence the
+  # records collectively describe, rather than the heatmap's current-load order.
+  # Each record's distinct owner sequence (doc.owners) votes on every ordered
+  # owner pair into a pairwise-precedence tally (before[[a, b]] = records placing
+  # a before b); owners are then ranked by Copeland score, with the first-seen
+  # order as a deterministic tiebreak so the lanes are identical across runs.
+  # Opposite-order records are simply outvoted, a missing role abstains, and an
+  # added role is placed by the pairs it does appear in -- no special-casing.
+  def consensus_owner_order
+    first_seen, before = owner_precedence
+    first_seen.sort_by { |owner| [-copeland_score(owner, first_seen, before), first_seen.index(owner)] }
+  end
+
+  # One pass over the records yielding both the first-seen owner roster and the
+  # pairwise-precedence tally before[[a, b]] -- the number of records placing a
+  # before b across every ordered pair of a record's distinct owners. Shared so
+  # the consensus order needs no second iteration over the records (ADR-204).
+  def owner_precedence
+    first_seen = []
+    before = Hash.new(0)
+    @project.project_data.decisions.each do |doc|
+      owners = doc.owners
+      owners.each_with_index do |owner, i|
+        first_seen << owner unless first_seen.include?(owner)
+        owners.drop(i + 1).each { |later| before[[owner, later]] += 1 }
+      end
+    end
+    [first_seen, before]
+  end
+
+  # Copeland score for one owner against the roster: +1 for every other owner it
+  # precedes more often than it follows, -1 for the reverse, 0 when tied. One
+  # integer per owner keeps the sort well-defined even if the pairwise majorities
+  # form a cycle, so no cycle detection is needed (ADR-204).
+  def copeland_score(owner, roster, before)
+    roster.sum do |other|
+      next 0 if other == owner
+
+      before[[owner, other]] <=> before[[other, owner]]
+    end
   end
 
   # Retained for re-enablement: the original "Decision Records by Type" pie chart.

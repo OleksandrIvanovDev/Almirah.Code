@@ -2357,6 +2357,145 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  # ----- ADR-204: consensus owner order for the Gantt lanes -----
+
+  context 'when records agree on the workflow owner order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Three records all running BA -> DEV -> TEST, but listed in the file so the
+      # naive first-seen roster would still be BA, DEV, TEST; the heatmap's
+      # descending-count order would instead lead with the busiest (DEV here).
+      write_file('myproject/decisions/adr-50-a.md', <<~MD)
+        ---
+        title: "ADR-50: A"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Code | DEV | In-Progress |
+        | 3 | Tests | TEST | To Do |
+      MD
+      write_file('myproject/decisions/adr-51-b.md', <<~MD)
+        ---
+        title: "ADR-51: B"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Code | DEV | In-Progress |
+        | 3 | Tests | TEST | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt lanes follow the majority workflow order. >[SRS-148] </REQ>
+    it 'orders the lanes by the workflow sequence the records describe' do
+      expect(gantt_lanes).to eq(%w[BA DEV TEST])
+    end
+
+    # <REQ> The lane order is identical across runs. >[SRS-147] </REQ>
+    it 'produces the same lane order on a second run' do
+      first = gantt_lanes
+      run_command_and_stop('almirah please myproject')
+      expect(gantt_lanes).to eq(first)
+    end
+
+    # <REQ> The WIP heatmap keeps its descending-count order, distinct from the lanes. >[SRS-148] </REQ>
+    it 'leaves the WIP heatmap in descending-count order, not the lane order' do
+      # Two DEV In-Progress rows, zero for BA/TEST, so the heatmap leads with DEV
+      # while the Gantt lanes lead with BA -- the two orders are deliberately different.
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_labels(html).first).to eq('DEV')
+      expect(gantt_lanes.first).to eq('BA')
+    end
+  end
+
+  context 'when a minority record runs the owners in the opposite order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Two records vote DEV-before-TEST, one votes TEST-before-DEV; the majority wins.
+      %w[60 61].each do |n|
+        write_file("myproject/decisions/adr-#{n}-fwd.md", <<~MD)
+          ---
+          title: "ADR-#{n}: Forward"
+          ---
+
+          # Scope
+
+          | # | Item | Owner | Status |
+          |---|---|---|---|
+          | 1 | Code | DEV | To Do |
+          | 2 | Tests | TEST | To Do |
+        MD
+      end
+      write_file('myproject/decisions/adr-62-rev.md', <<~MD)
+        ---
+        title: "ADR-62: Reverse"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Tests | TEST | To Do |
+        | 2 | Code | DEV | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A minority opposite-order record does not flip the lanes. >[SRS-147] </REQ>
+    it 'keeps the majority order despite the opposite-order record' do
+      expect(gantt_lanes).to eq(%w[DEV TEST])
+    end
+  end
+
+  context 'when records name different subsets and an extra owner' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Most records run BA -> DEV -> TEST; one skips DEV and appends DevOps.
+      %w[70 71].each do |n|
+        write_file("myproject/decisions/adr-#{n}-full.md", <<~MD)
+          ---
+          title: "ADR-#{n}: Full"
+          ---
+
+          # Scope
+
+          | # | Item | Owner | Status |
+          |---|---|---|---|
+          | 1 | Analysis | BA | To Do |
+          | 2 | Code | DEV | To Do |
+          | 3 | Tests | TEST | To Do |
+        MD
+      end
+      write_file('myproject/decisions/adr-72-extra.md', <<~MD)
+        ---
+        title: "ADR-72: Extra"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Tests | TEST | To Do |
+        | 3 | Deploy | DevOps | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A missing role does not displace the shared roles; an added role is placed after the roles it follows. >[SRS-147] </REQ>
+    it 'keeps the shared order and places the added owner last' do
+      expect(gantt_lanes).to eq(%w[BA DEV TEST DevOps])
+    end
+  end
+
   context 'when no decision record declares Scope owners' do
     before do
       write_file('myproject/project.yml', "specifications:\n  input: []\n")
