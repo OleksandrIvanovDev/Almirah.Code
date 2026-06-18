@@ -18,16 +18,25 @@ class WorkItem
   # resolution when the prerequisite has no row of the dependent's exact Item.
   ACTIVITY_ORDER = %w[Analysis Requirements Code Tests].freeze
 
-  attr_reader :record_id, :step, :activity, :owner, :status, :depends_on_refs
+  attr_reader :record_id, :step, :activity, :owner, :status, :depends_on_refs,
+              :focused_estimate, :safe_estimate, :record_sequence
   attr_accessor :predecessors, :successors, :cross_group_predecessor_labels, :resolved_dependencies
 
-  def initialize(record_id:, step:, activity:, owner:, status:, depends_on_refs:) # rubocop:disable Metrics/ParameterLists
+  def initialize(record_id:, step:, activity:, owner:, status:, depends_on_refs:, # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength
+                 focused_estimate: 0.0, safe_estimate: 0.0, record_sequence: 0)
     @record_id = record_id
     @step = step
     @activity = activity.to_s.strip
     @owner = owner.to_s.strip
     @status = status.to_s.strip
     @depends_on_refs = depends_on_refs # array of record ref strings, e.g. ["ADR-193"]
+    # Per-row scheduling estimates in working days (ADR-195); the focused estimate
+    # is the scheduling duration, safe - focused the safety aggregated into the
+    # project buffer. record_sequence is the owning record's number, used only as
+    # a deterministic priority tiebreak in the critical-chain scheduler.
+    @focused_estimate = focused_estimate
+    @safe_estimate = safe_estimate
+    @record_sequence = record_sequence
     @predecessors = []
     @successors = []
     @cross_group_predecessor_labels = []
@@ -80,6 +89,10 @@ class WorkItem
 
   def predecessor_items
     @predecessors.map { |edge| edge.values.first }
+  end
+
+  def successor_items
+    @successors.map { |edge| edge.values.first }
   end
 
   # Same-record, lower-numbered steps — the intra-record (phase-order) edges.

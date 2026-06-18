@@ -5,6 +5,7 @@ require 'json'
 require_relative 'base_document'
 require_relative '../html_safe'
 require_relative '../project/work_item_scheduler'
+require_relative '../project/critical_chain'
 
 class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   include HtmlSafe
@@ -29,6 +30,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
 
     html_rows.append render_charts_grid
     html_rows.append render_workitem_gantt
+    html_rows.append render_critical_chain
 
     html_rows.append "<table class=\"controlled decisions_overview\">\n"
     html_rows.append "\t<thead>\n"
@@ -90,8 +92,6 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
 
   # Day columns inserted between adjacent group blocks (ADR-201).
   GANTT_GUTTER_DAYS = 1
-  # Placeholder project-buffer length until ADR-195 computes the real buffer.
-  BUFFER_PLACEHOLDER_DAYS = 2
 
   # The group-segmented resource-swimlane Gantt of the WorkItem network (ADR-198,
   # segmented by ADR-201), placed between the charts grid and the records table.
@@ -121,24 +121,25 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   # items, so a cross-group predecessor falls away as an already-available input
   # (ADR-201); blocks are offset left to right with a one-column gutter between.
   def gantt_blocks
+    ratio = @project.configuration.get_buffer_ratio
     offset = 0
     grouped_work_items.each_with_object([]) do |(name, items), blocks|
-      scheduler = WorkItemScheduler.new(items)
+      scheduler = GanttScheduler.new(items)
       next if scheduler.day_count.zero?
 
       offset += GANTT_GUTTER_DAYS unless blocks.empty?
-      block = gantt_block(name, items, scheduler, offset)
+      block = gantt_block(name, items, scheduler, offset, ratio)
       blocks << block
       offset += block[:width]
     end
   end
 
   # One block descriptor: its group name, work items, schedule, per-work-item
-  # start days, the work span and (placeholder) buffer in day columns, and the
-  # left-to-right column offset of the block's first day.
-  def gantt_block(name, items, scheduler, offset)
+  # start days, the work span and computed project buffer (ADR-195) in day
+  # columns, and the left-to-right column offset of the block's first day.
+  def gantt_block(name, items, scheduler, offset, ratio)
     work_days = scheduler.day_count
-    buffer = buffer_for(name)
+    buffer = CriticalChain.new(items, buffer_ratio: ratio).buffer
     { name:, items:, scheduler:, starts: scheduler.start_days,
       work_days:, buffer:, width: work_days + buffer, offset: }
   end
@@ -153,14 +154,6 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
       items = group.values.first.flat_map { |doc| by_record[doc.id] || [] }
       [name, items] unless items.empty?
     end
-  end
-
-  # Placeholder project-buffer length (day columns) for a group's block. ADR-201
-  # reserves the Buffer lane and this hook; ADR-195 overrides it with the computed
-  # ceil(buffer_ratio * sum(safe - focused)) over the group's critical chain,
-  # mirroring WorkItemScheduler#duration_for.
-  def buffer_for(_group_name)
-    BUFFER_PLACEHOLDER_DAYS
   end
 
   # Slow background pulse for blocked bars (cosmetic; no decision record). A
@@ -282,6 +275,46 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     when 'In-Progress' then 'gantt_inprogress'
     else 'gantt_todo'
     end
+  end
+
+  # The standalone Critical Chain & Project Buffer view (ADR-195): one block per
+  # decision group, each showing the ordered chain rows, the project buffer, and
+  # the projected duration. A group with no estimates is marked unestimated.
+  # Omitted when no group has work items.
+  def render_critical_chain
+    groups = grouped_work_items
+    return '' if groups.empty?
+
+    ratio = @project.configuration.get_buffer_ratio
+    blocks = groups.map { |name, items| critical_chain_block(name, CriticalChain.new(items, buffer_ratio: ratio)) }
+    %(<div class="critical_chain">\n\t<h2>Critical Chain &amp; Project Buffer</h2>\n#{blocks.join}</div>\n)
+  end
+
+  def critical_chain_block(name, plan)
+    header = %(\t<div class="cc_group">\n\t\t<h3>#{escape_text(name)}</h3>\n)
+    body = plan.estimated? ? cc_chain_html(plan) : %(\t\t<p class="cc_unestimated">No estimates — plan not sized.</p>\n)
+    "#{header}#{body}\t</div>\n"
+  end
+
+  def cc_chain_html(plan)
+    lines = [%(\t\t<table class="cc_chain">\n),
+             "\t\t\t<thead><th>Record</th><th>Item</th><th>Owner</th><th>Duration</th></thead>\n"]
+    plan.chain.each { |wi| lines << cc_chain_row(wi) }
+    lines << "\t\t</table>\n"
+    projected = format_days(plan.projected_duration)
+    lines << %(\t\t<p class="cc_buffer">Project buffer: #{plan.buffer} working days</p>\n)
+    lines << %(\t\t<p class="cc_projected">Projected duration: #{projected} working days</p>\n)
+    lines.join
+  end
+
+  def cc_chain_row(work_item)
+    cells = [work_item.record_id.upcase, work_item.activity, work_item.owner, format_days(work_item.focused_estimate)]
+    "\t\t\t<tr>#{cells.map { |c| "<td>#{escape_text(c.to_s)}</td>" }.join}</tr>\n"
+  end
+
+  # A working-day count without a trailing ".0" when it is whole.
+  def format_days(value)
+    value == value.to_i ? value.to_i.to_s : value.to_s
   end
 
   CHART_PALETTE = [

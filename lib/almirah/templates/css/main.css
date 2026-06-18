@@ -216,6 +216,16 @@ table.controlled td.item_text{
     text-overflow: ellipsis;
 }
 .workitem_gantt .gantt_buffer { color: #9a6700; }
+.critical_chain { margin-bottom: 16px; }
+.critical_chain h2 { font-size: 1.1em; margin-bottom: 6px; }
+.critical_chain .cc_group { margin: 8px 0; }
+.critical_chain .cc_group h3 { font-size: 0.95em; margin: 4px 0; }
+.critical_chain table.cc_chain { border-collapse: collapse; margin: 4px 0; }
+.critical_chain table.cc_chain th,
+.critical_chain table.cc_chain td { border: 1px solid #e1e4e8; padding: 2px 8px; text-align: left; font-size: 12px; }
+.critical_chain .cc_buffer,
+.critical_chain .cc_projected { margin: 2px 0; font-size: 12px; }
+.critical_chain .cc_unestimated { color: #9a6700; font-style: italic; font-size: 12px; }
 .workitem_gantt .gantt_buffer_bar {
     font-size: 11px;
     line-height: 1.5;

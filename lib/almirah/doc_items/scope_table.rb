@@ -12,7 +12,7 @@ require_relative 'work_item'
 # keeps a plain header-addressed cell grid (`cells`) so the ADR-193 Scope
 # readers (owners / WIP / dates) keep working unchanged after the Scope section
 # stopped being a plain MarkdownTable.
-class ScopeTable < ControlledTable
+class ScopeTable < ControlledTable # rubocop:disable Metrics/ClassLength
   attr_reader :cells, :work_items
 
   def initialize(doc, markdown_table) # rubocop:disable Lint/MissingSuper
@@ -64,7 +64,8 @@ class ScopeTable < ControlledTable
       nil
     end
     { step: index_of.call('#'), item: index_of.call('Item'), owner: index_of.call('Owner'),
-      depends_on: index_of.call('Depends On'), status: index_of.call('Status') }
+      depends_on: index_of.call('Depends On'), status: index_of.call('Status'),
+      est_focused: index_of.call('Est (focused)'), est_safe: index_of.call('Est (safe)') }
   end
 
   def append_cells(cells)
@@ -73,15 +74,33 @@ class ScopeTable < ControlledTable
   end
 
   def build_work_item(cells)
-    step = step_number(cells, @cells.length) # 1-based row order fallback
     WorkItem.new(
       record_id: @parent_doc.id,
-      step: step,
+      step: step_number(cells, @cells.length), # 1-based row order fallback
       activity: cell(cells, @col[:item]),
       owner: cell(cells, @col[:owner]),
       status: cell(cells, @col[:status]),
-      depends_on_refs: parse_depends_on(cell(cells, @col[:depends_on]))
+      depends_on_refs: parse_depends_on(cell(cells, @col[:depends_on])),
+      **estimate_attrs(cells)
     )
+  end
+
+  # The ADR-195 estimate-derived attributes: focused and safe working-day
+  # estimates (blank/unparseable -> 0) and the owning record's sequence number
+  # (the critical-chain priority tiebreak).
+  def estimate_attrs(cells)
+    {
+      focused_estimate: parse_estimate(cell(cells, @col[:est_focused])),
+      safe_estimate: parse_estimate(cell(cells, @col[:est_safe])),
+      record_sequence: @parent_doc.sequence_number.to_i
+    }
+  end
+
+  # A Scope estimate cell as a non-negative number of working days (decimals
+  # allowed); blank, unparseable, or negative values count as 0 (ADR-195).
+  def parse_estimate(text)
+    value = Float(text.to_s.strip, exception: false)
+    value&.positive? ? value : 0.0
   end
 
   # The `#` column's integer when present; otherwise the row's 1-based position,

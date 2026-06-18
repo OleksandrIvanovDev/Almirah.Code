@@ -2,6 +2,7 @@ require 'yaml'
 
 class ProjectConfiguration
     DEFAULT_WIP_LIMIT = 2
+    DEFAULT_BUFFER_RATIO = 0.5
 
     attr_accessor :project_root_directory, :parameters
 
@@ -41,6 +42,20 @@ class ProjectConfiguration
 
         value = planning['wip_limit']
         return DEFAULT_WIP_LIMIT unless value.is_a?(Integer) && value.positive?
+
+        value
+    end
+
+    # The CCPM project-buffer ratio (ADR-195): a fraction in (0, 1] cutting the
+    # aggregated chain safety. Absent or out-of-range falls back to the 0.5 default.
+    def get_buffer_ratio
+        return DEFAULT_BUFFER_RATIO unless @parameters.is_a?(Hash)
+
+        planning = @parameters['planning']
+        return DEFAULT_BUFFER_RATIO unless planning.is_a?(Hash)
+
+        value = planning['buffer_ratio']
+        return DEFAULT_BUFFER_RATIO unless value.is_a?(Numeric) && value.positive? && value <= 1
 
         value
     end

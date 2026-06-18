@@ -2244,11 +2244,11 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(gantt_lanes).to eq(%w[BA DEV])
     end
 
-    # <REQ> Each work item is a bar of constant three-day duration. >[SRS-137] </REQ>
-    it 'spans every bar three day-columns' do
+    # <REQ> A work item with no estimate spans a single day-column (display minimum). >[SRS-137] </REQ>
+    it 'spans every unestimated bar a single day-column' do
       %w[Analysis Code].each do |item|
-        expect(gantt_bar("ADR-1 #{item}")[:span]).to eq(3)
-        expect(gantt_bar("ADR-2 #{item}")[:span]).to eq(3)
+        expect(gantt_bar("ADR-1 #{item}")[:span]).to eq(1)
+        expect(gantt_bar("ADR-2 #{item}")[:span]).to eq(1)
       end
     end
 
@@ -2396,10 +2396,10 @@ RSpec.describe 'Decision Records', type: :aruba do
 
         # Scope
 
-        | # | Item | Owner | Status |
-        |---|---|---|---|
-        | 1 | Analysis | BA | To Do |
-        | 2 | Code | DEV | To Do |
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
       MD
       write_file('myproject/decisions/group-b/adr-20-b.md', <<~MD)
         ---
@@ -2408,10 +2408,10 @@ RSpec.describe 'Decision Records', type: :aruba do
 
         # Scope
 
-        | # | Item | Owner | Depends On | Status |
-        |---|---|---|---|---|
-        | 1 | Analysis | BA | >[ADR-10] | To Do |
-        | 2 | Code | DEV | >[ADR-10] | To Do |
+        | # | Item | Owner | Depends On | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-10] | 1 | 2 | To Do |
+        | 2 | Code | DEV | >[ADR-10] | 2 | 3 | To Do |
       MD
       run_command_and_stop('almirah please myproject')
     end
@@ -2442,8 +2442,8 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(gantt_bar('ADR-20 Analysis')[:start]).to eq(bands.find { |b| b[:name] == 'group-b' }[:start])
     end
 
-    # <REQ> The Buffer lane renders one buffer bar per group, after that group's last work item. >[SRS-144] </REQ>
-    it 'renders a Buffer lane with one placeholder buffer bar per group after its work' do
+    # <REQ> The Buffer lane renders one computed buffer bar per group, after its work. >[SRS-144] </REQ>
+    it 'renders a Buffer lane with one computed buffer bar per group after its work' do
       doc = overview_doc
       expect(doc.css('div.workitem_gantt .gantt_buffer').map { |n| n.text.strip }).to eq(['Buffer'])
       starts = buffer_bar_starts(doc)
@@ -2465,6 +2465,105 @@ RSpec.describe 'Decision Records', type: :aruba do
       first = gantt_container.to_html
       run_command_and_stop('almirah please myproject')
       expect(gantt_container.to_html).to eq(first)
+    end
+  end
+
+  # ----- ADR-195: estimates, critical chain, and project buffer -----
+
+  def cc_chain_rows(doc = overview_doc)
+    doc.css('div.critical_chain table.cc_chain tr')
+       .map { |r| r.css('td').map { |c| c.text.strip } }.reject(&:empty?)
+  end
+
+  context 'when a decision group carries estimates' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plan/adr-50-est.md', <<~MD)
+        ---
+        title: "ADR-50: Estimated"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+        | 3 | Tests | TEST | 2 | 5 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Each Gantt bar spans its focused estimate in day columns. >[SRS-121] </REQ>
+    it 'sizes each Gantt bar by its focused estimate' do
+      expect(gantt_bar('ADR-50 Analysis')[:span]).to eq(2)
+      expect(gantt_bar('ADR-50 Code')[:span]).to eq(3)
+      expect(gantt_bar('ADR-50 Tests')[:span]).to eq(2)
+    end
+
+    # <REQ> The overview renders the critical chain, its buffer, and projected duration. >[SRS-124], >[SRS-127] </REQ>
+    it 'renders the critical chain view with buffer and projected duration' do
+      doc = overview_doc
+      expect(cc_chain_rows(doc)).to eq([%w[ADR-50 Analysis BA 2], %w[ADR-50 Code DEV 3], %w[ADR-50 Tests TEST 2]])
+      expect(doc.at_css('div.critical_chain .cc_buffer').text).to include('4 working days')      # ceil(0.5 * (2+3+3))
+      expect(doc.at_css('div.critical_chain .cc_projected').text).to include('11 working days')  # 7 + 4
+    end
+
+    # <REQ> The computed project buffer fills the Gantt Buffer lane. >[SRS-125], >[SRS-144] </REQ>
+    it 'spans the Gantt buffer bar by the computed buffer' do
+      bars = overview_doc.css('div.workitem_gantt .gantt_buffer_bar')
+      expect(bars.length).to eq(1)
+      expect(bars.first['style'][%r{/ span (\d+)}, 1].to_i).to eq(4)
+    end
+  end
+
+  context 'when a decision group has no estimates' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plain/adr-60-plain.md', <<~MD)
+        ---
+        title: "ADR-60: Plain"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A group with no estimated work is marked unestimated, with no buffer. >[SRS-127] </REQ>
+    it 'marks the group unestimated and renders no buffer bar' do
+      doc = overview_doc
+      expect(doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
+      expect(doc.css('div.workitem_gantt .gantt_buffer_bar')).to be_empty
+    end
+  end
+
+  context 'when the project configures a custom buffer_ratio' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  buffer_ratio: 1.0\n")
+      write_file('myproject/decisions/plan/adr-70-ratio.md', <<~MD)
+        ---
+        title: "ADR-70: Ratio"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The configured buffer ratio scales the project buffer. >[SRS-126] </REQ>
+    it 'applies the configured buffer ratio of 1.0' do
+      # safety = (4-2) + (6-3) = 5, buffer = ceil(1.0 * 5)
+      expect(overview_doc.at_css('div.critical_chain .cc_buffer').text).to include('5 working days')
     end
   end
 end

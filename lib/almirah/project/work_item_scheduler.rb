@@ -38,6 +38,28 @@ class WorkItemScheduler
     @ends.empty? ? 0 : (@ends.values.max - 1)
   end
 
+  # The schedule length in working days (the latest finish, day 1 being the start).
+  def makespan
+    day_count
+  end
+
+  # The critical chain: the row with the latest finish, traced back through its
+  # binding predecessors (the dependency and resource hand-offs that set each
+  # row's start), returned in start order. Empty when nothing is scheduled.
+  def critical_chain
+    schedule unless @starts
+    return [] if @ends.empty?
+
+    max_end = @ends.values.max
+    node = @items.select { |wi| @ends[wi] == max_end }.min_by { |wi| [wi.record_id, wi.step] }
+    chain = []
+    while node
+      chain.unshift(node)
+      node = @binding[node]
+    end
+    chain
+  end
+
   def duration_for(_work_item)
     @duration
   end
@@ -52,6 +74,8 @@ class WorkItemScheduler
   def schedule
     @starts = {}
     @ends = {}
+    @binding = {}
+    @owner_last = {}
     return if @items.empty?
 
     owner_free = Hash.new(1)
@@ -59,20 +83,54 @@ class WorkItemScheduler
   end
 
   # Assigns one work item its start day at the later of its dependency finish and
-  # its owner's next free day, then advances that owner's free cursor past it.
+  # its owner's next free day, records the predecessor that bound that start, then
+  # advances that owner's free cursor past it.
   def place(work_item, owner_free)
     owner = work_item.owner
-    dep_finish = scoped_predecessors(work_item).map { |p| @ends[p] || 1 }.max || 1
-    finish = (@starts[work_item] = [dep_finish, owner_free[owner]].max) + duration_for(work_item)
-    @ends[work_item] = finish
-    owner_free[owner] = finish unless owner.empty?
+    preds = scoped_predecessors(work_item)
+    start = start_day(preds, owner_free[owner])
+    @starts[work_item] = start
+    @ends[work_item] = start + duration_for(work_item)
+    @binding[work_item] = binding_predecessor(work_item, preds, start, owner)
+    advance_owner(owner, work_item, owner_free)
+  end
+
+  # The earliest day a row may start: the later of its in-scope predecessors'
+  # latest finish and its owner's next free day.
+  def start_day(preds, owner_free_day)
+    dep_finish = preds.map { |p| @ends[p] || 1 }.max || 1
+    [dep_finish, owner_free_day].max
+  end
+
+  # Advance an owner's free cursor past the just-placed row, and remember it as
+  # that owner's most recent row (the resource hand-off candidate). A blank owner
+  # holds no resource, so it never serialises.
+  def advance_owner(owner, work_item, owner_free)
+    return if owner.empty?
+
+    owner_free[owner] = @ends[work_item]
+    @owner_last[owner] = work_item
+  end
+
+  # The already-placed predecessor whose finish coincides with this row's start --
+  # the dependency or same-owner hand-off the critical chain is traced back
+  # through. nil when the row starts at the origin with no such predecessor.
+  def binding_predecessor(_work_item, preds, start, owner)
+    candidates = preds.select { |p| @ends[p] == start }
+    resource_pred = @owner_last[owner]
+    candidates << resource_pred if resource_pred && @ends[resource_pred] == start
+    candidates.min_by { |c| [c.record_id, c.step] }
   end
 
   def priority_order
     memo = {}
-    @items.sort_by do |wi|
-      [dependency_start(wi, memo, []), wi.activity_rank, wi.record_id, wi.step]
-    end
+    @items.sort_by { |wi| priority_key(wi, memo) }
+  end
+
+  # The deterministic scheduling priority for a row. Overridden by the critical-
+  # chain scheduler (ADR-195) to prioritise the longest downstream duration.
+  def priority_key(work_item, memo)
+    [dependency_start(work_item, memo, []), work_item.activity_rank, work_item.record_id, work_item.step]
   end
 
   # The earliest day this item could start ignoring resource contention: 1 when
@@ -98,5 +156,11 @@ class WorkItemScheduler
   # constraint, so the dependent simply starts at day 1 with respect to it.
   def scoped_predecessors(work_item)
     work_item.predecessor_items.select { |p| @item_set.include?(p) }
+  end
+
+  # Successors inside this scheduler's own item set (the mirror of
+  # scoped_predecessors), used by the critical-chain priority.
+  def scoped_successors(work_item)
+    work_item.successor_items.select { |s| @item_set.include?(s) }
   end
 end
