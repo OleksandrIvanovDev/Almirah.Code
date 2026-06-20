@@ -1821,6 +1821,15 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(scope_row_links('myproject/build/decisions/release x/adr-2.html', 'Analysis'))
         .to eq(['adr-1.html#adr-1.scope.1'])
     end
+
+    # <REQ> The Gantt bar tooltip names the work item, a blank line, then an After: list of every predecessor, one per line. >[SRS-116] </REQ>
+    it 'lists every predecessor in the Gantt bar tooltip, internal phase order before external Depends On' do
+      node = overview_doc.css('div.workitem_gantt .gantt_bar').find { |b| b.text.strip == 'ADR-2 Code' }
+      expect(node).not_to be_nil
+      # Item, blank line, then After: with the intra-record phase predecessor
+      # (ADR-2.Analysis) first and the cross-record Depends On (ADR-1.Code) after.
+      expect(node['title']).to eq("ADR-2.Code\n\nAfter:\nADR-2.Analysis\nADR-1.Code")
+    end
   end
 
   context 'when a prerequisite work item is Done' do

@@ -338,10 +338,25 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
       %(#{escape_text(label)}</div>\n)
   end
 
-  # The predecessor hint shown on a bar's tooltip.
+  # The dependency hint shown on a bar's native title tooltip: the work item's own
+  # name, a blank line, then an "After:" list of every predecessor (ADR-194) it
+  # waits on -- internal (intra-record phase order) first, then external
+  # (cross-record Depends On) -- each as RECORD-ID.Activity on its own line. The
+  # blank line separates the item from its prerequisites for readability; newlines
+  # render as line breaks in the native title tooltip.
   def bar_tooltip(work_item)
-    preds = work_item.predecessor_items.map(&:id)
-    preds.empty? ? 'No predecessors' : "After: #{preds.join(', ')}"
+    name = work_item_tip_label(work_item)
+    preds = work_item.intra_record_predecessors + work_item.cross_record_predecessors
+    deps = preds.map { |p| work_item_tip_label(p) }.uniq
+    return name if deps.empty?
+
+    "#{name}\n\nAfter:\n#{deps.join("\n")}"
+  end
+
+  # A work item named for the tooltip as RECORD-ID (upper-case) dot activity,
+  # e.g. "ADR-201.Analysis" -- the step number is intentionally omitted.
+  def work_item_tip_label(work_item)
+    "#{work_item.record_id.upcase}.#{work_item.activity}"
   end
 
   # The [grid-column start, span] of a run of `duration` working days beginning at
