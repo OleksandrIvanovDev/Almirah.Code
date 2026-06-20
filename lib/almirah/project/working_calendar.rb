@@ -11,6 +11,7 @@ require 'set'
 class WorkingCalendar
   SATURDAY = 6
   SUNDAY = 0
+  FRIDAY = 5
 
   def initialize(anchor: Date.today, holidays: [])
     @holidays = holidays.to_set
@@ -42,6 +43,25 @@ class WorkingCalendar
   # The 0-based calendar column index of the n-th working day within columns.
   def column_index(working_day)
     (date_for(working_day) - @start).to_i
+  end
+
+  # The compact business-day axis (ADR-206): weekday dates from working day 1
+  # through the working_day_count-th working day, excluding Saturdays and Sundays
+  # but including weekday holidays. Empty for a count below 1.
+  def business_columns(working_day_count)
+    return [] if working_day_count < 1
+
+    (@start..date_for(working_day_count)).reject { |date| weekend?(date) }
+  end
+
+  # The 0-based business-column index of the n-th working day: the count of
+  # weekdays (holidays included, weekends excluded) from the anchor through it.
+  def business_index(working_day)
+    (@start..date_for(working_day)).count { |date| !weekend?(date) } - 1
+  end
+
+  def friday?(date)
+    date.wday == FRIDAY
   end
 
   def working?(date)

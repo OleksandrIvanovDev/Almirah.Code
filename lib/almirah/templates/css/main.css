@@ -202,7 +202,9 @@ table.controlled td.item_text{
     z-index: 1;
 }
 .workitem_gantt .gantt_day_head.gantt_nonworking { background: #eef0f2; color: #aab; }
+.workitem_gantt .gantt_day_head.gantt_friday { background: rgb(225, 241, 250); }
 .workitem_gantt .gantt_nonworking_col { background: rgba(27, 31, 36, 0.045); }
+.workitem_gantt .gantt_friday_col { background: rgb(225, 241, 250); }
 .workitem_gantt .gantt_bar {
     font-size: 11px;
     line-height: 1.5;

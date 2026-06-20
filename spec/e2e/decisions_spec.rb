@@ -2665,13 +2665,13 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
 
     # <REQ> The computed project buffer fills the Gantt Buffer lane. >[SRS-125], >[SRS-144] </REQ>
-    # <REQ> The buffer bar spans calendar columns, covering weekends it crosses. >[SRS-154] </REQ>
-    it 'spans the Gantt buffer bar across the calendar columns of its working days' do
+    # <REQ> The buffer bar spans its working-day columns on the business-day axis. >[SRS-154] </REQ>
+    it 'spans the Gantt buffer bar over its working-day columns' do
       bars = overview_doc.css('div.workitem_gantt .gantt_buffer_bar')
       expect(bars.length).to eq(1)
-      # 4 working buffer days (Wed 01-07 .. Mon 06-07) span 6 calendar columns,
-      # crossing the Sat/Sun in between.
-      expect(bars.first['style'][%r{/ span (\d+)}, 1].to_i).to eq(6)
+      # 4 working buffer days, no weekday holidays crossed -> 4 business columns
+      # (weekends are off the axis, ADR-206).
+      expect(bars.first['style'][%r{/ span (\d+)}, 1].to_i).to eq(4)
     end
   end
 
@@ -2848,12 +2848,12 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
-  # ----- ADR-205: calendar Gantt view and working-day calendar -----
+  # ----- ADR-205 / ADR-206: calendar Gantt on a compact working-day axis -----
 
-  context 'when the Gantt is rendered as a calendar' do
+  context 'when the Gantt is rendered on working-day columns (ADR-206)' do
     before do
-      # Anchor on Friday 26-06-2026 so the Code bar (3 working days from Friday)
-      # crosses the Sat/Sun weekend, exercising the calendar projection (ADR-205).
+      # Anchor on Friday 26-06-2026: the Code bar (3 working days) runs Fri, Mon,
+      # Tue with the weekend omitted from the axis (ADR-206).
       write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 26-06-2026\n")
       write_file('myproject/decisions/plan/adr-205-cal.md', <<~MD)
         ---
@@ -2869,35 +2869,70 @@ RSpec.describe 'Decision Records', type: :aruba do
       run_command_and_stop('almirah please myproject')
     end
 
-    # <REQ> The Gantt renders a month name and day-of-month calendar header. >[SRS-153] </REQ>
-    it 'renders month and day-of-month calendar headers' do
+    # <REQ> The Gantt renders a month name and day-of-month header. >[SRS-153] </REQ>
+    # <REQ> Weekend columns are omitted from the axis. >[SRS-152] </REQ>
+    it 'renders month and day-of-month headers without weekend columns' do
       doc = overview_doc
       expect(doc.css('div.workitem_gantt .gantt_month_head').map { |m| m.text.strip }).to include('Jun 2026')
       days = doc.css('div.workitem_gantt .gantt_day_head').map { |d| d.text.strip }
-      expect(days.first(4)).to eq(%w[26 27 28 29]) # Fri Sat Sun Mon
+      expect(days).to eq(%w[26 29 30]) # Fri 26, then Mon 29, Tue 30 -- no 27/28
     end
 
-    # <REQ> Non-working columns (weekends) are marked distinctly. >[SRS-152] </REQ>
-    it 'marks the weekend columns as non-working' do
+    # <REQ> Friday columns are highlighted for the weekly rhythm. >[SRS-159] </REQ>
+    it 'highlights the Friday column' do
       doc = overview_doc
-      nonworking = doc.css('div.workitem_gantt .gantt_day_head.gantt_nonworking').map { |d| d.text.strip }
-      expect(nonworking).to include('27', '28') # Sat, Sun
-      expect(doc.css('div.workitem_gantt .gantt_nonworking_col')).not_to be_empty
+      fridays = doc.css('div.workitem_gantt .gantt_day_head.gantt_friday').map { |d| d.text.strip }
+      expect(fridays).to eq(['26'])
+      expect(doc.css('div.workitem_gantt .gantt_friday_col')).not_to be_empty
     end
 
-    # <REQ> A bar spans calendar columns from its first to last working day, covering weekends. >[SRS-154] </REQ>
-    it 'spans a bar across the weekend it crosses' do
-      # Code = 3 working days from Fri 26-06: Fri, Mon, Tue -> 5 calendar columns.
-      expect(gantt_bar('ADR-205 Code')[:span]).to eq(5)
+    # <REQ> A bar spans only its working-day columns, not weekends. >[SRS-154] </REQ>
+    it 'compacts a weekend-crossing bar to its working-day columns' do
+      # Code = 3 working days from Fri 26-06 -> 3 business columns (Fri, Mon, Tue).
+      expect(gantt_bar('ADR-205 Code')[:span]).to eq(3)
     end
 
     # <REQ> The Critical Chain page shows a projected completion date. >[SRS-155] </REQ>
     it 'shows a projected completion date on the critical chain page' do
-      # Chain = 3 working days, buffer = ceil(0.5 * 0) = 0, projected = 3 working
-      # days from Fri 26-06: Fri, Mon, Tue -> Tue 30-06-2026.
+      # Chain = 3 working days, buffer 0, from Fri 26-06: Fri, Mon, Tue -> Tue 30-06.
       finish = critical_chain_doc.at_css('div.critical_chain .cc_finish')
       expect(finish).not_to be_nil
       expect(finish.text).to include('30-06-2026')
+    end
+  end
+
+  context 'when a weekday holiday falls in the Gantt window (ADR-206)' do
+    before do
+      write_file('myproject/project.yml',
+                 "specifications:\n  input: []\nplanning:\n  start_date: 22-06-2026\n  holidays:\n    - 24-06-2026\n")
+      write_file('myproject/decisions/plan/adr-206-hol.md', <<~MD)
+        ---
+        title: "ADR-206: Holiday"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Code | DEV | 4 | 4 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A weekday holiday renders a shaded column the bar spans. >[SRS-158], >[SRS-154] </REQ>
+    it 'shades the weekday-holiday column and spans the bar across it' do
+      doc = overview_doc
+      holidays = doc.css('div.workitem_gantt .gantt_day_head.gantt_nonworking').map { |d| d.text.strip }
+      expect(holidays).to eq(['24']) # Wed 24-06 holiday; weekends absent from the axis
+      # Code = 4 working days from Mon 22-06 with Wed 24-06 a holiday: Mon, Tue,
+      # Thu, Fri -> 5 business columns including the shaded Wed holiday.
+      expect(gantt_bar('ADR-206 Code')[:span]).to eq(5)
+    end
+
+    # <REQ> The projected completion date counts across the holiday. >[SRS-155] </REQ>
+    it 'projects completion across the holiday' do
+      # 4 working days, buffer 0, from Mon 22-06 skipping Wed 24-06 -> Fri 26-06.
+      expect(critical_chain_doc.at_css('div.critical_chain .cc_finish').text).to include('26-06-2026')
     end
   end
 end

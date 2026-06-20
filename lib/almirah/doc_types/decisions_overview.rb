@@ -146,15 +146,15 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
 
   # One block descriptor: its group name, work items, schedule, per-work-item
   # start days, the working span and computed project buffer (ADR-195), the
-  # shared working calendar (ADR-205), the block's calendar-column width, and the
-  # left-to-right column offset of the block's first day.
+  # shared working calendar (ADR-205), the block's business-day column width
+  # (ADR-206), and the left-to-right column offset of the block's first day.
   def gantt_block(name, items, scheduler, offset, ratio, calendar) # rubocop:disable Metrics/ParameterLists
     work_days = scheduler.day_count
     buffer = CriticalChain.new(items, buffer_ratio: ratio).buffer
     width = work_days + buffer
     { name:, items:, scheduler:, starts: scheduler.start_days,
       work_days:, buffer:, width:, calendar:,
-      cal_width: calendar.columns(width).length, offset: }
+      cal_width: calendar.business_columns(width).length, offset: }
   end
 
   # Slow background pulse for blocked bars (cosmetic; no decision record). A
@@ -197,7 +197,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     cols = "var(--gantt-owner-width) repeat(#{total_days}, var(--gantt-day-width))"
     rows = [%(<div class="workitem_gantt">\n), %(\t<div class="gantt_grid" style="grid-template-columns: #{cols};">\n)]
     total_rows = owners.length + 4
-    rows.concat(gantt_nonworking_columns(blocks, total_rows))
+    rows.concat(gantt_background_columns(blocks, total_rows))
     rows.concat(gantt_month_header(blocks))
     rows.concat(gantt_day_header(blocks))
     rows.concat(gantt_group_band(blocks))
@@ -207,29 +207,40 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     rows.join
   end
 
-  # Full-height shaded background column behind every non-working calendar day
-  # (weekends and holidays, ADR-205), spanning the lane rows so the shading shows
-  # under the bars. Emitted first so the bars paint on top.
-  def gantt_nonworking_columns(blocks, total_rows)
+  # Full-height background columns behind the business-day axis (ADR-206),
+  # spanning the lane rows so the shading shows under the bars: weekday holidays
+  # keep the grey non-working shade, working Fridays get the week-rhythm tint.
+  # Emitted first so the bars paint on top.
+  def gantt_background_columns(blocks, total_rows)
     cells = []
     blocks.each do |b|
-      b[:calendar].columns(b[:width]).each_with_index do |date, i|
-        next unless b[:calendar].non_working?(date)
+      b[:calendar].business_columns(b[:width]).each_with_index do |date, i|
+        klass = background_column_class(b[:calendar], date)
+        next unless klass
 
         style = %(grid-row: 3 / span #{total_rows - 2}; grid-column: #{b[:offset] + i + 2};)
-        cells << %(\t\t<div class="gantt_nonworking_col" style="#{style}"></div>\n)
+        cells << %(\t\t<div class="#{klass}" style="#{style}"></div>\n)
       end
     end
     cells
   end
 
+  # Grey for a weekday holiday, the Friday tint for a working Friday, nil
+  # otherwise. Weekends never reach here (they are off the business-day axis).
+  def background_column_class(calendar, date)
+    return 'gantt_nonworking_col' if calendar.non_working?(date)
+    return 'gantt_friday_col' if calendar.friday?(date)
+
+    nil
+  end
+
   # Month band (row 1): the sticky corner over the Owner column spanning both
-  # header rows, then one cell per calendar month spanning that month's columns
-  # within each block (ADR-205).
+  # header rows, then one cell per month spanning that month's business-day
+  # columns within each block (ADR-206).
   def gantt_month_header(blocks)
     cells = [%(\t\t<div class="gantt_corner" style="grid-row: 1 / span 2; grid-column: 1;">Owner</div>\n)]
     blocks.each do |b|
-      month_spans(b[:calendar].columns(b[:width])).each do |label, start_i, len|
+      month_spans(b[:calendar].business_columns(b[:width])).each do |label, start_i, len|
         style = %(grid-row: 1; grid-column: #{b[:offset] + start_i + 2} / span #{len};)
         cells << %(\t\t<div class="gantt_month_head" style="#{style}">#{label}</div>\n)
       end
@@ -237,18 +248,28 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     cells
   end
 
-  # Day-of-month row (row 2): one numbered cell per calendar column within each
-  # block, flagged non-working for weekends and holidays (ADR-205).
+  # Day-of-month row (row 2): one numbered cell per business-day column within
+  # each block (weekends omitted, ADR-206), flagged non-working for weekday
+  # holidays and tinted for working Fridays.
   def gantt_day_header(blocks)
     cells = []
     blocks.each do |b|
-      b[:calendar].columns(b[:width]).each_with_index do |date, i|
+      b[:calendar].business_columns(b[:width]).each_with_index do |date, i|
         col = b[:offset] + i + 2
-        klass = b[:calendar].non_working?(date) ? 'gantt_day_head gantt_nonworking' : 'gantt_day_head'
+        klass = "gantt_day_head#{day_head_modifier(b[:calendar], date)}"
         cells << %(\t\t<div class="#{klass}" style="grid-row: 2; grid-column: #{col};">#{date.day}</div>\n)
       end
     end
     cells
+  end
+
+  # The extra class on a day-of-month header cell: non-working for a weekday
+  # holiday, the Friday tint for a working Friday, none otherwise.
+  def day_head_modifier(calendar, date)
+    return ' gantt_nonworking' if calendar.non_working?(date)
+    return ' gantt_friday' if calendar.friday?(date)
+
+    ''
   end
 
   # Group consecutive calendar dates by month into [label, start_index, length].
@@ -303,10 +324,10 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     cells
   end
 
-  # A single work-item bar spanning, on the calendar axis (ADR-205), from its
-  # first to its last working day inclusive -- so it covers any intervening
-  # non-working columns without counting them. Coloured by row Status and
-  # emphasised when it is a started-but-blocked cross-record violation.
+  # A single work-item bar spanning, on the business-day axis (ADR-206), from its
+  # first to its last working day inclusive -- covering any weekday-holiday columns
+  # it crosses without counting them. Coloured by row Status and emphasised when
+  # it is a started-but-blocked cross-record violation.
   def gantt_bar(work_item, row, block)
     grid_col, span = calendar_span(block, block[:starts][work_item], block[:scheduler].duration_for(work_item))
     classes = ['gantt_bar', gantt_status_class(work_item)]
@@ -323,12 +344,12 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     preds.empty? ? 'No predecessors' : "After: #{preds.join(', ')}"
   end
 
-  # The [grid-column start, calendar span] of a run of `duration` working days
-  # beginning at working day start_wd, projected onto the block's calendar columns
-  # so the run covers any non-working columns it crosses (ADR-205).
+  # The [grid-column start, span] of a run of `duration` working days beginning at
+  # working day start_wd, projected onto the block's business-day columns so the
+  # run covers any weekday-holiday columns it crosses, but not weekends (ADR-206).
   def calendar_span(block, start_wd, duration)
-    col_start = block[:calendar].column_index(start_wd)
-    span = block[:calendar].column_index(start_wd + duration - 1) - col_start + 1
+    col_start = block[:calendar].business_index(start_wd)
+    span = block[:calendar].business_index(start_wd + duration - 1) - col_start + 1
     [block[:offset] + col_start + 2, span]
   end
 
