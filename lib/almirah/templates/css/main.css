@@ -147,6 +147,7 @@ table.controlled td.item_text{
 .workitem_gantt {
     --gantt-owner-width: 120px;
     --gantt-day-width: 26px;
+    --gantt-month-h: 18px;
     overflow: auto;
     max-height: 420px;
     margin-bottom: 16px;
@@ -176,9 +177,23 @@ table.controlled td.item_text{
     border-bottom: 1px solid #bbb;
     z-index: 3;
 }
-.workitem_gantt .gantt_day_head {
+.workitem_gantt .gantt_month_head {
     position: sticky;
     top: 0;
+    background: #fff;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #57606a;
+    border-bottom: 1px solid #e1e4e8;
+    border-left: 1px solid #d0d7de;
+    white-space: nowrap;
+    overflow: hidden;
+    z-index: 1;
+}
+.workitem_gantt .gantt_day_head {
+    position: sticky;
+    top: var(--gantt-month-h);
     background: #fff;
     text-align: center;
     font-size: 11px;
@@ -186,6 +201,8 @@ table.controlled td.item_text{
     border-bottom: 1px solid #bbb;
     z-index: 1;
 }
+.workitem_gantt .gantt_day_head.gantt_nonworking { background: #eef0f2; color: #aab; }
+.workitem_gantt .gantt_nonworking_col { background: rgba(27, 31, 36, 0.045); }
 .workitem_gantt .gantt_bar {
     font-size: 11px;
     line-height: 1.5;
@@ -224,7 +241,9 @@ table.controlled td.item_text{
 .critical_chain table.cc_chain th,
 .critical_chain table.cc_chain td { border: 1px solid #e1e4e8; padding: 2px 8px; text-align: left; font-size: 12px; }
 .critical_chain .cc_buffer,
-.critical_chain .cc_projected { margin: 2px 0; font-size: 12px; }
+.critical_chain .cc_projected,
+.critical_chain .cc_finish { margin: 2px 0; font-size: 12px; }
+.critical_chain .cc_finish { font-weight: 600; }
 .critical_chain .cc_unestimated { color: #9a6700; font-style: italic; font-size: 12px; }
 .critical_chain .cc_group_body { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
 .critical_chain .cc_plan { flex: 1 1 320px; }

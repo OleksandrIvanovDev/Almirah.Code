@@ -1,4 +1,5 @@
 require 'yaml'
+require 'date'
 
 class ProjectConfiguration
     DEFAULT_WIP_LIMIT = 2
@@ -61,6 +62,23 @@ class ProjectConfiguration
         value
     end
 
+    # The calendar anchor for working day 1 (ADR-205), a Date parsed from a
+    # DD-MM-YYYY planning.start_date. Absent or unparseable falls back to today,
+    # so an unconfigured project still renders (a moving anchor).
+    def get_start_date
+        date = parse_planning_date(planning_value('start_date'))
+        date || Date.today
+    end
+
+    # The non-working holiday dates (ADR-205) from planning.holidays, each a
+    # DD-MM-YYYY entry; unparseable entries are dropped. Empty when unset.
+    def get_holidays
+        value = planning_value('holidays')
+        return [] unless value.is_a?(Array)
+
+        value.filter_map { |entry| parse_planning_date(entry) }
+    end
+
     # Working hours per day (ADR-196): converts logged effort hours into the
     # working-day unit the estimates use. Absent or non-positive falls back to 8.
     def get_hours_per_day
@@ -82,5 +100,27 @@ class ProjectConfiguration
             end
         end
         false
+    end
+
+    # A value under the planning: key, or nil when planning is absent.
+    def planning_value(key)
+        return nil unless @parameters.is_a?(Hash)
+
+        planning = @parameters['planning']
+        planning.is_a?(Hash) ? planning[key] : nil
+    end
+
+    # Parse a planning date that may already be a Date (YAML ISO form) or a
+    # DD-MM-YYYY string; nil when neither.
+    def parse_planning_date(value)
+        return value if value.is_a?(Date)
+        return nil unless value.is_a?(String)
+
+        match = /\A(\d{2})-(\d{2})-(\d{4})\z/.match(value.strip)
+        return nil unless match
+
+        Date.new(match[3].to_i, match[2].to_i, match[1].to_i)
+    rescue ArgumentError
+        nil
     end
 end

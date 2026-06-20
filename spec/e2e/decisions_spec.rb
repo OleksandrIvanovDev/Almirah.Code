@@ -2630,7 +2630,9 @@ RSpec.describe 'Decision Records', type: :aruba do
 
   context 'when a decision group carries estimates' do
     before do
-      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Anchor on Monday 22-06-2026 so the short bars do not cross a weekend and
+      # their calendar spans equal their working-day estimates (ADR-205).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 22-06-2026\n")
       write_file('myproject/decisions/plan/adr-50-est.md', <<~MD)
         ---
         title: "ADR-50: Estimated"
@@ -2663,10 +2665,13 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
 
     # <REQ> The computed project buffer fills the Gantt Buffer lane. >[SRS-125], >[SRS-144] </REQ>
-    it 'spans the Gantt buffer bar by the computed buffer' do
+    # <REQ> The buffer bar spans calendar columns, covering weekends it crosses. >[SRS-154] </REQ>
+    it 'spans the Gantt buffer bar across the calendar columns of its working days' do
       bars = overview_doc.css('div.workitem_gantt .gantt_buffer_bar')
       expect(bars.length).to eq(1)
-      expect(bars.first['style'][%r{/ span (\d+)}, 1].to_i).to eq(4)
+      # 4 working buffer days (Wed 01-07 .. Mon 06-07) span 6 calendar columns,
+      # crossing the Sat/Sun in between.
+      expect(bars.first['style'][%r{/ span (\d+)}, 1].to_i).to eq(6)
     end
   end
 
@@ -2840,6 +2845,59 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = critical_chain_doc
       expect(doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
       expect(doc.at_css('div.cc_fever')).to be_nil
+    end
+  end
+
+  # ----- ADR-205: calendar Gantt view and working-day calendar -----
+
+  context 'when the Gantt is rendered as a calendar' do
+    before do
+      # Anchor on Friday 26-06-2026 so the Code bar (3 working days from Friday)
+      # crosses the Sat/Sun weekend, exercising the calendar projection (ADR-205).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 26-06-2026\n")
+      write_file('myproject/decisions/plan/adr-205-cal.md', <<~MD)
+        ---
+        title: "ADR-205: Calendar"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Code | DEV | 3 | 3 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt renders a month name and day-of-month calendar header. >[SRS-153] </REQ>
+    it 'renders month and day-of-month calendar headers' do
+      doc = overview_doc
+      expect(doc.css('div.workitem_gantt .gantt_month_head').map { |m| m.text.strip }).to include('Jun 2026')
+      days = doc.css('div.workitem_gantt .gantt_day_head').map { |d| d.text.strip }
+      expect(days.first(4)).to eq(%w[26 27 28 29]) # Fri Sat Sun Mon
+    end
+
+    # <REQ> Non-working columns (weekends) are marked distinctly. >[SRS-152] </REQ>
+    it 'marks the weekend columns as non-working' do
+      doc = overview_doc
+      nonworking = doc.css('div.workitem_gantt .gantt_day_head.gantt_nonworking').map { |d| d.text.strip }
+      expect(nonworking).to include('27', '28') # Sat, Sun
+      expect(doc.css('div.workitem_gantt .gantt_nonworking_col')).not_to be_empty
+    end
+
+    # <REQ> A bar spans calendar columns from its first to last working day, covering weekends. >[SRS-154] </REQ>
+    it 'spans a bar across the weekend it crosses' do
+      # Code = 3 working days from Fri 26-06: Fri, Mon, Tue -> 5 calendar columns.
+      expect(gantt_bar('ADR-205 Code')[:span]).to eq(5)
+    end
+
+    # <REQ> The Critical Chain page shows a projected completion date. >[SRS-155] </REQ>
+    it 'shows a projected completion date on the critical chain page' do
+      # Chain = 3 working days, buffer = ceil(0.5 * 0) = 0, projected = 3 working
+      # days from Fri 26-06: Fri, Mon, Tue -> Tue 30-06-2026.
+      finish = critical_chain_doc.at_css('div.critical_chain .cc_finish')
+      expect(finish).not_to be_nil
+      expect(finish.text).to include('30-06-2026')
     end
   end
 end

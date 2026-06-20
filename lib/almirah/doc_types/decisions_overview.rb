@@ -8,6 +8,7 @@ require_relative 'planning_dates'
 require_relative '../html_safe'
 require_relative '../project/work_item_scheduler'
 require_relative '../project/critical_chain'
+require_relative '../project/working_calendar'
 
 class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   include HtmlSafe
@@ -112,7 +113,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     owners = consensus_owner_order
     return '' if blocks.empty? || owners.empty?
 
-    total_days = blocks.last[:offset] + blocks.last[:width]
+    total_days = blocks.last[:offset] + blocks.last[:cal_width]
     grid = gantt_grid(owners, blocks, total_days)
     gantt_any_blocked?(blocks) ? grid + gantt_pulse_script : grid
   end
@@ -127,28 +128,33 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   # (folder-encounter) order. Each block runs WorkItemScheduler over only its own
   # items, so a cross-group predecessor falls away as an already-available input
   # (ADR-201); blocks are offset left to right with a one-column gutter between.
-  def gantt_blocks
+  def gantt_blocks # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     ratio = @project.configuration.get_buffer_ratio
+    calendar = WorkingCalendar.new(anchor: @project.configuration.get_start_date,
+                                   holidays: @project.configuration.get_holidays)
     offset = 0
     grouped_work_items.each_with_object([]) do |(name, items), blocks|
       scheduler = GanttScheduler.new(items)
       next if scheduler.day_count.zero?
 
       offset += GANTT_GUTTER_DAYS unless blocks.empty?
-      block = gantt_block(name, items, scheduler, offset, ratio)
+      block = gantt_block(name, items, scheduler, offset, ratio, calendar)
       blocks << block
-      offset += block[:width]
+      offset += block[:cal_width]
     end
   end
 
   # One block descriptor: its group name, work items, schedule, per-work-item
-  # start days, the work span and computed project buffer (ADR-195) in day
-  # columns, and the left-to-right column offset of the block's first day.
-  def gantt_block(name, items, scheduler, offset, ratio)
+  # start days, the working span and computed project buffer (ADR-195), the
+  # shared working calendar (ADR-205), the block's calendar-column width, and the
+  # left-to-right column offset of the block's first day.
+  def gantt_block(name, items, scheduler, offset, ratio, calendar) # rubocop:disable Metrics/ParameterLists
     work_days = scheduler.day_count
     buffer = CriticalChain.new(items, buffer_ratio: ratio).buffer
+    width = work_days + buffer
     { name:, items:, scheduler:, starts: scheduler.start_days,
-      work_days:, buffer:, width: work_days + buffer, offset: }
+      work_days:, buffer:, width:, calendar:,
+      cal_width: calendar.columns(width).length, offset: }
   end
 
   # Slow background pulse for blocked bars (cosmetic; no decision record). A
@@ -187,53 +193,99 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     JS
   end
 
-  def gantt_grid(owners, blocks, total_days)
+  def gantt_grid(owners, blocks, total_days) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     cols = "var(--gantt-owner-width) repeat(#{total_days}, var(--gantt-day-width))"
     rows = [%(<div class="workitem_gantt">\n), %(\t<div class="gantt_grid" style="grid-template-columns: #{cols};">\n)]
-    rows.concat(gantt_header(blocks))
+    total_rows = owners.length + 4
+    rows.concat(gantt_nonworking_columns(blocks, total_rows))
+    rows.concat(gantt_month_header(blocks))
+    rows.concat(gantt_day_header(blocks))
     rows.concat(gantt_group_band(blocks))
-    owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 3, blocks)) }
-    rows.concat(gantt_buffer_lane(blocks, owners.length + 3))
+    owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 4, blocks)) }
+    rows.concat(gantt_buffer_lane(blocks, owners.length + 4))
     rows << "\t</div>\n" << "</div>\n"
     rows.join
   end
 
-  # Header row: the sticky corner over the Owner column, then one numbered cell
-  # per day column within each block (the index resets per block; the gutter
-  # columns between blocks stay blank).
-  def gantt_header(blocks)
-    cells = [%(\t\t<div class="gantt_corner" style="grid-row: 1; grid-column: 1;">Owner</div>\n)]
+  # Full-height shaded background column behind every non-working calendar day
+  # (weekends and holidays, ADR-205), spanning the lane rows so the shading shows
+  # under the bars. Emitted first so the bars paint on top.
+  def gantt_nonworking_columns(blocks, total_rows)
+    cells = []
     blocks.each do |b|
-      (1..b[:width]).each do |d|
-        col = b[:offset] + d + 1
-        cells << %(\t\t<div class="gantt_day_head" style="grid-row: 1; grid-column: #{col};">#{d}</div>\n)
+      b[:calendar].columns(b[:width]).each_with_index do |date, i|
+        next unless b[:calendar].non_working?(date)
+
+        style = %(grid-row: 3 / span #{total_rows - 2}; grid-column: #{b[:offset] + i + 2};)
+        cells << %(\t\t<div class="gantt_nonworking_col" style="#{style}"></div>\n)
       end
     end
     cells
   end
 
-  # The group band row (ADR-201): one labelled cell per block spanning that
-  # block's day columns -- the conventional Gantt group line between the day
-  # header and the lanes -- with a sticky-left corner over the Owner column.
-  def gantt_group_band(blocks)
-    cells = [%(\t\t<div class="gantt_band_corner" style="grid-row: 2; grid-column: 1;"></div>\n)]
+  # Month band (row 1): the sticky corner over the Owner column spanning both
+  # header rows, then one cell per calendar month spanning that month's columns
+  # within each block (ADR-205).
+  def gantt_month_header(blocks)
+    cells = [%(\t\t<div class="gantt_corner" style="grid-row: 1 / span 2; grid-column: 1;">Owner</div>\n)]
     blocks.each do |b|
-      style = %(grid-row: 2; grid-column: #{b[:offset] + 2} / span #{b[:width]};)
+      month_spans(b[:calendar].columns(b[:width])).each do |label, start_i, len|
+        style = %(grid-row: 1; grid-column: #{b[:offset] + start_i + 2} / span #{len};)
+        cells << %(\t\t<div class="gantt_month_head" style="#{style}">#{label}</div>\n)
+      end
+    end
+    cells
+  end
+
+  # Day-of-month row (row 2): one numbered cell per calendar column within each
+  # block, flagged non-working for weekends and holidays (ADR-205).
+  def gantt_day_header(blocks)
+    cells = []
+    blocks.each do |b|
+      b[:calendar].columns(b[:width]).each_with_index do |date, i|
+        col = b[:offset] + i + 2
+        klass = b[:calendar].non_working?(date) ? 'gantt_day_head gantt_nonworking' : 'gantt_day_head'
+        cells << %(\t\t<div class="#{klass}" style="grid-row: 2; grid-column: #{col};">#{date.day}</div>\n)
+      end
+    end
+    cells
+  end
+
+  # Group consecutive calendar dates by month into [label, start_index, length].
+  def month_spans(dates)
+    dates.each_with_index.each_with_object([]) do |(date, i), spans|
+      label = date.strftime('%b %Y')
+      if spans.last && spans.last[0] == label
+        spans.last[2] += 1
+      else
+        spans << [label, i, 1]
+      end
+    end
+  end
+
+  # The group band row (ADR-201), now row 3 below the two calendar header rows:
+  # one labelled cell per block spanning that block's calendar columns, with a
+  # sticky-left corner over the Owner column.
+  def gantt_group_band(blocks)
+    cells = [%(\t\t<div class="gantt_band_corner" style="grid-row: 3; grid-column: 1;"></div>\n)]
+    blocks.each do |b|
+      style = %(grid-row: 3; grid-column: #{b[:offset] + 2} / span #{b[:cal_width]};)
       cells << %(\t\t<div class="gantt_release_band" style="#{style}">#{escape_text(b[:name])}</div>\n)
     end
     cells
   end
 
-  # The Buffer lane (ADR-201), the last row below the owner lanes: one placeholder
-  # buffer bar per block, placed in the day columns immediately after that group's
-  # last work item and spanning its buffer length (sized by ADR-195 later).
+  # The Buffer lane (ADR-201), the last row below the owner lanes: one buffer bar
+  # per block, placed on the calendar columns of the working days immediately
+  # after that group's last work item and spanning its buffer (ADR-195/205).
   def gantt_buffer_lane(blocks, row)
     cells = [%(\t\t<div class="gantt_buffer" style="grid-row: #{row}; grid-column: 1;">Buffer</div>\n)]
     blocks.each do |b|
       next if b[:buffer].zero?
 
-      tip = "Placeholder project buffer (#{b[:buffer]}d) -- sized by ADR-195"
-      style = %(grid-row: #{row}; grid-column: #{b[:offset] + b[:work_days] + 2} / span #{b[:buffer]};)
+      grid_col, span = calendar_span(b, b[:work_days] + 1, b[:buffer])
+      tip = "Project buffer (#{b[:buffer]} working days)"
+      style = %(grid-row: #{row}; grid-column: #{grid_col} / span #{span};)
       cells << %(\t\t<div class="gantt_buffer_bar" style="#{style}" title="#{escape_attr(tip)}">buffer</div>\n)
     end
     cells
@@ -245,23 +297,39 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     cells = [%(\t\t<div class="gantt_owner" style="grid-row: #{row}; grid-column: 1;">#{escape_text(owner)}</div>\n)]
     blocks.each do |b|
       b[:items].select { |wi| wi.owner == owner }.each do |wi|
-        cells << gantt_bar(wi, row, b[:offset] + b[:starts][wi], b[:scheduler].duration_for(wi))
+        cells << gantt_bar(wi, row, b)
       end
     end
     cells
   end
 
-  # A single work-item bar spanning its duration from its start day, coloured by
-  # row Status and emphasised when it is a started-but-blocked cross-record
-  # violation (matching the Kit cell).
-  def gantt_bar(work_item, row, start, span)
+  # A single work-item bar spanning, on the calendar axis (ADR-205), from its
+  # first to its last working day inclusive -- so it covers any intervening
+  # non-working columns without counting them. Coloured by row Status and
+  # emphasised when it is a started-but-blocked cross-record violation.
+  def gantt_bar(work_item, row, block)
+    grid_col, span = calendar_span(block, block[:starts][work_item], block[:scheduler].duration_for(work_item))
     classes = ['gantt_bar', gantt_status_class(work_item)]
     classes << 'gantt_blocked' if work_item.cross_record_violation?
-    preds = work_item.predecessor_items.map(&:id)
-    tip = preds.empty? ? 'No predecessors' : "After: #{preds.join(', ')}"
     label = "#{work_item.record_id.upcase} #{work_item.activity}"
-    %(\t\t<div class="#{classes.join(' ')}" style="grid-row: #{row}; ) +
-      %(grid-column: #{start + 1} / span #{span};" title="#{escape_attr(tip)}">#{escape_text(label)}</div>\n)
+    style = %(grid-row: #{row}; grid-column: #{grid_col} / span #{span};)
+    %(\t\t<div class="#{classes.join(' ')}" style="#{style}" title="#{escape_attr(bar_tooltip(work_item))}">) +
+      %(#{escape_text(label)}</div>\n)
+  end
+
+  # The predecessor hint shown on a bar's tooltip.
+  def bar_tooltip(work_item)
+    preds = work_item.predecessor_items.map(&:id)
+    preds.empty? ? 'No predecessors' : "After: #{preds.join(', ')}"
+  end
+
+  # The [grid-column start, calendar span] of a run of `duration` working days
+  # beginning at working day start_wd, projected onto the block's calendar columns
+  # so the run covers any non-working columns it crosses (ADR-205).
+  def calendar_span(block, start_wd, duration)
+    col_start = block[:calendar].column_index(start_wd)
+    span = block[:calendar].column_index(start_wd + duration - 1) - col_start + 1
+    [block[:offset] + col_start + 2, span]
   end
 
   def gantt_status_class(work_item)

@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
+require 'date'
 require 'tmpdir'
 require_relative '../lib/almirah/project_configuration'
 
-# Unit coverage for the ADR-196 hours_per_day planning config: the default, a
-# valid override, and the non-positive / wrong-type fallback.
+# Unit coverage for the planning config: the ADR-196 hours_per_day value and the
+# ADR-205 calendar start date and holidays.
 RSpec.describe ProjectConfiguration do
   def config_for(yaml)
     dir = Dir.mktmpdir
@@ -26,6 +27,28 @@ RSpec.describe ProjectConfiguration do
       expect(config_for("planning:\n  hours_per_day: 0\n").get_hours_per_day).to eq(8)
       expect(config_for("planning:\n  hours_per_day: -3\n").get_hours_per_day).to eq(8)
       expect(config_for("planning:\n  hours_per_day: nope\n").get_hours_per_day).to eq(8)
+    end
+  end
+
+  describe '#get_start_date' do
+    it 'parses a DD-MM-YYYY start_date' do
+      expect(config_for("planning:\n  start_date: 22-06-2026\n").get_start_date).to eq(Date.new(2026, 6, 22))
+    end
+
+    it 'defaults to today when absent or unparseable' do
+      expect(config_for("specifications:\n  input: []\n").get_start_date).to eq(Date.today)
+      expect(config_for("planning:\n  start_date: nope\n").get_start_date).to eq(Date.today)
+    end
+  end
+
+  describe '#get_holidays' do
+    it 'parses a list of DD-MM-YYYY holidays and drops unparseable entries' do
+      cfg = config_for("planning:\n  holidays:\n    - 25-12-2026\n    - nope\n    - 01-01-2027\n")
+      expect(cfg.get_holidays).to eq([Date.new(2026, 12, 25), Date.new(2027, 1, 1)])
+    end
+
+    it 'returns an empty list when absent' do
+      expect(config_for("planning:\n  wip_limit: 2\n").get_holidays).to eq([])
     end
   end
 end

@@ -8,6 +8,7 @@ require_relative 'planning_dates'
 require_relative '../html_safe'
 require_relative '../project/critical_chain'
 require_relative '../project/fever_chart'
+require_relative '../project/working_calendar'
 
 # The dedicated Critical Chain & Project Buffer page (ENH-202): one block per
 # decision group, each showing the ordered critical chain rows, the project
@@ -64,6 +65,13 @@ class CriticalChainPage < BaseDocument # rubocop:disable Metrics/ClassLength
     @project.project_data.decisions.to_h { |doc| [doc.id.to_s.upcase, doc] }
   end
 
+  # The shared working calendar (ADR-205) projecting the working-day projected
+  # duration onto a real completion date.
+  def working_calendar
+    @working_calendar ||= WorkingCalendar.new(anchor: @project.configuration.get_start_date,
+                                              holidays: @project.configuration.get_holidays)
+  end
+
   def critical_chain_block(name, items, ratio, lookup, hours_per_day, index) # rubocop:disable Metrics/ParameterLists
     plan = CriticalChain.new(items, buffer_ratio: ratio)
     header = %(\t<div class="cc_group">\n\t\t<h3>#{escape_text(name)}</h3>\n)
@@ -91,8 +99,10 @@ class CriticalChainPage < BaseDocument # rubocop:disable Metrics/ClassLength
     plan.chain.each { |wi| lines << cc_chain_row(wi) }
     lines << "\t\t</table>\n"
     projected = format_days(plan.projected_duration)
+    finish = working_calendar.date_for(plan.projected_duration)
     lines << %(\t\t<p class="cc_buffer">Project buffer: #{plan.buffer} working days</p>\n)
     lines << %(\t\t<p class="cc_projected">Projected duration: #{projected} working days</p>\n)
+    lines << %(\t\t<p class="cc_finish">Projected completion: #{finish.strftime('%d-%m-%Y')}</p>\n)
     lines.join
   end
 
