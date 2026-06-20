@@ -158,6 +158,31 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     status.empty? ? nil : status
   end
 
+  # Total logged effort in hours across the # Effort table (ADR-196); 0 when the
+  # record has no Effort section. Undated and unparseable entries still count
+  # toward the record total.
+  def actual_hours
+    effort_entries.sum { |e| e[:hours] }
+  end
+
+  # Logged hours dated on or before `date` (ADR-196). Undated entries are
+  # excluded since they cannot be placed on the timeline.
+  def actual_hours_on(date)
+    effort_entries.sum { |e| e[:date] && e[:date] <= date ? e[:hours] : 0.0 }
+  end
+
+  # Logged hours dated on or before `date` for the Scope row whose Item matches
+  # `item` (case-insensitive) — the per-chain-row actual the fever chart credits
+  # (ADR-196). Entries with no Item credit no row and are excluded here.
+  def row_actual_hours_on(item, date)
+    key = item.to_s.strip.downcase
+    return 0.0 if key.empty?
+
+    effort_entries.sum do |e|
+      e[:item] == key && e[:date] && e[:date] <= date ? e[:hours] : 0.0
+    end
+  end
+
   private
 
   def lookup_cell(section_name:, key_column:, value_column:, key:) # rubocop:disable Metrics/AbcSize
@@ -219,6 +244,45 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     Date.new(match[3].to_i, match[2].to_i, match[1].to_i)
   rescue ArgumentError
     nil
+  end
+
+  # Parsed # Effort rows (ADR-196): [{ date:, item:, hours: }, ...]. The section
+  # is located by heading text and its columns addressed by header (Date / Item /
+  # Hours), like Status and Scope. Hours parse as non-negative floats (blank,
+  # negative, or unparseable -> 0); Item is downcased for case-insensitive row
+  # matching, or nil when absent. Memoised so the readers share one parse.
+  def effort_entries
+    return @effort_entries if defined?(@effort_entries)
+
+    @effort_entries = parse_effort_entries
+  end
+
+  def parse_effort_entries
+    table = find_section_table('Effort')
+    return [] if table.nil?
+
+    date_idx = column_index(table, 'Date')
+    hours_idx = column_index(table, 'Hours')
+    return [] if date_idx.nil? || hours_idx.nil?
+
+    item_idx = column_index(table, 'Item')
+    table.cells.map { |row| effort_entry(row, date_idx, item_idx, hours_idx) }
+  end
+
+  def effort_entry(row, date_idx, item_idx, hours_idx)
+    { date: parse_dd_mm_yyyy(row[date_idx]),
+      item: item_idx ? normalize_item(row[item_idx]) : nil,
+      hours: parse_hours(row[hours_idx]) }
+  end
+
+  def normalize_item(value)
+    text = value.to_s.strip.downcase
+    text.empty? ? nil : text
+  end
+
+  def parse_hours(value)
+    hours = Float(value.to_s.strip, exception: false)
+    hours.nil? || hours.negative? ? 0.0 : hours
   end
 
   def assign_id_parts(stem)

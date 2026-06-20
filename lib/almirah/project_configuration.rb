@@ -3,6 +3,7 @@ require 'yaml'
 class ProjectConfiguration
     DEFAULT_WIP_LIMIT = 2
     DEFAULT_BUFFER_RATIO = 0.5
+    DEFAULT_HOURS_PER_DAY = 8
 
     attr_accessor :project_root_directory, :parameters
 
@@ -56,6 +57,20 @@ class ProjectConfiguration
 
         value = planning['buffer_ratio']
         return DEFAULT_BUFFER_RATIO unless value.is_a?(Numeric) && value.positive? && value <= 1
+
+        value
+    end
+
+    # Working hours per day (ADR-196): converts logged effort hours into the
+    # working-day unit the estimates use. Absent or non-positive falls back to 8.
+    def get_hours_per_day
+        return DEFAULT_HOURS_PER_DAY unless @parameters.is_a?(Hash)
+
+        planning = @parameters['planning']
+        return DEFAULT_HOURS_PER_DAY unless planning.is_a?(Hash)
+
+        value = planning['hours_per_day']
+        return DEFAULT_HOURS_PER_DAY unless value.is_a?(Numeric) && value.positive?
 
         value
     end

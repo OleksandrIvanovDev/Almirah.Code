@@ -2754,4 +2754,92 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(link['href']).to include('critical-chain.html')
     end
   end
+
+  # ----- ADR-196: effort logging and the buffer-consumption fever chart -----
+
+  # The data array embedded in a fever chart's inline Chart.js script, parsed
+  # back into [[completion, consumption], ...].
+  def fever_points(doc = critical_chain_doc)
+    script = doc.css('div.cc_fever script').map(&:text).join("\n")
+    raw = script[/data:\s*(\[\{.*?\}\])/m, 1]
+    return [] if raw.nil?
+
+    JSON.parse(raw).map { |p| [p['x'], p['y']] }
+  end
+
+  context 'when an estimated group logs effort (fever chart)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  hours_per_day: 8\n")
+      # Effort is dated far in the past, so it is on or before every sampled date
+      # (recent Fridays and today alike) and the rendered point is deterministic.
+      write_file('myproject/decisions/plan/adr-90-fever.md', <<~MD)
+        ---
+        title: "ADR-90: Fever"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | In-Progress |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+
+        # Effort
+
+        | Date | Item | Owner | Hours | Note |
+        |---|---|---|---|---|
+        | 01-01-2020 | Analysis | BA | 16 | done in full |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The fever chart renders beside the group's chain table on the page. >[SRS-133] </REQ>
+    it 'renders a fever chart beside the chain table on the critical chain page' do
+      doc = critical_chain_doc
+      body = doc.at_css('div.critical_chain .cc_group_body')
+      expect(body).not_to be_nil
+      expect(body.at_css('.cc_plan table.cc_chain')).not_to be_nil
+      expect(body.at_css('.cc_fever canvas.fever_canvas')).not_to be_nil
+    end
+
+    # <REQ> Completion is focused-weighted effort credit. >[SRS-129], >[SRS-131] </REQ>
+    # <REQ> Consumption is the buffer overrun over the buffer. >[SRS-132] </REQ>
+    it 'plots the effort-derived completion and consumption point' do
+      # Analysis: 16h / 8 = 2 days fully credits the 2-day row; Code unstarted.
+      # completion = 100 * (1*2 + 0*3) / 5 = 40; consumption = 0 (no overrun).
+      expect(fever_points.last).to eq([40.0, 0.0])
+    end
+
+    # <REQ> The fever chart loads Chart.js and paints its zones. >[SRS-133], >[SRS-134] </REQ>
+    it 'loads Chart.js on the page and registers the zone plugin' do
+      html = File.read(expand_path('myproject/build/decisions/critical-chain.html'))
+      expect(html).to include('cdn.jsdelivr.net/npm/chart.js')
+      expect(html).to include('feverZonesPlugin')
+    end
+  end
+
+  context 'when a group has no estimates (no fever chart)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plain/adr-95-plain.md', <<~MD)
+        ---
+        title: "ADR-95: Plain"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> An unestimated group keeps its note and renders no fever chart. >[SRS-133] </REQ>
+    it 'renders no fever canvas for an unestimated group' do
+      doc = critical_chain_doc
+      expect(doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
+      expect(doc.at_css('div.cc_fever')).to be_nil
+    end
+  end
 end

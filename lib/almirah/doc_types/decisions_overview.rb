@@ -4,6 +4,7 @@ require 'date'
 require 'json'
 require_relative 'base_document'
 require_relative 'decision_grouping'
+require_relative 'planning_dates'
 require_relative '../html_safe'
 require_relative '../project/work_item_scheduler'
 require_relative '../project/critical_chain'
@@ -11,6 +12,7 @@ require_relative '../project/critical_chain'
 class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
   include HtmlSafe
   include DecisionGrouping
+  include PlanningDates
 
   attr_accessor :project
 
@@ -19,6 +21,10 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     @project = project
     @title = 'Decision Records Overview'
     @id = 'overview'
+  end
+
+  def needs_chartjs?
+    true
   end
 
   def to_console
@@ -500,12 +506,5 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   def palette_rgba(index, alpha)
     r, g, b = CHART_PALETTE[index % CHART_PALETTE.length]
     "rgba(#{r}, #{g}, #{b}, #{alpha})"
-  end
-
-  def recent_fridays(reference_date, count)
-    friday_wday = 5
-    days_back = (reference_date.wday - friday_wday) % 7
-    most_recent = reference_date - days_back
-    (0...count).to_a.reverse.map { |i| most_recent - (7 * i) }
   end
 end

@@ -17,6 +17,12 @@ class BaseDocument # rubocop:disable Style/Documentation
     @dom = nil
   end
 
+  # Whether this page needs the Chart.js library loaded (overridden by the
+  # planning pages that render charts).
+  def needs_chartjs?
+    false
+  end
+
   def save_html_to_file(html_rows, nav_pane, output_file_path) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
     gem_root = File.expand_path './../../..', File.dirname(__FILE__)
     template_file = "#{gem_root}/lib/almirah/templates/page.html"
@@ -53,7 +59,7 @@ class BaseDocument # rubocop:disable Style/Documentation
         if @id == 'index'
           file.puts "<script type=\"module\" src=\"#{rel_to('scripts/orama_search.js')}\"></script>"
           file.puts "<link rel=\"stylesheet\" href=\"#{rel_to('css/search.css')}\">"
-        elsif instance_of? DecisionsOverview
+        elsif needs_chartjs?
           file.puts '<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>'
         end
       elsif s.include?('{{HOME_BUTTON}}')

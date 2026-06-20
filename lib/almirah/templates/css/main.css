@@ -226,6 +226,10 @@ table.controlled td.item_text{
 .critical_chain .cc_buffer,
 .critical_chain .cc_projected { margin: 2px 0; font-size: 12px; }
 .critical_chain .cc_unestimated { color: #9a6700; font-style: italic; font-size: 12px; }
+.critical_chain .cc_group_body { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.critical_chain .cc_plan { flex: 1 1 320px; }
+.critical_chain .cc_fever { flex: 1 1 360px; max-width: 480px; height: 320px; position: relative; }
+.critical_chain .cc_fever .fever_canvas { width: 100%; height: 100%; }
 .workitem_gantt .gantt_buffer_bar {
     font-size: 11px;
     line-height: 1.5;
