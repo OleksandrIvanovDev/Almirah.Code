@@ -4,13 +4,14 @@ require 'date'
 require_relative '../lib/almirah/doc_items/work_item'
 require_relative '../lib/almirah/project/fever_chart'
 
-# A minimal stand-in for CriticalChain: the chain rows and the buffer size.
+# A minimal stand-in for CriticalChain: the baseline chain rows and buffer size
+# the fever chart accounts against (issue-207 -- completed rows included).
 class FakePlan
-  attr_reader :chain, :buffer
+  attr_reader :baseline_chain, :baseline_buffer
 
   def initialize(chain, buffer)
-    @chain = chain
-    @buffer = buffer
+    @baseline_chain = chain
+    @baseline_buffer = buffer
   end
 end
 

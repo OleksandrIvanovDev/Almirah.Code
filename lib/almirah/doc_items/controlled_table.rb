@@ -1,10 +1,10 @@
 require_relative 'controlled_table_row'
 require_relative 'text_line'
 
-class ControlledTableColumn < TextLine # rubocop:disable Style/Documentation
+class ControlledTableColumn < TextLine
   attr_accessor :text
 
-  def initialize(text) # rubocop:disable Lint/MissingSuper
+  def initialize(text)
     @text = text.strip
   end
 
@@ -17,7 +17,7 @@ end
 class RegualrColumn < ControlledTableColumn
 end
 
-class TestStepNumberColumn < ControlledTableColumn # rubocop:disable Style/Documentation
+class TestStepNumberColumn < ControlledTableColumn
   attr_accessor :step_number, :row_id
 
   def initialize(text)
@@ -32,7 +32,7 @@ class TestStepNumberColumn < ControlledTableColumn # rubocop:disable Style/Docum
   end
 end
 
-class TestStepResultColumn < ControlledTableColumn # rubocop:disable Style/Documentation
+class TestStepResultColumn < ControlledTableColumn
   def to_html
     f_text = format_string(@text)
     case @text.downcase
@@ -46,7 +46,7 @@ class TestStepResultColumn < ControlledTableColumn # rubocop:disable Style/Docum
   end
 end
 
-class TestStepReferenceColumn < ControlledTableColumn # rubocop:disable Style/Documentation
+class TestStepReferenceColumn < ControlledTableColumn
   attr_accessor :up_link_ids, :up_link_doc_ids, :parent_row
 
   def initialize(parent_row, text)
@@ -99,7 +99,7 @@ class TestStepReferenceColumn < ControlledTableColumn # rubocop:disable Style/Do
     end
   end
 
-  def to_html # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def to_html
     s = ''
     specifications_path = @parent_row.parent_doc.specifications_path
     if @up_link_ids
@@ -133,10 +133,10 @@ class TestStepReferenceColumn < ControlledTableColumn # rubocop:disable Style/Do
   end
 end
 
-class ControlledTable < DocItem # rubocop:disable Style/Documentation
+class ControlledTable < DocItem
   attr_accessor :column_names, :rows, :is_separator_detected
 
-  def initialize(doc, markdown_table) # rubocop:disable Lint/MissingSuper
+  def initialize(doc, markdown_table)
     @parent_doc = doc
     @parent_heading = doc.headings[-1]
 
@@ -158,7 +158,7 @@ class ControlledTable < DocItem # rubocop:disable Style/Documentation
     true
   end
 
-  def format_columns(columns) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def format_columns(columns)
     new_row = ControlledTableRow.new
     new_row.parent_doc = @parent_doc
 
@@ -198,11 +198,11 @@ class ControlledTable < DocItem # rubocop:disable Style/Documentation
     new_row
   end
 
-  def to_html # rubocop:disable Metrics/MethodLength
+  def to_html
     s = ''
     if @@html_table_render_in_progress
       s += "</table>\n"
-      @@html_table_render_in_progress = false # rubocop:disable Style/ClassVars
+      @@html_table_render_in_progress = false
     end
 
     s += "<table class=\"markdown_table\">\n"

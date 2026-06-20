@@ -10,7 +10,7 @@ require_relative '../project/work_item_scheduler'
 require_relative '../project/critical_chain'
 require_relative '../project/working_calendar'
 
-class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
+class DecisionsOverview < BaseDocument
   include HtmlSafe
   include DecisionGrouping
   include PlanningDates
@@ -32,7 +32,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     puts "\e[36mDecisions Overview: #{@id}\e[0m"
   end
 
-  def to_html(output_file_path) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def to_html(output_file_path)
     html_rows = []
     html_rows.append('')
     html_rows.append "<h1>#{@title}</h1>\n"
@@ -128,7 +128,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   # (folder-encounter) order. Each block runs WorkItemScheduler over only its own
   # items, so a cross-group predecessor falls away as an already-available input
   # (ADR-201); blocks are offset left to right with a one-column gutter between.
-  def gantt_blocks # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def gantt_blocks
     ratio = @project.configuration.get_buffer_ratio
     calendar = WorkingCalendar.new(anchor: @project.configuration.get_start_date,
                                    holidays: @project.configuration.get_holidays)
@@ -193,7 +193,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     JS
   end
 
-  def gantt_grid(owners, blocks, total_days) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def gantt_grid(owners, blocks, total_days)
     cols = "var(--gantt-owner-width) repeat(#{total_days}, var(--gantt-day-width))"
     rows = [%(<div class="workitem_gantt">\n), %(\t<div class="gantt_grid" style="grid-template-columns: #{cols};">\n)]
     total_rows = owners.length + 4
@@ -527,7 +527,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   # Its cell is no longer emitted into the charts grid (the WIP-by-Owner chart took
   # the left slot), but the builder is kept intact so the pie can be restored by
   # emitting this cell again, with no data work.
-  def pie_chart_cell # rubocop:disable Metrics/AbcSize
+  def pie_chart_cell
     counts = @project.project_data.decisions.each_with_object(Hash.new(0)) do |item, cntr|
       cntr[item.record_type] += 1 if item.record_type
     end
@@ -557,7 +557,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
     HTML
   end
 
-  def velocity_chart_data(reference_date: Date.today, weeks: 6) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def velocity_chart_data(reference_date: Date.today, weeks: 6)
     fridays = recent_fridays(reference_date, weeks)
     segments = []
     counts = {}
@@ -586,7 +586,7 @@ class DecisionsOverview < BaseDocument # rubocop:disable Style/Documentation,Met
   # is ordered last; real statuses keep first-seen order. The count is baked into
   # each label so small categories stay legible on a linear axis next to a
   # dominant one.
-  def status_distribution_chart_data # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def status_distribution_chart_data
     counts = Hash.new(0)
     keys = []
     @project.project_data.decisions.each do |doc|

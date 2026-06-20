@@ -13,7 +13,7 @@ require_relative 'project/project_data'
 require_relative 'console_reporter'
 require_relative 'relative_url'
 
-class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
+class Project
   attr_accessor :index, :project, :configuration, :project_data
 
   def initialize(configuration)
@@ -40,7 +40,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     FileUtils.copy_entry(src_folder, dst_folder)
   end
 
-  def specifications_and_protocols # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def specifications_and_protocols
     parse_all_specifications
     parse_all_protocols
     parse_all_source_files
@@ -69,7 +69,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     report_rendered
   end
 
-  def specifications_and_results(test_run) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def specifications_and_results(test_run)
     parse_all_specifications
     parse_test_run test_run
     parse_all_source_files
@@ -155,7 +155,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
   end
 
-  def link_dependency(record, work_item, ref) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def link_dependency(record, work_item, ref)
     target = @project_data.link_registry.find_by_id(ref)
     unless target.is_a?(Decision)
       @kit_unresolved << { record: record.id, target: ref }
@@ -175,7 +175,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   # falling back to the nearest earlier activity by canonical phase order, then
   # (when the target has only later activities) to its earliest row. nil only
   # when the target has no Scope rows.
-  def aligned_work_item(target, activity) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def aligned_work_item(target, activity)
     items = target.scope_work_items
     return nil if items.empty?
 
@@ -198,7 +198,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
 
   # Reports the two kit gates and unresolved Depends On references (ADR-194), all
   # as non-failing console warnings alongside report_broken_links.
-  def report_kit_violations # rubocop:disable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def report_kit_violations
     @kit_unresolved ||= []
     phase = @project_data.work_items.each_value.select(&:phase_order_violation?)
     cross = @project_data.work_items.each_value.select(&:cross_record_violation?)
@@ -222,7 +222,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
   # Assigns each document its generated output path (relative to the build root)
   # and registers it for cross-document link resolution (ADR-186). Runs after all
   # documents are parsed and before any rendering, so link targets are known.
-  def build_link_registry # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def build_link_registry
     reg = @project_data.link_registry
     TextLine.link_registry = reg
     TextLine.reset_broken_links
@@ -317,7 +317,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
   end
 
-  def link_all_specifications # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def link_all_specifications
     comb_list = @project_data.specifications.combination(2)
     comb_list.each do |c|
       link_two_specifications(c[0], c[1])
@@ -336,7 +336,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     ConsoleReporter.count('traceability matrices', @project_data.traceability_matrices.length)
   end
 
-  def link_all_protocols # rubocop:disable Metrics/MethodLength
+  def link_all_protocols
     @project_data.protocols.each do |p|
       @project_data.specifications.each do |s|
         if p.up_link_docs.key?(s.id.to_s)
@@ -377,7 +377,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     ConsoleReporter.count('implementation matrices', @project_data.implementation_matrices.length)
   end
 
-  def check_wrong_specification_referenced # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def check_wrong_specification_referenced
     available_specification_ids = {}
 
     @project_data.specifications.each do |s|
@@ -407,7 +407,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     end
   end
 
-  def link_two_specifications(doc_a, doc_b) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def link_two_specifications(doc_a, doc_b)
     if doc_b.up_link_docs.key?(doc_a.id.to_s)
       top_document = doc_a
       bottom_document = doc_b
@@ -520,7 +520,7 @@ class Project # rubocop:disable Metrics/ClassLength,Style/Documentation
     doc.to_html("#{path}/build/decisions/")
   end
 
-  def render_all_decisions # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def render_all_decisions
     return if @project_data.decisions.empty?
 
     build_decisions_root = "#{@configuration.project_root_directory}/build/decisions"

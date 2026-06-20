@@ -12,25 +12,25 @@ class TextLineToken
 end
 
 class ItalicToken < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '*'
   end
 end
 
 class BoldToken < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '**'
   end
 end
 
 class BoldAndItalicToken < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '***'
   end
 end
 
 class ParentheseLeft < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '('
   end
 end
@@ -42,7 +42,7 @@ class ParentheseRight < TextLineToken
 end
 
 class SquareBracketLeft < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '['
   end
 end
@@ -54,13 +54,13 @@ class SquareBracketRight < TextLineToken
 end
 
 class DoubleSquareBracketLeft < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '[['
   end
 end
 
 class DoubleSquareBracketRight < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = ']]'
   end
 end
@@ -72,13 +72,13 @@ class SquareBracketRightAndParentheseLeft < TextLineToken
 end
 
 class BacktickToken < TextLineToken
-  def initialize # rubocop:disable Lint/MissingSuper
+  def initialize
     @value = '`'
   end
 end
 
 class InlineCodeToken < TextLineToken
-  def initialize(raw) # rubocop:disable Lint/MissingSuper
+  def initialize(raw)
     @value = raw
   end
 end
@@ -86,7 +86,7 @@ end
 class TextLineParser
   attr_accessor :supported_tokens
 
-  def initialize # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def initialize
     @supported_tokens = []
     @supported_tokens.append(BoldAndItalicToken.new)
     @supported_tokens.append(BoldToken.new)
@@ -102,7 +102,7 @@ class TextLineParser
     @supported_tokens.append(TextLineToken.new)
   end
 
-  def tokenize(str) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/AbcSize,Metrics/PerceivedComplexity
+  def tokenize(str)
     result = []
     sl = str.length
     si = 0
@@ -134,7 +134,7 @@ class TextLineParser
 
   private
 
-  def fuse_backticks(tokens) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def fuse_backticks(tokens)
     result = []
     i = 0
     while i < tokens.length
@@ -256,7 +256,7 @@ class TextLineBuilder
     @builder_context = builder_context
   end
 
-  def restore(token_list) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def restore(token_list)
     result = ''
     return '' if token_list.nil?
 
@@ -397,12 +397,12 @@ end
 class TextLine < TextLineBuilderContext
   include HtmlSafe
 
-  @@link_registry = nil # rubocop:disable Style/ClassVars
-  @@broken_links = [] # rubocop:disable Style/ClassVars
+  @@link_registry = nil
+  @@broken_links = []
 
   class << self
     def link_registry=(registry)
-      @@link_registry = registry # rubocop:disable Style/ClassVars
+      @@link_registry = registry
     end
 
     def link_registry
@@ -416,7 +416,7 @@ class TextLine < TextLineBuilderContext
     end
 
     def reset_broken_links
-      @@broken_links = [] # rubocop:disable Style/ClassVars
+      @@broken_links = []
     end
 
     def record_broken_link(document, target)
@@ -457,7 +457,7 @@ class TextLine < TextLineBuilderContext
     "<code class=\"inline\">#{CGI.escapeHTML(str)}</code>"
   end
 
-  def link(link_text, link_url) # rubocop:disable Metrics/MethodLength
+  def link(link_text, link_url)
     raw = link_url.to_s
     kind, target, fragment = classify_markdown_link(raw)
     case kind
@@ -477,7 +477,7 @@ class TextLine < TextLineBuilderContext
 
   # Resolves an Obsidian/wiki link "[[target#fragment|alias]]" to a managed
   # document by its unique id/filename, independent of folder (ADR-186).
-  def wiki_link(inner) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/AbcSize,Metrics/MethodLength
+  def wiki_link(inner)
     link_part, sep, alias_text = inner.partition('|')
     target, _hash, fragment = link_part.partition('#')
     display = (sep.empty? ? link_part : alias_text).strip
@@ -501,7 +501,7 @@ class TextLine < TextLineBuilderContext
   # Classifies a Markdown link target as :internal (a managed document, resolved
   # against the owning document's source directory), :broken (a local .md path
   # that does not resolve), or :external (everything else). ADR-186.
-  def classify_markdown_link(raw) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def classify_markdown_link(raw)
     path_part, _sep, fragment = raw.partition('#')
     path_part = URI::DEFAULT_PARSER.unescape(path_part) # decode %20 etc. to match the real file path
     return [:external] unless local_markdown_path?(path_part)
@@ -510,10 +510,14 @@ class TextLine < TextLineBuilderContext
     return [:external] unless doc&.output_rel_path && doc.respond_to?(:path) && doc.path && TextLine.link_registry
 
     target = TextLine.link_registry.find_by_source(File.expand_path(path_part, File.dirname(doc.path)))
-    target ? [:internal, target, fragment.empty? ? nil : fragment] : [:broken]
+    if target
+      [:internal, target, fragment.empty? ? nil : fragment]
+    else
+      [:broken]
+    end
   end
 
   def local_markdown_path?(path_part)
-    path_part.match?(/\.(md|markdown)\z/i) && !path_part.match?(%r{\A[a-z][a-z0-9+.\-]*://}i)
+    path_part.match?(/\.(md|markdown)\z/i) && !path_part.match?(%r{\A[a-z][a-z0-9+.-]*://}i)
   end
 end

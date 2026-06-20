@@ -14,8 +14,8 @@ require_relative 'doc_items/markdown_list'
 require_relative 'doc_items/doc_footer'
 require_relative 'doc_items/frontmatter'
 
-class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
-  def self.try_to_extract_frontmatter(doc, text_lines) # rubocop:disable Metrics/MethodLength
+class DocParser
+  def self.try_to_extract_frontmatter(doc, text_lines)
     lines_to_remove = 0
     frontmatter_lines = ''
     if /^(-{3,})/.match(text_lines[0])
@@ -175,7 +175,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           doc.items.append(item)
 
-        elsif res = /^([*\-]\s+)(.*)/.match(s) # check if unordered list start
+        elsif res = /^([*-]\s+)(.*)/.match(s) # check if unordered list start
 
           if doc.title == ''
             # dummy section if root is not a Document Title (level 0)
@@ -188,7 +188,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           temp_md_table = process_temp_table(doc, temp_md_table)
 
-          row = res[2]
+          res[2]
 
           if temp_md_list
             temp_md_list.add_row(s)
@@ -202,7 +202,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           temp_md_table = process_temp_table(doc, temp_md_table)
 
-          row = res[1]
+          res[1]
 
           if temp_md_list
             temp_md_list.add_row(s)

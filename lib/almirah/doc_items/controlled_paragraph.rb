@@ -21,7 +21,7 @@ class ControlledParagraph < Paragraph
       s += "<table class=\"controlled\">\n"
       s += "\t<thead> <th>#</th> <th></th> <th title=\"Up-links\">UL</th> <th title=\"Down-links\">DL</th> \
         <th title=\"Test Coverage\">COV</th> <th title=\"Decision Record\">DR</th> </thead>\n"
-      @@html_table_render_in_progress = true # rubocop:disable Style/ClassVars
+      @@html_table_render_in_progress = true
     end
     f_text = format_string(@text)
     s += "\t<tr>\n"
@@ -85,7 +85,7 @@ class ControlledParagraph < Paragraph
     end
 
     if @coverage_links
-      if tmp = /^(.+)[.]\d+/.match(@coverage_links[0].id)    # guessing that all the links refer to one document
+      if tmp = /^(.+)[.]\d+/.match(@coverage_links[0].id) # guessing that all the links refer to one document
         cov_link_doc_name = tmp[1].downcase
       end
       if @coverage_links.length == 1

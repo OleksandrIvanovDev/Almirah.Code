@@ -22,7 +22,7 @@ class WorkItem
               :focused_estimate, :safe_estimate, :record_sequence
   attr_accessor :predecessors, :successors, :cross_group_predecessor_labels, :resolved_dependencies
 
-  def initialize(record_id:, step:, activity:, owner:, status:, depends_on_refs:, # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength
+  def initialize(record_id:, step:, activity:, owner:, status:, depends_on_refs:, # rubocop:disable Metrics/ParameterLists
                  focused_estimate: 0.0, safe_estimate: 0.0, record_sequence: 0)
     @record_id = record_id
     @step = step

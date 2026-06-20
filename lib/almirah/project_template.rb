@@ -2,7 +2,7 @@
 
 require 'fileutils'
 
-class ProjectTemplate # rubocop:disable Style/Documentation
+class ProjectTemplate
   attr_accessor :project_root
 
   def initialize(project_name)

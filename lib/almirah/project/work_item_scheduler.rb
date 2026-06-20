@@ -142,7 +142,7 @@ class WorkItemScheduler
     return 1 if stack.include?(work_item)
 
     preds = scoped_predecessors(work_item)
-    return (memo[work_item] = 1) if preds.empty?
+    return memo[work_item] = 1 if preds.empty?
 
     stack.push(work_item)
     earliest = preds.map { |p| dependency_start(p, memo, stack) + duration_for(p) }.max

@@ -15,7 +15,7 @@ require_relative '../project/working_calendar'
 # buffer, and the projected duration; a group with no estimates is marked
 # unestimated. The chain and buffer are ADR-195's CriticalChain, reused
 # unchanged -- this page only relocates the rendering off the overview.
-class CriticalChainPage < BaseDocument # rubocop:disable Metrics/ClassLength
+class CriticalChainPage < BaseDocument
   include HtmlSafe
   include DecisionGrouping
   include PlanningDates
@@ -118,7 +118,7 @@ class CriticalChainPage < BaseDocument # rubocop:disable Metrics/ClassLength
 
   # The fever chart: the effort-only historical trail over recent Fridays plus the
   # live point (which credits Done rows), drawn over the green/yellow/red zones.
-  def fever_chart_html(fever, index) # rubocop:disable Metrics/AbcSize
+  def fever_chart_html(fever, index)
     today = Date.today
     points = fever.trail(recent_fridays(today, FEVER_TRAIL_WEEKS)) + [fever.live_point(today)]
     coords = points.map { |completion, consumption| { x: completion.round(2), y: consumption.round(2) } }
@@ -159,7 +159,7 @@ class CriticalChainPage < BaseDocument # rubocop:disable Metrics/ClassLength
 
   # A page-global Chart.js plugin (declared once, idempotently) that paints the
   # three fever zones behind every fever chart on the page.
-  def fever_zone_plugin_js # rubocop:disable Metrics/MethodLength
+  def fever_zone_plugin_js
     <<~JS.strip
       window.feverZonesPlugin = window.feverZonesPlugin || { id: 'feverZones', beforeDraw(chart) {
         const a = chart.chartArea; if (!a) return; const x = chart.scales.x, y = chart.scales.y;

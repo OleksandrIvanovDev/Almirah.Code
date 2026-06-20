@@ -54,8 +54,7 @@ class CLI < Thor
 end
 
 class Almirah
-  attr_accessor :project
-  attr_accessor :project_utility
+  attr_accessor :project, :project_utility
 
   def initialize(project_folder)
     config = ProjectConfiguration.new project_folder

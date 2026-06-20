@@ -63,7 +63,7 @@ class SourceFile < PersistentDocument
     save_to_file(html_rows, nil, output_file_path)
   end
 
-  def save_to_file(html_rows, nav_pane, output_file_path) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def save_to_file(html_rows, nav_pane, output_file_path)
     gem_root = File.expand_path './../../..', File.dirname(__FILE__)
     template_file = "#{gem_root}/lib/almirah/templates/page.html"
 

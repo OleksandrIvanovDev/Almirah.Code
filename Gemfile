@@ -3,11 +3,11 @@ source 'https://rubygems.org'
 gemspec
 
 group :test do
+  gem 'aruba', '~> 2.3'
+  gem 'ferrum', '~> 0.15'
+  gem 'nokogiri', '~> 1.16'
   gem 'rspec', '~> 3.10'
   gem 'simplecov', require: false
-  gem 'aruba', '~> 2.3'
-  gem 'nokogiri', '~> 1.16'
-  gem 'ferrum', '~> 0.15'
 end
 
 group :development do

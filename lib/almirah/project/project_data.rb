@@ -5,7 +5,7 @@ class ProjectData
               :specifications_dictionary, :covered_specifications_dictionary, :implemented_specifications_dictionary,
               :implementation_matrices, :decisions, :decision_groups, :work_items, :link_registry
 
-  def initialize # rubocop:disable Metrics/MethodLength
+  def initialize
     @specifications = []
     @protocols = []
     @traceability_matrices = []

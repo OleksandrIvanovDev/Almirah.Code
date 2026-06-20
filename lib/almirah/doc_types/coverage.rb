@@ -2,7 +2,7 @@
 
 require_relative 'base_document'
 
-class Coverage < BaseDocument # rubocop:disable Style/Documentation
+class Coverage < BaseDocument
   attr_accessor :top_doc, :bottom_doc, :covered_items, :passed_steps_number, :failed_steps_number
 
   def initialize(top_doc)
@@ -21,7 +21,7 @@ class Coverage < BaseDocument # rubocop:disable Style/Documentation
     puts "\e[35mTraceability: #{@id}\e[0m"
   end
 
-  def to_html(nav_pane, output_file_path) # rubocop:disable Metrics/MethodLength
+  def to_html(nav_pane, output_file_path)
     html_rows = []
 
     html_rows.append('')
@@ -43,7 +43,7 @@ class Coverage < BaseDocument # rubocop:disable Style/Documentation
     save_html_to_file(html_rows, nav_pane, output_file_path)
   end
 
-  def render_table_row(top_item) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def render_table_row(top_item)
     s = ''
     if top_item.coverage_links
       id_color = if top_item.coverage_links.length > 1

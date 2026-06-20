@@ -1,4 +1,4 @@
-describe 'Document' do # rubocop:disable Metrics/BlockLength
+describe 'Document' do
   it 'Is able to build sections tree for Heading1' do
     input_lines = []
     input_lines << '# Heading Level 1'

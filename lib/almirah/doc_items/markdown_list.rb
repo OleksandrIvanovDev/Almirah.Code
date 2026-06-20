@@ -73,7 +73,7 @@ class MarkdownList < DocItem
     s.each_char do |c|
       case state
       when 'looking_for_list_item_marker'
-        if c == '*' || c == '-'
+        if ['*', '-'].include?(c)
           state = 'looking_for_space'
         elsif numeric?(c)
           state = 'looking_for_dot'
@@ -106,7 +106,7 @@ class MarkdownList < DocItem
   end
 
   def self.unordered_list_item?(raw_text)
-    res = /^\s*([*\-]\s+)(.*)/.match(raw_text)
+    res = /^\s*([*-]\s+)(.*)/.match(raw_text)
     return true if res
 
     false

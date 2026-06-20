@@ -50,8 +50,12 @@ RSpec.describe 'In-page anchor navigation offset', type: :aruba do
     # scrolls the page) and after (so the browser CAN place the target at y=0,
     # behind the bar — otherwise the target naturally lands below the bar at max
     # scroll and the test would pass even with the defect present).
-    before_filler = (1..60).map { |n| "[REQ-#{format('%03d', n)}] Filler requirement before, number #{n}." }.join("\n\n")
-    after_filler = (1..60).map { |n| "[REQ-#{format('%03d', n + 100)}] Filler requirement after, number #{n}." }.join("\n\n")
+    before_filler = (1..60).map do |n|
+      "[REQ-#{format('%03d', n)}] Filler requirement before, number #{n}."
+    end.join("\n\n")
+    after_filler = (1..60).map do |n|
+      "[REQ-#{format('%03d', n + 100)}] Filler requirement after, number #{n}."
+    end.join("\n\n")
     write_file('myproject/specifications/req/req.md', <<~MD)
       ---
       title: "Anchored Spec"

@@ -12,10 +12,10 @@ require_relative 'work_item'
 # keeps a plain header-addressed cell grid (`cells`) so the ADR-193 Scope
 # readers (owners / WIP / dates) keep working unchanged after the Scope section
 # stopped being a plain MarkdownTable.
-class ScopeTable < ControlledTable # rubocop:disable Metrics/ClassLength
+class ScopeTable < ControlledTable
   attr_reader :cells, :work_items
 
-  def initialize(doc, markdown_table) # rubocop:disable Lint/MissingSuper
+  def initialize(doc, markdown_table)
     @parent_doc = doc
     @parent_heading = doc.headings[-1]
     @column_names = markdown_table.column_names
@@ -42,11 +42,11 @@ class ScopeTable < ControlledTable # rubocop:disable Metrics/ClassLength
   # Render as a controlled table: an anchored, centered step number in the `#`
   # column (so rows are linkable, like the protocol table) and formatted text
   # for every other cell.
-  def to_html # rubocop:disable Metrics/MethodLength
+  def to_html
     s = +''
     if @@html_table_render_in_progress
       s << "</table>\n"
-      @@html_table_render_in_progress = false # rubocop:disable Style/ClassVars
+      @@html_table_render_in_progress = false
     end
     s << "<table class=\"markdown_table\">\n\t<thead>"
     @column_names.each { |h| s << " <th>#{format_string(h.strip)}</th>" }

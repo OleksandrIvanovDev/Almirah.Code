@@ -16,7 +16,7 @@ describe 'HtmlSafe' do
     end
 
     it 'neutralises a script element' do
-      expect(helper.escape_text("<script>alert(1)</script>"))
+      expect(helper.escape_text('<script>alert(1)</script>'))
         .to eq('&lt;script&gt;alert(1)&lt;/script&gt;')
     end
   end

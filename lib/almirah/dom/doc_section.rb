@@ -7,7 +7,7 @@ class DocSection
     @parent_section = nil
   end
 
-  def to_html # rubocop:disable Metrics/MethodLength
+  def to_html
     s = ''
     s += "\t<li onclick=\"nav_toggle_expand_list(this, event)\">" \
       '<span class="fa-li"><i class="fa fa-minus-square-o"> </i></span>'

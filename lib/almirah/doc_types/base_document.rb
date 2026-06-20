@@ -2,7 +2,7 @@
 
 require_relative '../relative_url'
 
-class BaseDocument # rubocop:disable Style/Documentation
+class BaseDocument
   attr_accessor :title, :id, :dom, :headings, :output_rel_path
 
   class << self
@@ -23,7 +23,7 @@ class BaseDocument # rubocop:disable Style/Documentation
     false
   end
 
-  def save_html_to_file(html_rows, nav_pane, output_file_path) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def save_html_to_file(html_rows, nav_pane, output_file_path)
     gem_root = File.expand_path './../../..', File.dirname(__FILE__)
     template_file = "#{gem_root}/lib/almirah/templates/page.html"
 
@@ -44,7 +44,7 @@ class BaseDocument # rubocop:disable Style/Documentation
                         end
     @output_rel_path = output_file_path.split('/build/', 2).last
     file = File.open(output_file_path, 'w')
-    file_data.each do |s| # rubocop:disable Metrics/BlockLength
+    file_data.each do |s|
       if s.include?('{{CONTENT}}')
         html_rows.each do |r|
           file.puts r
