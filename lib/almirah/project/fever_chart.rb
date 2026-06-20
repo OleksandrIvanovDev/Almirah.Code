@@ -9,11 +9,19 @@
 # carries no schedule weight). Per-row actual effort is read from the owning
 # Decision's append-only # Effort log via row_actual_hours_on, converted to days;
 # the chart never consults the record lifecycle status.
+#
+# It reads the plan's *baseline* chain and buffer (completed rows included,
+# issue-207), not the remaining-work chain: a chain row that overran and then was
+# marked Done has consumed real buffer that must stay accounted, and the
+# consumption denominator must not shrink as rows finish. The live point still
+# credits a Done row in full via its per-row Status (ADR-196); historical trail
+# points reconstruct even a completed row's progress and overrun from its dated
+# # Effort log, which a per-row Status (no dated history) could not.
 class FeverChart
   # record_lookup maps an upcased record id (e.g. "ADR-196") to its Decision.
   def initialize(plan, record_lookup, hours_per_day: 8)
-    @rows = plan.chain.select { |wi| wi.focused_estimate.positive? }
-    @buffer = plan.buffer
+    @rows = plan.baseline_chain.select { |wi| wi.focused_estimate.positive? }
+    @buffer = plan.baseline_buffer
     @record_lookup = record_lookup
     @hours_per_day = hours_per_day.to_f
   end

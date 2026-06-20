@@ -2823,6 +2823,42 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  context 'when a completed chain row overran (fever chart, issue-207)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  hours_per_day: 8\n")
+      # Analysis is Done having logged 32h = 4 days against a 2-day focused
+      # estimate: it overran by 2 days. A completed overrun must keep consuming
+      # the project buffer, not vanish because the row is Done (issue-207).
+      write_file('myproject/decisions/plan/adr-91-done-overrun.md', <<~MD)
+        ---
+        title: "ADR-91: Done Overrun"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | Done |
+        | 2 | Code | DEV | 3 | 6 | In-Progress |
+
+        # Effort
+
+        | Date | Item | Owner | Hours | Note |
+        |---|---|---|---|---|
+        | 01-01-2020 | Analysis | BA | 32 | overran |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A Done chain row's overrun still consumes the project buffer. >[SRS-131], >[SRS-132] </REQ>
+    it 'keeps a completed row in the baseline so its overrun consumes buffer' do
+      # Baseline chain = Analysis + Code (buffer = ceil(0.5*((4-2)+(6-3))) = 3).
+      # completion = 100 * (1*2 + 0*3) / 5 = 40 (Done Analysis credits in full);
+      # consumption = 100 * max(4-2,0) / 3 = 66.67 (the completed overrun stays).
+      expect(fever_points.last).to eq([40.0, 66.67])
+    end
+  end
+
   context 'when a group has no estimates (no fever chart)' do
     before do
       write_file('myproject/project.yml', "specifications:\n  input: []\n")
