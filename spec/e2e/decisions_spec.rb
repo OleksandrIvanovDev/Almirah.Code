@@ -2626,6 +2626,60 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  def gantt_today_nodes(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_today')
+  end
+
+  def gantt_today_md
+    write_file('myproject/decisions/adr-70-anchor.md', <<~MD)
+      ---
+      title: "ADR-70: Anchor"
+      ---
+
+      # Scope
+
+      | # | Item | Owner | Est (focused) | Est (safe) | Status |
+      |---|---|---|---|---|---|
+      | 1 | Analysis | BA | 2 | 4 | To Do |
+    MD
+  end
+
+  context 'when today precedes the scheduled work (Gantt today marker)' do
+    before do
+      # Anchor far in the future so today is always before the chart, regardless
+      # of the real run date: the marker clamps to the chart's left edge.
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 01-01-2999\n")
+      gantt_today_md
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt draws one full-height today rule per block, clamped to the first day column when today is before it. >[SRS-160] </REQ>
+    it 'clamps the today rule to the first day column' do
+      node = gantt_today_nodes.first
+      expect(gantt_today_nodes.length).to eq(1)
+      expect(node['class'].split).not_to include('gantt_today_end')
+      expect(node['style']).to match(/grid-column:\s*2;/)
+      expect(node['style']).to match(%r{grid-row:\s*1\s*/\s*span\s*\d+})
+    end
+  end
+
+  context 'when today is past the scheduled work (Gantt today marker)' do
+    before do
+      # Anchor far in the past so today is always beyond the chart: the marker
+      # clamps to the right edge of the last column (gantt_today_end).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 01-01-2000\n")
+      gantt_today_md
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Past the chart, the today rule hugs the last column's trailing edge so "beyond the plan" still reads. >[SRS-160] </REQ>
+    it 'clamps the today rule to the right edge of the last column' do
+      node = gantt_today_nodes.first
+      expect(gantt_today_nodes.length).to eq(1)
+      expect(node['class'].split).to include('gantt_today_end')
+    end
+  end
+
   # ----- ADR-195: estimates, critical chain, and project buffer -----
 
   def critical_chain_doc
@@ -2824,6 +2878,27 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(fever_points.last).to eq([40.0, 0.0])
     end
 
+    # <REQ> Each fever point carries the date it was sampled on, the live point
+    # carrying today; the tooltip shows that date instead of the dataset name,
+    # followed by the values. >[SRS-162] </REQ>
+    it 'labels each point with its sample date and shows it in the tooltip' do
+      script = critical_chain_doc.css('div.cc_fever script').map(&:text).join("\n")
+      raw = script[/data:\s*(\[\{.*?\}\])/m, 1]
+      points = JSON.parse(raw)
+      # The trailing live point is dated today; all points carry a "Mon D" label.
+      expect(points.last['d']).to eq(Date.today.strftime('%b %-d'))
+      expect(points).to all(include('d'))
+      # The tooltip renders the date, then the (completion, consumption) pair.
+      expect(script).to include("ctx.raw.d + ': (' + ctx.parsed.x + ', ' + ctx.parsed.y + ')'")
+    end
+
+    # <REQ> The buffer figure is paired with the live buffer consumed, as a percentage and consumed-of-baseline days. >[SRS-161] </REQ>
+    it 'states the live buffer utilisation under the buffer figure' do
+      consumed = critical_chain_doc.at_css('.cc_plan .cc_consumed')
+      # No overrun here, so none of the 3 baseline buffer days are consumed.
+      expect(consumed.text).to eq('Buffer consumed: 0% (0 of 3 baseline days)')
+    end
+
     # <REQ> The fever chart loads Chart.js and paints its zones. >[SRS-133], >[SRS-134] </REQ>
     it 'loads Chart.js on the page and registers the zone plugin' do
       html = File.read(expand_path('myproject/build/decisions/critical-chain.html'))
@@ -2865,6 +2940,13 @@ RSpec.describe 'Decision Records', type: :aruba do
       # completion = 100 * (1*2 + 0*3) / 5 = 40 (Done Analysis credits in full);
       # consumption = 100 * max(4-2,0) / 3 = 66.67 (the completed overrun stays).
       expect(fever_points.last).to eq([40.0, 66.67])
+    end
+
+    # <REQ> The buffer utilisation figure matches the fever chart's live point. >[SRS-161] </REQ>
+    it 'reports rounded buffer utilisation matching the fever chart' do
+      # 2 overrun days of the 3 baseline buffer days; 2/3 = 66.67% rounds to 67%.
+      expect(critical_chain_doc.at_css('.cc_plan .cc_consumed').text)
+        .to eq('Buffer consumed: 67% (2 of 3 baseline days)')
     end
   end
 

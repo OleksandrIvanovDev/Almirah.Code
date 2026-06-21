@@ -203,8 +203,39 @@ class DecisionsOverview < BaseDocument
     rows.concat(gantt_group_band(blocks))
     owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 4, blocks)) }
     rows.concat(gantt_buffer_lane(blocks, owners.length + 4))
+    rows.concat(gantt_today_lines(blocks, total_rows))
     rows << "\t</div>\n" << "</div>\n"
     rows.join
+  end
+
+  # The "today" marker (ADR-205 calendar projection): a thin full-height vertical
+  # rule per block at today's business-day column, so the buffer's erosion can be
+  # read against the current date. Emitted last so it paints over the bars; it is
+  # inert (pointer-events: none) and never blocks a bar's tooltip.
+  def gantt_today_lines(blocks, total_rows)
+    today = Date.today
+    blocks.filter_map do |b|
+      col, edge = gantt_today_column(b, today)
+      next unless col
+
+      side = edge == :right ? ' gantt_today_end' : ''
+      style = %(grid-row: 1 / span #{total_rows}; grid-column: #{col};)
+      %(\t\t<div class="gantt_today#{side}" style="#{style}"></div>\n)
+    end
+  end
+
+  # The [grid-column, edge] the today rule sits on within a block: the left edge of
+  # today's business column, clamped to the block's left edge when today is before
+  # it and to the right edge of the last column when today is past it. nil when the
+  # block has no business columns to anchor against.
+  def gantt_today_column(block, today)
+    dates = block[:calendar].business_columns(block[:width])
+    return nil if dates.empty?
+
+    return [block[:offset] + 2, :left] if today <= dates.first
+    return [block[:offset] + dates.length + 1, :right] if today > dates.last
+
+    [block[:offset] + dates.index { |d| d >= today } + 2, :left]
   end
 
   # Full-height background columns behind the business-day axis (ADR-206),

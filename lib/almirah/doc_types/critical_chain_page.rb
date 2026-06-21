@@ -88,12 +88,12 @@ class CriticalChainPage < BaseDocument
   # (ADR-196). The chart is omitted when no chain row carries a positive estimate.
   def cc_group_body(plan, lookup, hours_per_day, index)
     fever = FeverChart.new(plan, lookup, hours_per_day: hours_per_day)
-    left = %(\t\t<div class="cc_plan">\n#{cc_chain_html(plan)}\t\t</div>\n)
+    left = %(\t\t<div class="cc_plan">\n#{cc_chain_html(plan, fever)}\t\t</div>\n)
     right = fever.plottable? ? %(\t\t<div class="cc_fever">\n#{fever_chart_html(fever, index)}\t\t</div>\n) : ''
     %(\t\t<div class="cc_group_body">\n#{left}#{right}\t\t</div>\n)
   end
 
-  def cc_chain_html(plan)
+  def cc_chain_html(plan, fever)
     lines = [%(\t\t<table class="cc_chain">\n),
              "\t\t\t<thead><th>Record</th><th>Item</th><th>Owner</th><th>Duration</th></thead>\n"]
     plan.chain.each { |wi| lines << cc_chain_row(wi) }
@@ -101,9 +101,30 @@ class CriticalChainPage < BaseDocument
     projected = format_days(plan.projected_duration)
     finish = working_calendar.date_for(plan.projected_duration)
     lines << %(\t\t<p class="cc_buffer">Project buffer: #{plan.buffer} working days</p>\n)
+    lines << cc_consumed_html(plan, fever)
     lines << %(\t\t<p class="cc_projected">Projected duration: #{projected} working days</p>\n)
     lines << %(\t\t<p class="cc_finish">Projected completion: #{finish.strftime('%d-%m-%Y')}</p>\n)
     lines.join
+  end
+
+  # The live buffer-health line shown under the buffer figure: how much of the
+  # project buffer the chain's overruns have eaten so far, as a percentage and as
+  # days of the baseline buffer. The percentage and day count both come from the
+  # fever chart, so the figure and the chart's live point always agree, and the
+  # "of N baseline days" makes explicit that the denominator is the baseline
+  # buffer -- not the (remaining-work) "Project buffer" figure above it. Empty
+  # when the plan carries no buffer to consume (no positive-estimate chain row, or
+  # zero baseline buffer).
+  def cc_consumed_html(plan, fever)
+    return '' unless fever.plottable? && plan.baseline_buffer.positive?
+
+    today = Date.today
+    consumed_pct = fever.live_point(today).last.round
+    consumed_days = format_days(fever.consumed_days(today).round(1))
+    baseline = plan.baseline_buffer
+    unit = baseline == 1 ? 'day' : 'days'
+    detail = "#{consumed_days} of #{baseline} baseline #{unit}"
+    %(\t\t<p class="cc_consumed">Buffer consumed: #{consumed_pct}% (#{detail})</p>\n)
   end
 
   def cc_chain_row(work_item)
@@ -120,8 +141,12 @@ class CriticalChainPage < BaseDocument
   # live point (which credits Done rows), drawn over the green/yellow/red zones.
   def fever_chart_html(fever, index)
     today = Date.today
-    points = fever.trail(recent_fridays(today, FEVER_TRAIL_WEEKS)) + [fever.live_point(today)]
-    coords = points.map { |completion, consumption| { x: completion.round(2), y: consumption.round(2) } }
+    fridays = recent_fridays(today, FEVER_TRAIL_WEEKS)
+    dates = fridays + [today]
+    points = fever.trail(fridays) + [fever.live_point(today)]
+    coords = points.zip(dates).map do |(completion, consumption), date|
+      { x: completion.round(2), y: consumption.round(2), d: date.strftime('%b %-d') }
+    end
     radii = Array.new(coords.length - 1, 3) + [6]
     colors = points.map { |completion, consumption| zone_color(completion, consumption) }
     fever_canvas_script("fever_chart_#{index}", coords, radii, colors)
@@ -137,7 +162,8 @@ class CriticalChainPage < BaseDocument
       \t\t\t\tdata: { datasets: [{ label: 'Buffer health', data: #{coords.to_json}, showLine: true,
       \t\t\t\t\tborderColor: 'rgba(80,80,80,0.7)', pointRadius: #{radii.to_json},
       \t\t\t\t\tpointBackgroundColor: #{colors.to_json}, pointBorderColor: '#333' }] },
-      \t\t\t\toptions: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      \t\t\t\toptions: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      \t\t\t\t\ttooltip: { callbacks: { label: (ctx) => ctx.raw.d + ': (' + ctx.parsed.x + ', ' + ctx.parsed.y + ')' } } },
       \t\t\t\t\tscales: { x: { title: { display: true, text: 'Chain completion %' }, min: 0, max: 100 },
       \t\t\t\t\t\ty: { title: { display: true, text: 'Buffer consumption %' }, min: 0, suggestedMax: 100 } } },
       \t\t\t\tplugins: [window.feverZonesPlugin]

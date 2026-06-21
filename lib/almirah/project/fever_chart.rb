@@ -49,6 +49,13 @@ class FeverChart
     dates.map { |d| point_on(d) }
   end
 
+  # The baseline buffer days these overruns have consumed as of `date` -- the
+  # numerator behind the consumption percentage (its denominator is the baseline
+  # buffer). Lets the Critical Chain page report "X of Y baseline days".
+  def consumed_days(date)
+    @rows.sum { |wi| [actual_days(wi, date) - wi.focused_estimate, 0].max }
+  end
+
   private
 
   def completion(date, live:)
@@ -71,8 +78,7 @@ class FeverChart
   def consumption(date)
     return 0.0 if @buffer.zero?
 
-    consumed = @rows.sum { |wi| [actual_days(wi, date) - wi.focused_estimate, 0].max }
-    100.0 * consumed / @buffer
+    100.0 * consumed_days(date) / @buffer
   end
 
   def actual_days(work_item, date)

@@ -243,8 +243,10 @@ table.controlled td.item_text{
 .critical_chain table.cc_chain th,
 .critical_chain table.cc_chain td { border: 1px solid #e1e4e8; padding: 2px 8px; text-align: left; font-size: 12px; }
 .critical_chain .cc_buffer,
+.critical_chain .cc_consumed,
 .critical_chain .cc_projected,
 .critical_chain .cc_finish { margin: 2px 0; font-size: 12px; }
+.critical_chain .cc_consumed { color: #57606a; }
 .critical_chain .cc_finish { font-weight: 600; }
 .critical_chain .cc_unestimated { color: #9a6700; font-style: italic; font-size: 12px; }
 .critical_chain .cc_group_body { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
@@ -266,6 +268,8 @@ table.controlled td.item_text{
     box-shadow: inset 0 0 0 1px #e0c068;
     cursor: default;
 }
+.workitem_gantt .gantt_today { border-left: 2px solid #d33; z-index: 5; pointer-events: none; }
+.workitem_gantt .gantt_today.gantt_today_end { border-left: 0; border-right: 2px solid #d33; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,
