@@ -221,6 +221,7 @@ table.controlled td.item_text{
 .workitem_gantt .gantt_inprogress { background: #ffffdd; color: #333; box-shadow: inset 0 0 0 1px #bbb; }
 .workitem_gantt .gantt_done { background: #cfc; color: #57606a; box-shadow: inset 0 0 0 1px #e1e4e8; }
 .workitem_gantt .gantt_blocked { box-shadow: inset 0 0 0 1px #bbb; }
+.workitem_gantt .gantt_critical { outline: 1px solid #9a6700; outline-offset: -1px; } /* buffer-bar amber (dark) */
 .workitem_gantt .gantt_release_band {
     text-align: center;
     font-size: 11px;

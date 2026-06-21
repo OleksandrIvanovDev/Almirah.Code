@@ -150,14 +150,15 @@ class DecisionsOverview < BaseDocument
   end
 
   # One block descriptor: its group name, work items, schedule, per-work-item
-  # start days, the working span and computed project buffer (ADR-195), the
-  # shared working calendar (ADR-205), the block's business-day column width
-  # (ADR-206), and the left-to-right column offset of the block's first day.
+  # start days, the set of work items on the schedule's critical chain (ADR-212),
+  # the working span and computed project buffer (ADR-195), the shared working
+  # calendar (ADR-205), the block's business-day column width (ADR-206), and the
+  # left-to-right column offset of the block's first day.
   def gantt_block(name, items, scheduler, offset, ratio, calendar) # rubocop:disable Metrics/ParameterLists
     work_days = scheduler.day_count
     buffer = CriticalChain.new(items, buffer_ratio: ratio).buffer
     width = work_days + buffer
-    { name:, items:, scheduler:, starts: scheduler.start_days,
+    { name:, items:, scheduler:, starts: scheduler.start_days, chain: scheduler.critical_chain.to_set,
       work_days:, buffer:, width:, calendar:,
       cal_width: calendar.business_columns(width).length, offset: }
   end
@@ -359,11 +360,13 @@ class DecisionsOverview < BaseDocument
 
   # A single work-item bar spanning, on the business-day axis (ADR-206), from its
   # first to its last working day inclusive -- covering any weekday-holiday columns
-  # it crosses without counting them. Coloured by row Status and emphasised when
-  # it is a started-but-blocked cross-record violation.
+  # it crosses without counting them. Coloured by row Status, outlined when it lies
+  # on the group's critical chain (ADR-212), and emphasised when it is a
+  # started-but-blocked cross-record violation.
   def gantt_bar(work_item, row, block)
     grid_col, span = calendar_span(block, block[:starts][work_item], block[:scheduler].duration_for(work_item))
     classes = ['gantt_bar', gantt_status_class(work_item)]
+    classes << 'gantt_critical' if block[:chain].include?(work_item)
     classes << 'gantt_blocked' if work_item.cross_record_violation?
     label = "#{work_item.record_id.upcase} #{work_item.activity}"
     style = %(grid-row: #{row}; grid-column: #{grid_col} / span #{span};)

@@ -2819,6 +2819,51 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  # ----- ADR-212: critical-chain highlight on the Gantt bars -----
+  context 'when a group block has a critical chain (Gantt highlight)' do
+    before do
+      # Two independent records in one group: a long Analysis (the chain) and a
+      # short Code branch off it. The chain traces to the latest finish, so only
+      # the long bar is on it.
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 22-06-2026\n")
+      write_file('myproject/decisions/plan/adr-80-long.md', <<~MD)
+        ---
+        title: "ADR-80: Long"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 5 | 5 | To Do |
+      MD
+      write_file('myproject/decisions/plan/adr-81-short.md', <<~MD)
+        ---
+        title: "ADR-81: Short"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Code | DEV | 1 | 1 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt outlines the bars on a group block's critical chain. >[SRS-164] </REQ>
+    it 'marks the critical-chain bar and leaves the off-chain bar unmarked' do
+      expect(gantt_bar('ADR-80 Analysis')[:classes]).to include('gantt_critical')
+      expect(gantt_bar('ADR-81 Code')[:classes]).not_to include('gantt_critical')
+    end
+
+    # <REQ> The chain outline is a channel separate from the row-Status colour. >[SRS-164] </REQ>
+    it 'keeps the Status colour class alongside the critical-chain class' do
+      classes = gantt_bar('ADR-80 Analysis')[:classes]
+      expect(classes).to include('gantt_todo', 'gantt_critical')
+    end
+  end
+
   context 'when a decision group has no estimates' do
     before do
       write_file('myproject/project.yml', "specifications:\n  input: []\n")
