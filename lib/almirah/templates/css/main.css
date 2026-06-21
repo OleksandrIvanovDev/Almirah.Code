@@ -269,7 +269,6 @@ table.controlled td.item_text{
     cursor: default;
 }
 .workitem_gantt .gantt_today { border-left: 2px solid #d33; z-index: 5; pointer-events: none; }
-.workitem_gantt .gantt_today.gantt_today_end { border-left: 0; border-right: 2px solid #d33; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,

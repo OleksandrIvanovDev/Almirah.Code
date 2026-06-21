@@ -98,7 +98,7 @@ class DecisionsOverview < BaseDocument
     "\t\t<td class=\"item_kit kit_blocked\" style=\"color: #c0392b;#{weight}\">Blocked</td>\n"
   end
 
-  # Day columns inserted between adjacent group blocks (ADR-201).
+  # Gutter columns between adjacent group blocks so they never abut (ADR-201).
   GANTT_GUTTER_DAYS = 1
 
   # The group-segmented resource-swimlane Gantt of the WorkItem network (ADR-198,
@@ -113,7 +113,7 @@ class DecisionsOverview < BaseDocument
     owners = consensus_owner_order
     return '' if blocks.empty? || owners.empty?
 
-    total_days = blocks.last[:offset] + blocks.last[:cal_width]
+    total_days = blocks.map { |b| b[:offset] + b[:cal_width] }.max
     grid = gantt_grid(owners, blocks, total_days)
     gantt_any_blocked?(blocks) ? grid + gantt_pulse_script : grid
   end
@@ -127,16 +127,21 @@ class DecisionsOverview < BaseDocument
   # One block per decision group (ADR-197) that has work items, in decision_groups
   # (folder-encounter) order. Each block runs WorkItemScheduler over only its own
   # items, so a cross-group predecessor falls away as an already-available input
-  # (ADR-201); blocks are offset left to right with a one-column gutter between.
+  # (ADR-201); blocks are laid out left to right with a one-column gutter between
+  # them, never overlapping. Each block's calendar is anchored at its group's
+  # configured planning.groups start date, falling back to the project start date,
+  # so the block's day columns are labelled with that group's real dates (ADR-211).
   def gantt_blocks
     ratio = @project.configuration.get_buffer_ratio
-    calendar = WorkingCalendar.new(anchor: @project.configuration.get_start_date,
-                                   holidays: @project.configuration.get_holidays)
+    holidays = @project.configuration.get_holidays
+    group_starts = @project.configuration.get_group_start_dates
+    origin = @project.configuration.get_start_date
     offset = 0
     grouped_work_items.each_with_object([]) do |(name, items), blocks|
       scheduler = GanttScheduler.new(items)
       next if scheduler.day_count.zero?
 
+      calendar = WorkingCalendar.new(anchor: group_starts[name] || origin, holidays: holidays)
       offset += GANTT_GUTTER_DAYS unless blocks.empty?
       block = gantt_block(name, items, scheduler, offset, ratio, calendar)
       blocks << block
@@ -208,34 +213,31 @@ class DecisionsOverview < BaseDocument
     rows.join
   end
 
-  # The "today" marker (ADR-205 calendar projection): a thin full-height vertical
-  # rule per block at today's business-day column, so the buffer's erosion can be
-  # read against the current date. Emitted last so it paints over the bars; it is
-  # inert (pointer-events: none) and never blocks a bar's tooltip.
+  # The "today" marker (ADR-205 / ADR-211): a thin full-height vertical rule drawn
+  # only in the block whose calendar range actually contains the current date, at
+  # that date's business-day column. Blocks the current date falls outside (past or
+  # future groups) get no rule, so the sequential blocks never sprout edge-clamped
+  # lines mid-chart. Emitted last so it paints over the bars; it is inert
+  # (pointer-events: none) and never blocks a bar's tooltip.
   def gantt_today_lines(blocks, total_rows)
     today = Date.today
     blocks.filter_map do |b|
-      col, edge = gantt_today_column(b, today)
+      col = gantt_today_column(b, today)
       next unless col
 
-      side = edge == :right ? ' gantt_today_end' : ''
       style = %(grid-row: 1 / span #{total_rows}; grid-column: #{col};)
-      %(\t\t<div class="gantt_today#{side}" style="#{style}"></div>\n)
+      %(\t\t<div class="gantt_today" style="#{style}"></div>\n)
     end
   end
 
-  # The [grid-column, edge] the today rule sits on within a block: the left edge of
-  # today's business column, clamped to the block's left edge when today is before
-  # it and to the right edge of the last column when today is past it. nil when the
-  # block has no business columns to anchor against.
+  # The grid-column of today's business-day column within a block, or nil when the
+  # block's calendar range does not contain today (today before its first or after
+  # its last column, or the block has no columns).
   def gantt_today_column(block, today)
     dates = block[:calendar].business_columns(block[:width])
-    return nil if dates.empty?
+    return nil if dates.empty? || today < dates.first || today > dates.last
 
-    return [block[:offset] + 2, :left] if today <= dates.first
-    return [block[:offset] + dates.length + 1, :right] if today > dates.last
-
-    [block[:offset] + dates.index { |d| d >= today } + 2, :left]
+    block[:offset] + dates.index { |d| d >= today } + 2
   end
 
   # Full-height background columns behind the business-day axis (ADR-206),

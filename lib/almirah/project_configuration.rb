@@ -68,6 +68,21 @@ class ProjectConfiguration
     date || Date.today
   end
 
+  # Per-group planning start dates (ADR-211): a map from a decision group's
+  # first-level folder name (under decisions/) to its start Date, read from
+  # planning.groups as DD-MM-YYYY entries. Non-string or unparseable values are
+  # dropped; empty when unset. A group absent from the map sequences after the
+  # previous group rather than carrying a declared start.
+  def get_group_start_dates
+    value = planning_value('groups')
+    return {} unless value.is_a?(Hash)
+
+    value.each_with_object({}) do |(name, raw), acc|
+      date = parse_planning_date(raw)
+      acc[name.to_s] = date if date
+    end
+  end
+
   # The non-working holiday dates (ADR-205) from planning.holidays, each a
   # DD-MM-YYYY entry; unparseable entries are dropped. Empty when unset.
   def get_holidays

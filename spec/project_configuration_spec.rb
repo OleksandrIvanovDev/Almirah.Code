@@ -51,4 +51,24 @@ RSpec.describe ProjectConfiguration do
       expect(config_for("planning:\n  wip_limit: 2\n").get_holidays).to eq([])
     end
   end
+
+  describe '#get_group_start_dates' do
+    it 'maps group folder names to their DD-MM-YYYY start dates' do
+      cfg = config_for("planning:\n  groups:\n    release 0.4.0: 12-05-2026\n    release 0.4.3: 22-06-2026\n")
+      expect(cfg.get_group_start_dates).to eq(
+        'release 0.4.0' => Date.new(2026, 5, 12),
+        'release 0.4.3' => Date.new(2026, 6, 22)
+      )
+    end
+
+    it 'drops unparseable entries and keeps the rest' do
+      cfg = config_for("planning:\n  groups:\n    good: 01-07-2026\n    bad: nope\n")
+      expect(cfg.get_group_start_dates).to eq('good' => Date.new(2026, 7, 1))
+    end
+
+    it 'returns an empty map when absent or not a mapping' do
+      expect(config_for("planning:\n  wip_limit: 2\n").get_group_start_dates).to eq({})
+      expect(config_for("planning:\n  groups: nope\n").get_group_start_dates).to eq({})
+    end
+  end
 end

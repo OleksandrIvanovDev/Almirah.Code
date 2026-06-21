@@ -59,6 +59,18 @@ class CriticalChainPage < BaseDocument
     %(<div class="critical_chain">\n#{blocks.join}</div>\n)
   end
 
+  # The calendar a group's projected completion date is measured on (ADR-211):
+  # one anchored at the group's declared planning.groups start date, or the
+  # shared project-anchored calendar when the group declares none. Memoised per
+  # group name so each group reuses one calendar.
+  def group_calendar(name)
+    @group_calendars ||= {}
+    @group_calendars[name] ||= begin
+      start = @project.configuration.get_group_start_dates[name]
+      start ? WorkingCalendar.new(anchor: start, holidays: @project.configuration.get_holidays) : working_calendar
+    end
+  end
+
   # An upcased-record-id => Decision map, so a chain row can reach its owning
   # record's effort log (ADR-196).
   def record_lookup
@@ -76,7 +88,7 @@ class CriticalChainPage < BaseDocument
     plan = CriticalChain.new(items, buffer_ratio: ratio)
     header = %(\t<div class="cc_group">\n\t\t<h3>#{escape_text(name)}</h3>\n)
     body = if plan.estimated?
-             cc_group_body(plan, lookup, hours_per_day, index)
+             cc_group_body(plan, lookup, hours_per_day, index, group_calendar(name))
            else
              %(\t\t<p class="cc_unestimated">No estimates — plan not sized.</p>\n)
            end
@@ -86,20 +98,20 @@ class CriticalChainPage < BaseDocument
   # The estimated group's plan (chain table + buffer + projected duration) on the
   # left and its buffer-consumption fever chart on the right, side by side
   # (ADR-196). The chart is omitted when no chain row carries a positive estimate.
-  def cc_group_body(plan, lookup, hours_per_day, index)
+  def cc_group_body(plan, lookup, hours_per_day, index, calendar)
     fever = FeverChart.new(plan, lookup, hours_per_day: hours_per_day)
-    left = %(\t\t<div class="cc_plan">\n#{cc_chain_html(plan, fever)}\t\t</div>\n)
+    left = %(\t\t<div class="cc_plan">\n#{cc_chain_html(plan, fever, calendar)}\t\t</div>\n)
     right = fever.plottable? ? %(\t\t<div class="cc_fever">\n#{fever_chart_html(fever, index)}\t\t</div>\n) : ''
     %(\t\t<div class="cc_group_body">\n#{left}#{right}\t\t</div>\n)
   end
 
-  def cc_chain_html(plan, fever)
+  def cc_chain_html(plan, fever, calendar)
     lines = [%(\t\t<table class="cc_chain">\n),
              "\t\t\t<thead><th>Record</th><th>Item</th><th>Owner</th><th>Duration</th></thead>\n"]
     plan.chain.each { |wi| lines << cc_chain_row(wi) }
     lines << "\t\t</table>\n"
     projected = format_days(plan.projected_duration)
-    finish = working_calendar.date_for(plan.projected_duration)
+    finish = calendar.date_for(plan.projected_duration)
     lines << %(\t\t<p class="cc_buffer">Project buffer: #{plan.buffer} working days</p>\n)
     lines << cc_consumed_html(plan, fever)
     lines << %(\t\t<p class="cc_projected">Projected duration: #{projected} working days</p>\n)

@@ -2581,7 +2581,7 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(bands[0][:start]).to be < bands[1][:start]
     end
 
-    # <REQ> A group band spans its block's day columns, with a gutter between blocks. >[SRS-142] </REQ>
+    # <REQ> A group band spans its block's day columns, with a gutter between blocks. >[SRS-142], >[SRS-141] </REQ>
     it 'spans each band over its block and leaves a gutter before the next block' do
       bands = gantt_bands
       expect(bands[1][:start]).to be > (bands[0][:start] + bands[0][:span])
@@ -2626,6 +2626,66 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  # The month-header labels along the Gantt's calendar axis, left to right.
+  def gantt_months(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_month_head').map { |m| m.text.strip }
+  end
+
+  # ----- ADR-211: per-group planning start dates labelling each tiled block -----
+  context 'when decision groups have configured planning start dates' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+        planning:
+          start_date: 04-05-2026
+          groups:
+            alpha: 04-05-2026
+            beta: 15-06-2026
+      YML
+      %w[alpha beta gamma].each do |group|
+        write_file("myproject/decisions/#{group}/adr-#{group}.md", <<~MD)
+          ---
+          title: "ADR #{group}"
+          ---
+
+          # Scope
+
+          | # | Item | Owner | Est (focused) | Est (safe) | Status |
+          |---|---|---|---|---|---|
+          | 1 | Code | DEV | 2 | 2 | To Do |
+        MD
+      end
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Each group block's day columns are labelled from its configured start date. >[SRS-163], >[SRS-151] </REQ>
+    it 'labels each group block from its own configured start month' do
+      # alpha starts in May, beta in June: both months appear among the blocks.
+      expect(gantt_months).to include('May 2026', 'Jun 2026')
+    end
+
+    # <REQ> A group with no configured start date falls back to the project start date. >[SRS-163] </REQ>
+    it 'labels an unconfigured group from the project start date' do
+      # gamma has no entry, so it anchors at the 04-05-2026 project start (May).
+      gamma = gantt_bands.find { |b| b[:name] == 'gamma' }
+      span = gamma[:start]..(gamma[:start] + gamma[:span] - 1)
+      gamma_day_heads = overview_doc.css('div.workitem_gantt .gantt_month_head').select do |m|
+        col = m['style'][/grid-column:\s*(\d+)/, 1].to_i
+        span.cover?(col)
+      end
+      expect(gamma_day_heads.map { |m| m.text.strip }).to include('May 2026')
+    end
+
+    # <REQ> The start date relabels a block without changing the gutter-separated layout. >[SRS-141], >[SRS-163] </REQ>
+    it 'keeps the blocks tiled in folder order with a gutter between them' do
+      bands = gantt_bands
+      expect(bands.map { |b| b[:name] }).to eq(%w[alpha beta gamma])
+      expect(bands[1][:start]).to be > (bands[0][:start] + bands[0][:span])
+      expect(bands[2][:start]).to be > (bands[1][:start] + bands[1][:span])
+    end
+  end
+
   def gantt_today_nodes(doc = overview_doc)
     doc.css('div.workitem_gantt .gantt_today')
   end
@@ -2646,37 +2706,58 @@ RSpec.describe 'Decision Records', type: :aruba do
 
   context 'when today precedes the scheduled work (Gantt today marker)' do
     before do
-      # Anchor far in the future so today is always before the chart, regardless
-      # of the real run date: the marker clamps to the chart's left edge.
+      # Anchor far in the future so today is always before the only block: the
+      # rule is omitted because today falls outside the block's calendar (ADR-211).
       write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 01-01-2999\n")
       gantt_today_md
       run_command_and_stop('almirah please myproject')
     end
 
-    # <REQ> The Gantt draws one full-height today rule per block, clamped to the first day column when today is before it. >[SRS-160] </REQ>
-    it 'clamps the today rule to the first day column' do
-      node = gantt_today_nodes.first
-      expect(gantt_today_nodes.length).to eq(1)
-      expect(node['class'].split).not_to include('gantt_today_end')
-      expect(node['style']).to match(/grid-column:\s*2;/)
-      expect(node['style']).to match(%r{grid-row:\s*1\s*/\s*span\s*\d+})
+    # <REQ> The today rule is omitted from a block the current date falls before. >[SRS-160] </REQ>
+    it 'omits the today rule when today precedes the block' do
+      expect(gantt_today_nodes.length).to eq(0)
     end
   end
 
   context 'when today is past the scheduled work (Gantt today marker)' do
     before do
-      # Anchor far in the past so today is always beyond the chart: the marker
-      # clamps to the right edge of the last column (gantt_today_end).
+      # Anchor far in the past so today is always beyond the only block: the rule
+      # is omitted because today falls outside the block's calendar (ADR-211).
       write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 01-01-2000\n")
       gantt_today_md
       run_command_and_stop('almirah please myproject')
     end
 
-    # <REQ> Past the chart, the today rule hugs the last column's trailing edge so "beyond the plan" still reads. >[SRS-160] </REQ>
-    it 'clamps the today rule to the right edge of the last column' do
-      node = gantt_today_nodes.first
+    # <REQ> The today rule is omitted from a block the current date falls after. >[SRS-160] </REQ>
+    it 'omits the today rule when today is past the block' do
+      expect(gantt_today_nodes.length).to eq(0)
+    end
+  end
+
+  context 'when today falls within a group block (Gantt today marker)' do
+    before do
+      # Anchor two days before today with a long bar, so the only block's calendar
+      # spans the real run date no matter when the suite runs.
+      start = (Date.today - 2).strftime('%d-%m-%Y')
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: #{start}\n")
+      write_file('myproject/decisions/plan/adr-71-now.md', <<~MD)
+        ---
+        title: "ADR-71: Now"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 10 | 10 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A single full-height today rule is drawn in the block whose calendar contains today. >[SRS-160] </REQ>
+    it 'draws exactly one today rule inside the block spanning today' do
       expect(gantt_today_nodes.length).to eq(1)
-      expect(node['class'].split).to include('gantt_today_end')
+      expect(gantt_today_nodes.first['style']).to match(%r{grid-row:\s*1\s*/\s*span\s*\d+})
     end
   end
 
