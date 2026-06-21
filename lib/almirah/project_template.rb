@@ -324,11 +324,11 @@ class ProjectTemplate
 
       # Scope
 
-      | Item | Status | Start Date | Target Date | Description |
-      |---|---|---|---|---|
-      | Requirements | To Do | | | |
-      | Code | To Do | | | |
-      | Tests | To Do | | | |
+      | # | Item | Owner | Depends On | Est (focused) | Est (safe) | Status | Start Date | Target Date | Description |
+      |---|---|---|---|---|---|---|---|---|---|
+      | 1 | Requirements | BA | | 2 | 3 | To Do | | | |
+      | 2 | Code | DEV | | 3 | 5 | To Do | | | |
+      | 3 | Tests | TEST | | 2 | 4 | To Do | | | |
 
       # Out of Scope
 
