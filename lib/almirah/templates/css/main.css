@@ -161,6 +161,7 @@ table.controlled td.item_text{
 }
 .workitem_gantt .gantt_corner,
 .workitem_gantt .gantt_owner,
+.workitem_gantt .gantt_owner_tracking,
 .workitem_gantt .gantt_band_corner,
 .workitem_gantt .gantt_buffer {
     position: sticky;
@@ -205,7 +206,8 @@ table.controlled td.item_text{
 .workitem_gantt .gantt_day_head.gantt_friday { background: rgb(225, 241, 250); }
 .workitem_gantt .gantt_nonworking_col { background: rgba(27, 31, 36, 0.045); }
 .workitem_gantt .gantt_friday_col { background: rgb(225, 241, 250); }
-.workitem_gantt .gantt_bar {
+.workitem_gantt .gantt_bar,
+.workitem_gantt .gantt_track_bar {
     font-size: 11px;
     line-height: 1.5;
     margin: 1px;
@@ -270,6 +272,28 @@ table.controlled td.item_text{
     cursor: default;
 }
 .workitem_gantt .gantt_today { border-left: 2px solid #d33; z-index: 5; pointer-events: none; }
+/* Plan-vs-actual tracking lanes (ADR-213): hidden until the toolbar toggle adds
+   show-actuals; a hidden lane's grid tracks collapse to zero height. */
+.workitem_gantt .gantt_tracking_lane { display: none; }
+.workitem_gantt.show-actuals .gantt_tracking_lane { display: block; }
+.workitem_gantt .gantt_owner_tracking { font-weight: 400; font-style: italic; color: #57606a; }
+.workitem_gantt .gantt_track_committed { background: #b0b6bd; }
+.workitem_gantt .gantt_track_logged { background: #36a2eb; }
+.gantt_container .gantt_toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 4px 0;
+}
+.gantt_container .gantt_actuals_toggle {
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: #f6f8fa;
+    cursor: pointer;
+}
+.gantt_container .gantt_actuals_toggle:hover { background: #eef1f4; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,

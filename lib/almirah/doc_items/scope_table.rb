@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'date'
 require_relative 'controlled_table'
 require_relative 'work_item'
 
@@ -65,7 +66,8 @@ class ScopeTable < ControlledTable
     end
     { step: index_of.call('#'), item: index_of.call('Item'), owner: index_of.call('Owner'),
       depends_on: index_of.call('Depends On'), status: index_of.call('Status'),
-      est_focused: index_of.call('Est (focused)'), est_safe: index_of.call('Est (safe)') }
+      est_focused: index_of.call('Est (focused)'), est_safe: index_of.call('Est (safe)'),
+      start_date: index_of.call('Start Date'), target_date: index_of.call('Target Date') }
   end
 
   def append_cells(cells)
@@ -81,8 +83,21 @@ class ScopeTable < ControlledTable
       owner: cell(cells, @col[:owner]),
       status: cell(cells, @col[:status]),
       depends_on_refs: parse_depends_on(cell(cells, @col[:depends_on])),
+      start_date: parse_date(cell(cells, @col[:start_date])),
+      target_date: parse_date(cell(cells, @col[:target_date])),
       **estimate_attrs(cells)
     )
+  end
+
+  # A Scope Start/Target Date cell as a Date (ADR-213), or nil when blank or not
+  # in the DD-MM-YYYY form the rest of the planning views read (ADR-205).
+  def parse_date(text)
+    match = /\A(\d{2})-(\d{2})-(\d{4})\z/.match(text.to_s.strip)
+    return nil unless match
+
+    Date.new(match[3].to_i, match[2].to_i, match[1].to_i)
+  rescue ArgumentError
+    nil
   end
 
   # The ADR-195 estimate-derived attributes: focused and safe working-day

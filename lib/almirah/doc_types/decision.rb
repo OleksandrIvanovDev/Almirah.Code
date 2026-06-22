@@ -183,6 +183,18 @@ class Decision < PersistentDocument
     end
   end
 
+  # The [earliest, latest] dated # Effort entry crediting the Scope row whose Item
+  # matches `item` (case-insensitive) — the real logged span the Gantt's tracking
+  # lane draws (ADR-213). nil when the row has no dated effort. Undated entries are
+  # excluded since they cannot be placed on the timeline.
+  def effort_date_range(item)
+    key = item.to_s.strip.downcase
+    return nil if key.empty?
+
+    dates = effort_entries.filter_map { |e| e[:date] if e[:item] == key }
+    dates.empty? ? nil : dates.minmax
+  end
+
   private
 
   def lookup_cell(section_name:, key_column:, value_column:, key:)

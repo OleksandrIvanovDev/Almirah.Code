@@ -2864,6 +2864,125 @@ RSpec.describe 'Decision Records', type: :aruba do
     end
   end
 
+  # --- Plan-vs-actual tracking lanes (ADR-213) --------------------------------
+  #
+  # Each owner gains a hidden "(tracking)" lane carrying a grey committed-window
+  # layer (Scope Start/Target dates) and a blue logged layer (Effort date span).
+  # The block is anchored at a fixed past start date so authored dates map to
+  # deterministic business-day columns independent of when the suite runs.
+
+  # Geometry of the tracking-layer bars of a given class, by their text label.
+  def track_bar(klass, label, doc = overview_doc)
+    node = doc.css("div.workitem_gantt .#{klass}").find { |b| b.text.strip == label }
+    return nil unless node
+
+    col = node['style'].match(%r{grid-column:\s*(\d+)\s*/\s*span\s*(\d+)})
+    row = node['style'].match(/grid-row:\s*(\d+)/)
+    { start: col[1].to_i, span: col[2].to_i, row: row[1].to_i, classes: node['class'].split }
+  end
+
+  def tracking_lane_labels(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_owner_tracking').map { |o| o.text.strip }
+  end
+
+  context 'when the overview Gantt shows committed and logged tracking lanes' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 04-05-2026\n")
+      write_file('myproject/decisions/adr-213-track.md', <<~MD)
+        ---
+        title: "ADR-213: Tracking"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Start Date | Target Date |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | Done | 04-05-2026 | 06-05-2026 |
+        | 2 | Code | DEV | In-Progress | 07-05-2026 | 11-05-2026 |
+
+        # Effort
+
+        | Date | Item | Hours |
+        |---|---|---|
+        | 04-05-2026 | Analysis | 8 |
+        | 05-05-2026 | Analysis | 8 |
+        | 08-05-2026 | Code | 8 |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt provides a per-owner tracking lane beside the planned lane. >[SRS-165] </REQ>
+    it 'adds a "(tracking)" lane per owner without disturbing the planned lanes' do
+      expect(gantt_lanes).to eq(%w[BA DEV])
+      expect(tracking_lane_labels).to eq(['BA (tracking)', 'DEV (tracking)'])
+    end
+
+    # <REQ> The tracking lanes are hidden until the toolbar toggle reveals them. >[SRS-165] </REQ>
+    it 'hides the tracking lanes by default behind a toolbar toggle button' do
+      doc = overview_doc
+      expect(gantt_container(doc)['class'].split).not_to include('show-actuals')
+      button = doc.at_css('div.gantt_container .gantt_actuals_toggle')
+      expect(button).not_to be_nil
+      expect(button.text.strip).to eq('Show Actuals')
+      expect(doc.css('div.workitem_gantt .gantt_tracking_lane')).not_to be_empty
+    end
+
+    # <REQ> The committed layer draws the Scope Start-to-Target window. >[SRS-165] </REQ>
+    it 'draws the grey committed window from Start Date to Target Date' do
+      # Anchor 04-05-2026: business columns 0=04, 1=05, 2=06, 3=07, 4=08, 5=11.
+      committed = track_bar('gantt_track_committed', 'ADR-213 Analysis')
+      expect(committed[:classes]).to include('gantt_track_committed', 'gantt_tracking_lane')
+      expect([committed[:start], committed[:span]]).to eq([2, 3]) # cols 0..2
+      code = track_bar('gantt_track_committed', 'ADR-213 Code')
+      expect([code[:start], code[:span]]).to eq([5, 3]) # cols 3..5
+    end
+
+    # <REQ> The logged layer draws the earliest-to-latest Effort date span. >[SRS-165] </REQ>
+    it 'draws the blue logged span from the first to the last Effort date' do
+      logged = track_bar('gantt_track_logged', 'ADR-213 Analysis')
+      expect(logged[:classes]).to include('gantt_track_logged', 'gantt_tracking_lane')
+      expect([logged[:start], logged[:span]]).to eq([2, 2]) # cols 0..1
+      code = track_bar('gantt_track_logged', 'ADR-213 Code')
+      expect([code[:start], code[:span]]).to eq([6, 1]) # col 4 only
+    end
+
+    # <REQ> The tracking lane sits directly below its owner's planned lane. >[SRS-165] </REQ>
+    it 'places each tracking layer on the lane row below the planned owner lane' do
+      ba_planned = gantt_bar('ADR-213 Analysis')[:row]
+      expect(track_bar('gantt_track_committed', 'ADR-213 Analysis')[:row]).to eq(ba_planned + 1)
+      expect(track_bar('gantt_track_logged', 'ADR-213 Analysis')[:row]).to eq(ba_planned + 1)
+    end
+  end
+
+  context 'when a tracked row has a Start Date but no Target Date' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 04-05-2026\n")
+      write_file('myproject/decisions/adr-214-open.md', <<~MD)
+        ---
+        title: "ADR-214: Open Commitment"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Start Date | Target Date |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | 04-05-2026 |  |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A committed window with no target runs to today, extending the axis. >[SRS-165] </REQ>
+    it 'runs the committed window past a single column, widening the axis to reach it' do
+      committed = track_bar('gantt_track_committed', 'ADR-214 Analysis')
+      expect(committed).not_to be_nil
+      # Open commitment: from the 04-05-2026 start to today (weeks later), so the
+      # bar spans many columns and the axis must have been widened to hold them.
+      expect(committed[:span]).to be > 1
+      day_columns = overview_doc.css('div.workitem_gantt .gantt_day_head').length
+      expect(day_columns).to be >= (committed[:start] - 2 + committed[:span])
+    end
+  end
+
   context 'when a decision group has no estimates' do
     before do
       write_file('myproject/project.yml', "specifications:\n  input: []\n")

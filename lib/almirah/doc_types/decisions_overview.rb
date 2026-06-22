@@ -115,7 +115,20 @@ class DecisionsOverview < BaseDocument
 
     total_days = blocks.map { |b| b[:offset] + b[:cal_width] }.max
     grid = gantt_grid(owners, blocks, total_days)
-    gantt_any_blocked?(blocks) ? grid + gantt_pulse_script : grid
+    grid += gantt_pulse_script if gantt_any_blocked?(blocks)
+    %(<div class="gantt_container">\n) + gantt_toolbar + grid + %(</div>\n)
+  end
+
+  # The control strip above the chart (ADR-213): a right-aligned button that
+  # toggles the tracking lanes by flipping the `show-actuals` class on the chart
+  # and swapping its own label. Sits outside the scrolling grid so it stays in
+  # view; future Gantt controls share this strip.
+  def gantt_toolbar
+    toggle = "var g=this.closest('.gantt_container').querySelector('.workitem_gantt');" \
+             "this.textContent=g.classList.toggle('show-actuals')?'Hide Actuals':'Show Actuals';"
+    %(\t<div class="gantt_toolbar">\n) +
+      %(\t\t<button type="button" class="gantt_actuals_toggle" onclick="#{toggle}">Show Actuals</button>\n) +
+      %(\t</div>\n)
   end
 
   # True when any scheduled work item is a started-but-blocked cross-record
@@ -152,15 +165,27 @@ class DecisionsOverview < BaseDocument
   # One block descriptor: its group name, work items, schedule, per-work-item
   # start days, the set of work items on the schedule's critical chain (ADR-212),
   # the working span and computed project buffer (ADR-195), the shared working
-  # calendar (ADR-205), the block's business-day column width (ADR-206), and the
+  # calendar (ADR-205), the business-day column dates and their count (ADR-206,
+  # extended past the schedule to cover authored actuals, ADR-213), and the
   # left-to-right column offset of the block's first day.
   def gantt_block(name, items, scheduler, offset, ratio, calendar) # rubocop:disable Metrics/ParameterLists
     work_days = scheduler.day_count
     buffer = CriticalChain.new(items, buffer_ratio: ratio).buffer
     width = work_days + buffer
+    columns = calendar.business_axis(block_column_count(items, calendar, width))
     { name:, items:, scheduler:, starts: scheduler.start_days, chain: scheduler.critical_chain.to_set,
-      work_days:, buffer:, width:, calendar:,
-      cal_width: calendar.business_columns(width).length, offset: }
+      work_days:, buffer:, width:, calendar:, columns:, cal_width: columns.length, offset: }
+  end
+
+  # The number of business-day columns the block needs: enough for the computed
+  # schedule plus buffer, widened so the latest authored actual date (a committed
+  # window end or a logged-effort date, ADR-213) still falls on a real column
+  # rather than being clipped at the buffer edge.
+  def block_column_count(items, calendar, width)
+    planned = calendar.business_columns(width).length
+    latest = actual_dates(items).max
+    actual = latest ? calendar.business_column_for(latest) + 1 : 0
+    [planned, actual].max
   end
 
   # Slow background pulse for blocked bars (cosmetic; no decision record). A
@@ -199,16 +224,24 @@ class DecisionsOverview < BaseDocument
     JS
   end
 
+  # Each owner occupies two adjacent lanes (ADR-213): the planned lane and, right
+  # below it, the hidden tracking lane. The three header rows (months, days, group
+  # band) precede them, and the Buffer lane closes the grid, so the total row count
+  # is owners.length * 2 + 4. The full-height background and today rules span every
+  # row; a hidden tracking lane collapses to a zero-height track they cross harmlessly.
   def gantt_grid(owners, blocks, total_days)
     cols = "var(--gantt-owner-width) repeat(#{total_days}, var(--gantt-day-width))"
     rows = [%(<div class="workitem_gantt">\n), %(\t<div class="gantt_grid" style="grid-template-columns: #{cols};">\n)]
-    total_rows = owners.length + 4
+    total_rows = owners.length * 2 + 4
     rows.concat(gantt_background_columns(blocks, total_rows))
     rows.concat(gantt_month_header(blocks))
     rows.concat(gantt_day_header(blocks))
     rows.concat(gantt_group_band(blocks))
-    owners.each_with_index { |owner, i| rows.concat(gantt_lane(owner, i + 4, blocks)) }
-    rows.concat(gantt_buffer_lane(blocks, owners.length + 4))
+    owners.each_with_index do |owner, i|
+      rows.concat(gantt_lane(owner, 4 + i * 2, blocks))
+      rows.concat(gantt_tracking_lane(owner, 5 + i * 2, blocks))
+    end
+    rows.concat(gantt_buffer_lane(blocks, owners.length * 2 + 4))
     rows.concat(gantt_today_lines(blocks, total_rows))
     rows << "\t</div>\n" << "</div>\n"
     rows.join
@@ -235,7 +268,7 @@ class DecisionsOverview < BaseDocument
   # block's calendar range does not contain today (today before its first or after
   # its last column, or the block has no columns).
   def gantt_today_column(block, today)
-    dates = block[:calendar].business_columns(block[:width])
+    dates = block[:columns]
     return nil if dates.empty? || today < dates.first || today > dates.last
 
     block[:offset] + dates.index { |d| d >= today } + 2
@@ -248,7 +281,7 @@ class DecisionsOverview < BaseDocument
   def gantt_background_columns(blocks, total_rows)
     cells = []
     blocks.each do |b|
-      b[:calendar].business_columns(b[:width]).each_with_index do |date, i|
+      b[:columns].each_with_index do |date, i|
         klass = background_column_class(b[:calendar], date)
         next unless klass
 
@@ -274,7 +307,7 @@ class DecisionsOverview < BaseDocument
   def gantt_month_header(blocks)
     cells = [%(\t\t<div class="gantt_corner" style="grid-row: 1 / span 2; grid-column: 1;">Owner</div>\n)]
     blocks.each do |b|
-      month_spans(b[:calendar].business_columns(b[:width])).each do |label, start_i, len|
+      month_spans(b[:columns]).each do |label, start_i, len|
         style = %(grid-row: 1; grid-column: #{b[:offset] + start_i + 2} / span #{len};)
         cells << %(\t\t<div class="gantt_month_head" style="#{style}">#{label}</div>\n)
       end
@@ -288,7 +321,7 @@ class DecisionsOverview < BaseDocument
   def gantt_day_header(blocks)
     cells = []
     blocks.each do |b|
-      b[:calendar].business_columns(b[:width]).each_with_index do |date, i|
+      b[:columns].each_with_index do |date, i|
         col = b[:offset] + i + 2
         klass = "gantt_day_head#{day_head_modifier(b[:calendar], date)}"
         cells << %(\t\t<div class="#{klass}" style="grid-row: 2; grid-column: #{col};">#{date.day}</div>\n)
@@ -356,6 +389,86 @@ class DecisionsOverview < BaseDocument
       end
     end
     cells
+  end
+
+  # The owner's hidden tracking lane (ADR-213), directly below its planned lane:
+  # a "(tracking)" label and, per work item, a grey committed-window layer and a
+  # blue logged-effort layer. Every cell carries gantt_tracking_lane so the toolbar
+  # toggle shows or collapses the whole lane as one.
+  def gantt_tracking_lane(owner, row, blocks)
+    label = "#{owner} (tracking)"
+    cells = [%(\t\t<div class="gantt_owner_tracking gantt_tracking_lane" style="grid-row: #{row}; ) +
+      %(grid-column: 1;">#{escape_text(label)}</div>\n)]
+    blocks.each do |b|
+      b[:items].select { |wi| wi.owner == owner }.each do |wi|
+        cells.concat(tracking_bars(wi, row, b))
+      end
+    end
+    cells
+  end
+
+  # The 0-2 tracking layers for one work item: the grey committed window (drawn
+  # behind) and the blue logged span (drawn in front, second so it paints on top).
+  # Each is omitted when its dates are absent (ADR-213).
+  def tracking_bars(work_item, row, block)
+    bars = []
+    cs, ce = committed_window(work_item)
+    bars << tracking_bar(work_item, row, block, cs, ce, 'gantt_track_committed', 'Committed') if cs
+    ls, le = logged_window(work_item)
+    bars << tracking_bar(work_item, row, block, ls, le, 'gantt_track_logged', 'Logged') if ls
+    bars
+  end
+
+  def tracking_bar(work_item, row, block, start_date, end_date, klass, kind) # rubocop:disable Metrics/ParameterLists
+    grid_col, span = date_span(block, start_date, end_date)
+    label = "#{work_item.record_id.upcase} #{work_item.activity}"
+    tip = "#{work_item_tip_label(work_item)}\n#{kind}: " \
+          "#{start_date.strftime('%d-%m-%Y')} to #{end_date.strftime('%d-%m-%Y')}"
+    style = %(grid-row: #{row}; grid-column: #{grid_col} / span #{span};)
+    %(\t\t<div class="gantt_track_bar gantt_tracking_lane #{klass}" style="#{style}" ) +
+      %(title="#{escape_attr(tip)}">#{escape_text(label)}</div>\n)
+  end
+
+  # The committed window (ADR-213) of a work item as [start, finish] real dates, or
+  # [nil, nil] when it has no Scope Start Date. A row with a start but no target is
+  # an open commitment: it runs to today (or to its start if that is still ahead),
+  # so a missing target reads as an overrun rather than a point.
+  def committed_window(work_item)
+    return [nil, nil] unless work_item.start_date
+
+    finish = work_item.target_date || [Date.today, work_item.start_date].max
+    [work_item.start_date, finish]
+  end
+
+  # The logged span (ADR-213) of a work item as [earliest, latest] dated effort
+  # crediting its Scope Item, recovered through its owning record, or [nil, nil]
+  # when none is logged.
+  def logged_window(work_item)
+    doc = decisions_by_id[work_item.record_id]
+    doc&.effort_date_range(work_item.activity) || [nil, nil]
+  end
+
+  # Every real actual date the block must keep on the axis (ADR-213): each item's
+  # committed-window end and its logged span. Used to widen the block's columns.
+  def actual_dates(items)
+    items.flat_map do |wi|
+      [committed_window(wi)[1], *logged_window(wi)]
+    end.compact
+  end
+
+  # Decision records keyed by id, so a work item (which carries only its record_id)
+  # can reach its record's effort log (ADR-213).
+  def decisions_by_id
+    @decisions_by_id ||= @project.project_data.decisions.to_h { |d| [d.id, d] }
+  end
+
+  # The [grid-column start, span] covering the business-day columns from start_date
+  # to end_date inclusive (ADR-213). Both dates snap to a business column via the
+  # calendar; an end before the start collapses to a single column.
+  def date_span(block, start_date, end_date)
+    col_start = block[:calendar].business_column_for(start_date)
+    col_end = [block[:calendar].business_column_for(end_date), col_start].max
+    [block[:offset] + col_start + 2, col_end - col_start + 1]
   end
 
   # A single work-item bar spanning, on the business-day axis (ADR-206), from its

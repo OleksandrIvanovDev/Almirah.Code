@@ -60,6 +60,33 @@ class WorkingCalendar
     (@start..date_for(working_day)).count { |date| !weekend?(date) } - 1
   end
 
+  # The first `count` business-day (weekday) dates from the anchor, holidays
+  # included and weekends excluded — the calendar labels for an axis of `count`
+  # columns, even when it runs past the schedule to cover authored actuals
+  # (ADR-213). Empty for a count below 1.
+  def business_axis(count)
+    return [] if count < 1
+
+    dates = []
+    date = @start
+    while dates.length < count
+      dates << date unless weekend?(date)
+      date += 1
+    end
+    dates
+  end
+
+  # The 0-based business-column index of a real calendar date relative to the
+  # anchor (ADR-213): the count of weekdays from the anchor through the date, minus
+  # one. A weekend date snaps to the preceding weekday's column; a date on or
+  # before the anchor clamps to column 0. Used to place authored committed/logged
+  # dates on the same business-day axis as the schedule.
+  def business_column_for(date)
+    return 0 if date <= @start
+
+    (@start..date).count { |d| !weekend?(d) } - 1
+  end
+
   def friday?(date)
     date.wday == FRIDAY
   end

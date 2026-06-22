@@ -19,17 +19,23 @@ class WorkItem
   ACTIVITY_ORDER = %w[Analysis Requirements Code Tests].freeze
 
   attr_reader :record_id, :step, :activity, :owner, :status, :depends_on_refs,
-              :focused_estimate, :safe_estimate, :record_sequence
+              :focused_estimate, :safe_estimate, :record_sequence, :start_date, :target_date
   attr_accessor :predecessors, :successors, :cross_group_predecessor_labels, :resolved_dependencies
 
   def initialize(record_id:, step:, activity:, owner:, status:, depends_on_refs:, # rubocop:disable Metrics/ParameterLists
-                 focused_estimate: 0.0, safe_estimate: 0.0, record_sequence: 0)
+                 focused_estimate: 0.0, safe_estimate: 0.0, record_sequence: 0,
+                 start_date: nil, target_date: nil)
     @record_id = record_id
     @step = step
     @activity = activity.to_s.strip
     @owner = owner.to_s.strip
     @status = status.to_s.strip
     @depends_on_refs = depends_on_refs # array of record ref strings, e.g. ["ADR-193"]
+    # The row's authored committed window (ADR-213): the Scope Start Date and
+    # Target Date as parsed Dates (nil when absent/unparseable). Distinct from the
+    # computed schedule -- these are the author's intent, drawn on the tracking lane.
+    @start_date = start_date
+    @target_date = target_date
     # Per-row scheduling estimates in working days (ADR-195); the focused estimate
     # is the scheduling duration, safe - focused the safety aggregated into the
     # project buffer. record_sequence is the owning record's number, used only as
