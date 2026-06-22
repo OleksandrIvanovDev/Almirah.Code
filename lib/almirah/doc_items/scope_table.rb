@@ -147,8 +147,15 @@ class ScopeTable < ControlledTable
   def cell_html(value, index, work_item)
     return depends_on_html(work_item) if index == @col[:depends_on]
     return step_cell_html(value, work_item) if index == @col[:step]
+    return date_cell_html(value) if [@col[:start_date], @col[:target_date]].include?(index)
 
     "\t\t<td>#{format_string(value.strip)}</td>\n"
+  end
+
+  # The Start/Target Date cells are kept on one line so a DD-MM-YYYY date never
+  # wraps at its hyphens in a narrow column (ADR-213).
+  def date_cell_html(value)
+    "\t\t<td class=\"scope_date\">#{format_string(value.strip)}</td>\n"
   end
 
   # The `#` cell is a named anchor (id + name), mirroring the test-step number
