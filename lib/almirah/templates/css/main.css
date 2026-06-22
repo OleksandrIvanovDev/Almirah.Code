@@ -205,9 +205,16 @@ table.controlled td.item_text{
     border-bottom: 1px solid #bbb;
     z-index: 1;
 }
-.workitem_gantt .gantt_day_head.gantt_nonworking { background: #eef0f2; color: #aab; }
+/* Weekday-holiday highlight in the Chart.js palette red (ADR-205 amendment):
+   the column carries the buffer bar's diagonal stripe texture, in red; the
+   header stays a solid tint so the day number reads. */
+.workitem_gantt .gantt_day_head.gantt_nonworking { background: rgba(255, 99, 132, 0.22); color: #b23a52; }
 .workitem_gantt .gantt_day_head.gantt_friday { background: rgb(225, 241, 250); }
-.workitem_gantt .gantt_nonworking_col { background: rgba(27, 31, 36, 0.045); }
+.workitem_gantt .gantt_nonworking_col {
+    background: repeating-linear-gradient(45deg,
+        rgba(255, 99, 132, 0.20), rgba(255, 99, 132, 0.20) 5px,
+        rgba(255, 99, 132, 0.07) 5px, rgba(255, 99, 132, 0.07) 10px);
+}
 .workitem_gantt .gantt_friday_col { background: rgb(225, 241, 250); }
 .workitem_gantt .gantt_bar,
 .workitem_gantt .gantt_track_bar {
