@@ -6,7 +6,7 @@ class MarkdownTable < DocItem
   attr_accessor :column_names, :rows, :heading_row, :is_separator_detected, :column_aligns,
                 :is_decision_status_table
 
-  def initialize(doc, heading_row) # rubocop:disable Metrics/MethodLength
+  def initialize(doc, heading_row)
     super(doc)
     @heading_row = heading_row
 
@@ -54,6 +54,13 @@ class MarkdownTable < DocItem
     true
   end
 
+  # Header-addressed cell grid (each row an array of stripped cell strings).
+  # Named alongside ScopeTable#cells so Decision's Scope/Status/version readers
+  # can treat either table type uniformly (ADR-194).
+  def cells
+    @rows
+  end
+
   def to_html
     s = ''
     if @@html_table_render_in_progress
@@ -80,7 +87,7 @@ class MarkdownTable < DocItem
       row.each_with_index do |col, index|
         cell = col
         cell = '▶' if @is_decision_status_table && index.zero? && col.strip == '*'
-        if cell.to_i.positive? && cell.to_i.to_s == cell  # autoalign cells with numbers
+        if cell.to_i.positive? && cell.to_i.to_s == cell # autoalign cells with numbers
           s += "\t\t<td style=\"text-align: center;\">#{cell}</td>\n"
         else
           align = ''

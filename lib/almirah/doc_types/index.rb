@@ -2,7 +2,7 @@
 
 require_relative 'base_document'
 
-class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documentation
+class Index < BaseDocument
   attr_accessor :project
 
   def initialize(project)
@@ -16,11 +16,10 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
     puts "\e[36mIndex: #{@id}\e[0m"
   end
 
-  def to_html(output_file_path) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def to_html(output_file_path)
     html_rows = []
 
     html_rows.append('')
-    s = "<h1>#{@title}</h1>\n"
 
     # Specifications
     s = "<h2>Specifications</h2>\n"
@@ -41,7 +40,7 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
 
     sorted_items = @project.project_data.specifications.sort_by(&:id)
 
-    sorted_items.each do |doc| # rubocop:disable Metrics/BlockLength
+    sorted_items.each do |doc|
       s = "\t<tr>\n"
       s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\"><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.color};'> </i>&nbsp#{doc.title}</a></td>\n"
       s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{doc.controlled_items.length}</td>\n"
@@ -121,11 +120,11 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
       s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
       s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n"
       s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>&nbsp#{doc.top_doc.title}</td>\n"
-      if doc.bottom_doc
-        s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.bottom_doc.color};'> </i>&nbsp#{doc.bottom_doc.title}</td>\n"
-      else
-        s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-circle-o\"'> </i>&nbspAll References</td>\n"
-      end
+      s += if doc.bottom_doc
+             "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-file-text-o\" style='background-color: ##{doc.bottom_doc.color};'> </i>&nbsp#{doc.bottom_doc.title}</td>\n"
+           else
+             "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'><i class=\"fa fa-circle-o\"'> </i>&nbspAll References</td>\n"
+           end
       s += "</tr>\n"
       html_rows.append s
     end
@@ -158,7 +157,7 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
                           end
 
         s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
-        s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n" # rubocop:disable Style/FormatString
+        s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n"
         s += "\t\t<td class=\"item_id\" style='width: 7%; #{test_step_color}' title='pass/fail'> #{doc.passed_steps_number}/#{doc.failed_steps_number} </td>\n"
         s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>\
                     <i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>\
@@ -187,13 +186,13 @@ class Index < BaseDocument # rubocop:disable Metrics/ClassLength,Style/Documenta
 
         implemented_items = 0
         doc.top_doc.controlled_items.each do |i|
-          implemented_items += 1 if i.source_code_links && i.source_code_links.length.positive? # rubocop:disable Style/SafeNavigation
+          implemented_items += 1 if i.source_code_links && i.source_code_links.length.positive?
         end
 
         coverage = implemented_items.to_f / doc.top_doc.controlled_items.length * 100.0
 
         s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"./specifications/#{doc.id}/#{doc.id}.html\" class=\"external\">#{doc.title}</a></td>\n"
-        s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n" # rubocop:disable Style/FormatString
+        s += "\t\t<td class=\"item_id\" style='width: 7%;'>#{'%.2f' % coverage}%</td>\n"
         s += "\t\t<td class=\"item_text\" style='width: 25%; padding: 5px;'>\
                     <i class=\"fa fa-file-text-o\" style='background-color: ##{doc.top_doc.color};'> </i>\
                     #{doc.top_doc.title}</td>\n"

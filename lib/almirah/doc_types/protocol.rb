@@ -1,28 +1,24 @@
-require_relative "persistent_document"
+require_relative 'persistent_document'
 
 class Protocol < PersistentDocument
+  attr_accessor :specifications_path
 
-    attr_accessor :specifications_path
+  def initialize(fele_path)
+    super
+    @id = File.basename(fele_path, File.extname(fele_path)).downcase
+    @specifications_path = './../../../specifications/'
+  end
 
-    def initialize(fele_path)
-        super
-        @id = File.basename(fele_path, File.extname(fele_path)).downcase
-        @specifications_path = './../../../specifications/'
+  def to_html(nav_pane, output_file_path)
+    html_rows = []
+
+    html_rows.append('')
+
+    @items.each do |item|
+      a = item.to_html
+      html_rows.append a
     end
 
-    def to_html(nav_pane, output_file_path)
-
-        html_rows = Array.new
-
-        html_rows.append('')
-
-        @items.each do |item|    
-            a = item.to_html
-            html_rows.append a
-        end
-
-        self.save_html_to_file(html_rows, nav_pane, output_file_path)
-        
-    end
-
+    save_html_to_file(html_rows, nav_pane, output_file_path)
+  end
 end

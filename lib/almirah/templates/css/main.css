@@ -77,6 +77,9 @@ table.markdown_table td{
 table.markdown_table tr.current_status td {
     background-color: #ffffee;
 }
+table.markdown_table td.scope_date {
+    white-space: nowrap;
+}
 table.controlled{
     border: 1px solid #e4e4e4;
     border-collapse: collapse;
@@ -144,6 +147,163 @@ table.controlled td.item_text{
     max-width: 100%;
     max-height: 300px;
 }
+.workitem_gantt {
+    --gantt-owner-width: 120px;
+    --gantt-day-width: 26px;
+    --gantt-month-h: 18px;
+    overflow: auto;
+    max-height: 420px;
+    margin-bottom: 16px;
+    border: 1px solid #e1e4e8;
+}
+.workitem_gantt .gantt_grid {
+    display: grid;
+    gap: 0;
+    width: max-content;
+    padding: 4px;
+}
+.workitem_gantt .gantt_corner,
+.workitem_gantt .gantt_owner,
+.workitem_gantt .gantt_owner_tracking,
+.workitem_gantt .gantt_band_corner,
+.workitem_gantt .gantt_buffer {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    padding: 2px 8px;
+    font-weight: 600;
+    white-space: nowrap;
+    border-right: 1px solid #e1e4e8;
+    z-index: 2;
+}
+.workitem_gantt .gantt_corner {
+    top: 0;
+    border-bottom: 1px solid #bbb;
+    z-index: 3;
+}
+.workitem_gantt .gantt_month_head {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #57606a;
+    border-bottom: 1px solid #e1e4e8;
+    border-left: 1px solid #d0d7de;
+    white-space: nowrap;
+    overflow: hidden;
+    z-index: 1;
+}
+.workitem_gantt .gantt_day_head {
+    position: sticky;
+    top: var(--gantt-month-h);
+    background: #fff;
+    text-align: center;
+    font-size: 11px;
+    color: #57606a;
+    border-bottom: 1px solid #bbb;
+    z-index: 1;
+}
+/* Weekday-holiday highlight in the Chart.js palette red (ADR-205 amendment):
+   the column carries the buffer bar's diagonal stripe texture, in red; the
+   header stays a solid tint so the day number reads. */
+.workitem_gantt .gantt_day_head.gantt_nonworking { background: rgba(255, 99, 132, 0.22); color: #b23a52; }
+.workitem_gantt .gantt_day_head.gantt_friday { background: rgb(225, 241, 250); }
+.workitem_gantt .gantt_nonworking_col {
+    background: repeating-linear-gradient(45deg,
+        rgba(255, 99, 132, 0.20), rgba(255, 99, 132, 0.20) 5px,
+        rgba(255, 99, 132, 0.07) 5px, rgba(255, 99, 132, 0.07) 10px);
+}
+.workitem_gantt .gantt_friday_col { background: rgb(225, 241, 250); }
+.workitem_gantt .gantt_bar,
+.workitem_gantt .gantt_track_bar {
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 1px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #fff;
+    cursor: default;
+}
+.workitem_gantt .gantt_todo { background: #9aa5b1; }
+.workitem_gantt .gantt_inprogress { background: #ffffdd; color: #333; box-shadow: inset 0 0 0 1px #bbb; }
+.workitem_gantt .gantt_done { background: #cfc; color: #57606a; box-shadow: inset 0 0 0 1px #e1e4e8; }
+.workitem_gantt .gantt_blocked { box-shadow: inset 0 0 0 1px #bbb; }
+.workitem_gantt .gantt_critical { outline: 1px solid #9a6700; outline-offset: -1px; } /* buffer-bar amber (dark) */
+.workitem_gantt .gantt_release_band {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #57606a;
+    background: #eef1f4;
+    border-bottom: 1px solid #e1e4e8;
+    border-left: 1px solid #d0d7de;
+    padding: 2px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.workitem_gantt .gantt_buffer { color: #9a6700; }
+.critical_chain { margin-bottom: 16px; }
+.critical_chain h2 { font-size: 1.1em; margin-bottom: 6px; }
+.critical_chain .cc_group { margin: 8px 0; }
+.critical_chain .cc_group h3 { font-size: 0.95em; margin: 4px 0; }
+.critical_chain table.cc_chain { border-collapse: collapse; margin: 4px 0; }
+.critical_chain table.cc_chain th,
+.critical_chain table.cc_chain td { border: 1px solid #e1e4e8; padding: 2px 8px; text-align: left; font-size: 12px; }
+.critical_chain .cc_buffer,
+.critical_chain .cc_consumed,
+.critical_chain .cc_projected,
+.critical_chain .cc_finish { margin: 2px 0; font-size: 12px; }
+.critical_chain .cc_consumed { color: #57606a; }
+.critical_chain .cc_finish { font-weight: 600; }
+.critical_chain .cc_unestimated { color: #9a6700; font-style: italic; font-size: 12px; }
+.critical_chain .cc_group_body { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.critical_chain .cc_plan { flex: 1 1 320px; }
+.critical_chain .cc_fever { flex: 1 1 360px; max-width: 480px; height: 320px; position: relative; }
+.critical_chain .cc_fever .fever_canvas { width: 100%; height: 100%; }
+.workitem_gantt .gantt_buffer_bar {
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 1px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #9a6700;
+    background: repeating-linear-gradient(45deg, #ffe9b3, #ffe9b3 5px, #fff3d4 5px, #fff3d4 10px);
+    box-shadow: inset 0 0 0 1px #e0c068;
+    cursor: default;
+}
+.workitem_gantt .gantt_today { border-left: 2px solid #d33; z-index: 5; pointer-events: none; }
+/* Plan-vs-actual tracking lanes (ADR-213): hidden until the toolbar toggle adds
+   show-actuals; a hidden lane's grid tracks collapse to zero height. */
+.workitem_gantt .gantt_tracking_lane { display: none; }
+.workitem_gantt.show-actuals .gantt_tracking_lane { display: block; }
+.workitem_gantt .gantt_owner_tracking { font-weight: 400; font-style: italic; color: #57606a; }
+.workitem_gantt .gantt_track_committed { background: #b0b6bd; }
+.workitem_gantt .gantt_track_logged { background: #36a2eb; }
+.gantt_container .gantt_toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 4px 0;
+}
+.gantt_container .gantt_actuals_toggle {
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: #f6f8fa;
+    cursor: pointer;
+}
+.gantt_container .gantt_actuals_toggle:hover { background: #eef1f4; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd) { background-color:#f6f7f8; }
 table.controlled:not(.odd-even) tbody tr:nth-child(even) { background-color: #fff; }
 table.controlled:not(.odd-even) tbody tr:nth-child(odd):hover,

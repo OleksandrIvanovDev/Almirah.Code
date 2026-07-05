@@ -2,7 +2,7 @@ require_relative 'doc_items/doc_item'
 require_relative 'doc_items/heading'
 require_relative 'doc_items/source_code_paragraph'
 
-class SourceFileParser # rubocop:disable Style/Documentation
+class SourceFileParser
   def self.parse(doc, file_lines)
     # restart section numbering for each new document
     Heading.reset_global_section_number
@@ -19,7 +19,7 @@ class SourceFileParser # rubocop:disable Style/Documentation
     doc.headings.append(item)
 
     # main loop
-    file_lines.each do |s| # rubocop:disable Metrics/BlockLength
+    file_lines.each do |s|
       res = %r{<REQ>(.*)</REQ>}.match(s) # Document Referece Item
       next unless res
 
@@ -36,7 +36,6 @@ class SourceFileParser # rubocop:disable Style/Documentation
         up_links = []
         tmp.each do |ul|
           lnk = ul[0]
-          #
           doc_id = /([a-zA-Z]+)-\d+/.match(lnk) # SRS
           up_links << lnk.upcase if doc_id
           # try to find the real end of text

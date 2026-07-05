@@ -92,7 +92,7 @@ class Heading < Paragraph
     heading_level = level.to_s
     heading_text = get_section_info_html
     if level.zero?
-      heading_level = 1.to_s        # Render Doc Title as a regular h1
+      heading_level = 1.to_s # Render Doc Title as a regular h1
       heading_text = escape_text(@text) # Doc Title does not have a section number
     end
     s += "<a name=\"#{@anchor_id}\"></a>\n"

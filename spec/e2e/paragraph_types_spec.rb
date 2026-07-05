@@ -22,7 +22,7 @@ RSpec.describe 'Paragraph Types', type: :aruba do
       [ARCH-001] Controlled item with external reference from a Controlled Item to external Controlled Item >[REQ-001]
 
       Non-controlled item in ARCH specification.
-      
+
     MD
     run_command_and_stop('almirah please myproject')
   end

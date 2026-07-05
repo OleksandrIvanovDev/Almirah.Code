@@ -8,13 +8,14 @@ require_relative 'doc_items/todo_block'
 require_relative 'doc_items/controlled_paragraph'
 require_relative 'doc_items/markdown_table'
 require_relative 'doc_items/controlled_table'
+require_relative 'doc_items/scope_table'
 require_relative 'doc_items/image'
 require_relative 'doc_items/markdown_list'
 require_relative 'doc_items/doc_footer'
 require_relative 'doc_items/frontmatter'
 
-class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
-  def self.try_to_extract_frontmatter(doc, text_lines) # rubocop:disable Metrics/MethodLength
+class DocParser
+  def self.try_to_extract_frontmatter(doc, text_lines)
     lines_to_remove = 0
     frontmatter_lines = ''
     if /^(-{3,})/.match(text_lines[0])
@@ -174,7 +175,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           doc.items.append(item)
 
-        elsif res = /^([*\-]\s+)(.*)/.match(s) # check if unordered list start
+        elsif res = /^([*-]\s+)(.*)/.match(s) # check if unordered list start
 
           if doc.title == ''
             # dummy section if root is not a Document Title (level 0)
@@ -187,7 +188,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           temp_md_table = process_temp_table(doc, temp_md_table)
 
-          row = res[2]
+          res[2]
 
           if temp_md_list
             temp_md_list.add_row(s)
@@ -201,7 +202,7 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
           temp_md_table = process_temp_table(doc, temp_md_table)
 
-          row = res[1]
+          res[1]
 
           if temp_md_list
             temp_md_list.add_row(s)
@@ -248,9 +249,14 @@ class DocParser # rubocop:disable Metrics/ClassLength,Style/Documentation
 
             if temp_md_table
               if temp_md_table.is_separator_detected # if there is a separator
-                # check if parent doc is a Protocol, or a Decision Record inside an "Affected Documents" section
-                if doc.instance_of?(Protocol) ||
-                   (doc.instance_of?(Decision) && in_section?(doc, 'Affected Documents'))
+                # A Decision Record's Scope table is parsed into a purpose-built
+                # ScopeTable (ADR-194); a Protocol, or a Decision inside an
+                # "Affected Documents" section, into a ControlledTable.
+                if doc.instance_of?(Decision) && in_section?(doc, 'Scope') &&
+                   temp_md_table.instance_of?(MarkdownTable)
+                  temp_md_table = ScopeTable.new(doc, temp_md_table)
+                elsif doc.instance_of?(Protocol) ||
+                      (doc.instance_of?(Decision) && in_section?(doc, 'Affected Documents'))
                   # check if it is a controlled table
                   tmp = /(.*)\s+>\[(\S*)\]/.match(row)
                   if tmp && (temp_md_table.instance_of? MarkdownTable)

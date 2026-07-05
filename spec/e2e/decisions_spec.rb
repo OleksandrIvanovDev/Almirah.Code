@@ -295,6 +295,16 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/specifications/req/req.html')))
       expect(doc.at_css('#decisions_menu_item')).to be_nil
     end
+
+    it 'does not create build/decisions/critical-chain.html' do
+      expect(File.exist?(expand_path('myproject/build/decisions/critical-chain.html'))).to be false
+    end
+
+    # <REQ> The Critical Chain link is shown exactly when the Decision Records link is. >[SRS-146] </REQ>
+    it 'does not add the Critical Chain link to the index page' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
+      expect(doc.at_css('#critical_chain_menu_item')).to be_nil
+    end
   end
 
   context 'when a decision record has a single "*" current-status marker' do
@@ -328,7 +338,8 @@ RSpec.describe 'Decision Records', type: :aruba do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
       table_xpath = '//table[contains(concat(" ", @class, " "), " controlled ")]/thead/th'
       header_cells = doc.xpath(table_xpath).map { |th| th.text.strip }
-      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Release', 'Owner'])
+      expect(header_cells).to eq(['#', 'Type', 'Status', 'Title', 'Start Date', 'Target Date', 'Release', 'Owner',
+                                  'Kit'])
     end
 
     # <REQ> Render the "*" in the Status table marker column as "▶" in the rendered HTML. >[SRS-050] </REQ>
@@ -1253,6 +1264,2047 @@ RSpec.describe 'Decision Records', type: :aruba do
       data = status_data_block(File.read(expand_path('myproject/build/decisions/overview.html')))
       undefined_idx = data['labels'].index { |l| l.start_with?('Undefined (') }
       expect(undefined_idx).to eq(data['labels'].length - 1)
+    end
+  end
+
+  # --- Owner column & Work-In-Progress by Owner chart (ADR-193) ----------------
+  #
+  # The overview gains an Owner column populated from the Scope table, and the
+  # left chart cell becomes a Work-In-Progress by Owner bar chart (with a dashed
+  # reference line at the configured wip_limit) in place of the type pie. The WIP
+  # chart's data block is hand-written JS rather than to_json, so its arrays are
+  # extracted individually instead of being parsed as a whole.
+
+  def wip_block(html)
+    html[/decisions_wip_bar.*?\}\);/m, 0]
+  end
+
+  def wip_labels(html)
+    JSON.parse(wip_block(html)[/labels:\s*(\[[^\]]*\])/, 1])
+  end
+
+  def wip_bars(html)
+    JSON.parse(wip_block(html)[/In-progress items', data:\s*(\[[^\]]*\])/, 1])
+  end
+
+  def wip_colors(html)
+    JSON.parse(wip_block(html)[/backgroundColor:\s*(\[[^\]]*\])/, 1])
+  end
+
+  def wip_limit_line(html)
+    JSON.parse(wip_block(html)[/WIP limit', data:\s*(\[[^\]]*\])/, 1])
+  end
+
+  # The bar height for a given owner, or nil when that owner has no bar.
+  def wip_count(html, owner)
+    idx = wip_labels(html).index(owner)
+    idx && wip_bars(html)[idx]
+  end
+
+  # The Owner cell (last item_meta cell) of the overview row for a decision id.
+  def owner_cell(id)
+    doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+    row = doc.at_xpath(%(//a[@id="#{id}"]/ancestor::tr))
+    row.css('td.item_meta').last.text.strip
+  end
+
+  context 'when decision records have Scope owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-800-owned.md', <<~MD)
+        ---
+        title: "ADR-800: Owned Work"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | analysis work |
+        | 2 | Code | DEV | To Do | code work |
+        | 3 | Tests | TEST | To Do | test work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The WIP-by-Owner chart replaces the type pie in the first chart cell. >[SRS-111] </REQ>
+    it 'emits a Work In Progress by Owner chart and no longer emits the type pie' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(html).to include('id="decisions_wip_bar"')
+      expect(html).to include('Work In Progress by Owner')
+      expect(html).not_to include('decisions_type_pie')
+      expect(html.index('decisions_wip_bar')).to be < html.index('decisions_velocity_bar')
+    end
+
+    # <REQ> The freeze limit renders as a dashed line dataset using core Chart.js. >[SRS-111] </REQ>
+    it 'draws the wip_limit as a dashed line dataset' do
+      block = wip_block(File.read(expand_path('myproject/build/decisions/overview.html')))
+      expect(block).to match(/type:\s*'line'/)
+      expect(block).to match(/borderDash/)
+    end
+
+    # <REQ> The distinct owners are rendered in the overview Owner column. >[SRS-110] </REQ>
+    it 'lists the record distinct owners in the Owner column' do
+      expect(owner_cell('adr-800')).to eq('BA, DEV, TEST')
+    end
+  end
+
+  context 'when a record is in its Analysis phase' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-801-analysis.md', <<~MD)
+        ---
+        title: "ADR-801: In Analysis"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | analysis |
+        | 2 | Requirements | BA | Done | done reqs |
+        | 3 | Code | DEV | To Do | code |
+        | 4 | Tests | TEST | To Do | tests |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Every owner is shown; the in-progress row counts, idle roles render at zero. >[SRS-111] </REQ>
+    it 'shows every owner, counting the analyst over zero and idle roles at zero' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_labels(html)).to eq(%w[BA DEV TEST])
+      expect(wip_count(html, 'BA')).to eq(1)
+      expect(wip_count(html, 'DEV')).to eq(0)
+      expect(wip_count(html, 'TEST')).to eq(0)
+    end
+
+    # <REQ> A Done Scope row contributes no work in progress. >[SRS-111] </REQ>
+    it 'does not count a Done row toward its owner' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      # BA owns both the In-Progress Analysis and the Done Requirements; only the former counts.
+      expect(wip_count(html, 'BA')).to eq(1)
+    end
+  end
+
+  context 'when the Scope table has Owner and Status in a non-default order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-802-reordered.md', <<~MD)
+        ---
+        title: "ADR-802: Reordered"
+        ---
+
+        # Scope
+
+        | Status | Description | Item | Owner |
+        |---|---|---|---|
+        | In-Progress | work | Analysis | BA |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Owner and Status are located by header text, not column position. >[SRS-108] </REQ>
+    it 'reads Owner and Status by header text regardless of position' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(owner_cell('adr-802')).to eq('BA')
+      expect(wip_count(html, 'BA')).to eq(1)
+    end
+  end
+
+  context 'when a Scope table repeats and interleaves owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-803-repeat.md', <<~MD)
+        ---
+        title: "ADR-803: Repeated Owners"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | Done | a |
+        | 2 | Requirements | DEV | Done | b |
+        | 3 | Code | BA | To Do | c |
+        | 4 | Tests | TEST | To Do | d |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Owner cell shows each owner once, in first-seen order. >[SRS-108] >[SRS-110] </REQ>
+    it 'shows the distinct owners once in first-seen order' do
+      expect(owner_cell('adr-803')).to eq('BA, DEV, TEST')
+    end
+  end
+
+  context 'when a decision record has no Owner column' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-804-noowner.md', <<~MD)
+        ---
+        title: "ADR-804: No Owner Column"
+        ---
+
+        # Scope
+
+        | # | Item | Status | Description |
+        |---|---|---|---|
+        | 1 | Analysis | In-Progress | work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> No Owner column yields an empty owner list and an empty overview cell. >[SRS-109] </REQ>
+    it 'leaves the Owner cell empty and adds nothing to the WIP chart' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(owner_cell('adr-804')).to eq('')
+      expect(wip_labels(html)).to be_empty
+    end
+  end
+
+  context 'when a decision record has a blank Owner cell' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-805-blankowner.md', <<~MD)
+        ---
+        title: "ADR-805: Blank Owner"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis |  | In-Progress | work |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A blank Owner cell contributes no owner. >[SRS-109] </REQ>
+    it 'treats a blank Owner cell as no owner' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(owner_cell('adr-805')).to eq('')
+      expect(wip_labels(html)).to be_empty
+    end
+  end
+
+  context 'when a decision record has no Scope table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-806-noscope.md', <<~MD)
+        ---
+        title: "ADR-806: No Scope"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2025 | Accepted |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A record with no Scope table has an empty owner list. >[SRS-109] </REQ>
+    it 'leaves the Owner cell empty' do
+      expect(owner_cell('adr-806')).to eq('')
+    end
+  end
+
+  context 'when project.yml sets a custom planning wip_limit' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+        planning:
+          wip_limit: 3
+      YML
+      write_file('myproject/decisions/adr-807-overloaded.md', <<~MD)
+        ---
+        title: "ADR-807: Overloaded BA"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | a |
+        | 2 | Requirements | BA | In-Progress | b |
+        | 3 | Design | BA | In-Progress | c |
+        | 4 | Review | BA | In-Progress | d |
+        | 5 | Code | DEV | In-Progress | e |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The reference line reflects the configured wip_limit. >[SRS-111] >[SRS-112] </REQ>
+    it 'draws the reference line at the configured limit' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_limit_line(html).uniq).to eq([3])
+    end
+
+    # <REQ> An owner above the limit is drawn in the warning colour. >[SRS-111] </REQ>
+    it 'colours the over-limit owner with the warning colour' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      colors = wip_colors(html)
+      ba_idx = wip_labels(html).index('BA')
+      dev_idx = wip_labels(html).index('DEV')
+      expect(colors[ba_idx]).to include('255, 99, 132')      # BA = 4 > 3 -> warning
+      expect(colors[dev_idx]).not_to include('255, 99, 132') # DEV = 1 <= 3 -> normal
+    end
+  end
+
+  context 'when planning wip_limit is absent' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-808-default.md', <<~MD)
+        ---
+        title: "ADR-808: Default Limit"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | a |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> An absent wip_limit falls back to a default of 2. >[SRS-112] </REQ>
+    it 'defaults the reference line to 2' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_limit_line(html).uniq).to eq([2])
+    end
+  end
+
+  context 'when planning wip_limit is invalid' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+        planning:
+          wip_limit: 0
+      YML
+      write_file('myproject/decisions/adr-809-invalid.md', <<~MD)
+        ---
+        title: "ADR-809: Invalid Limit"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | a |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A non-positive or non-integer wip_limit falls back to the default of 2. >[SRS-112] </REQ>
+    it 'falls back to the default of 2 for a non-positive value' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_limit_line(html).uniq).to eq([2])
+    end
+  end
+
+  context 'when the record lifecycle status differs from its Scope row statuses' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Lifecycle says Implemented, but a Scope row is still In-Progress.
+      write_file('myproject/decisions/adr-810-mismatch.md', <<~MD)
+        ---
+        title: "ADR-810: Status Mismatch"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2025 | Implemented |
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | still going |
+      MD
+      # Lifecycle says In-Progress, but every Scope row is To Do.
+      write_file('myproject/decisions/adr-811-quiet.md', <<~MD)
+        ---
+        title: "ADR-811: Quiet"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-01-2025 | In-Progress |
+
+        # Scope
+
+        | # | Item | Owner | Status | Description |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | To Do | not started |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> WIP reads the per-row Status, independent of the record lifecycle status. >[SRS-107] >[SRS-111] </REQ>
+    it 'counts an in-progress Scope row even when the lifecycle status is Implemented' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_count(html, 'BA')).to eq(1)
+    end
+
+    # <REQ> A To Do Scope row adds no WIP even when the lifecycle status is In-Progress. >[SRS-107] >[SRS-111] </REQ>
+    it 'shows an idle owner at zero even when its lifecycle status is In-Progress' do
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_count(html, 'DEV')).to eq(0)
+    end
+  end
+
+  # ----- ADR-194: phase ordering, dependency readiness, full kit -----
+
+  # The overview Kit cell node for a decision id (nil when the row is absent).
+  def kit_node(id)
+    doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+    row = doc.at_xpath(%(//a[@id="#{id}"]/ancestor::tr))
+    row&.at_css('td.item_kit')
+  end
+
+  def kit_cell(id)
+    kit_node(id)&.text&.strip
+  end
+
+  # The Depends On links (hrefs) of the Scope row whose Item cell equals `item`,
+  # on the given decision page.
+  def scope_row_links(page, item)
+    scope_row_cells(page, item).css('a.external').map { |a| a['href'] }
+  end
+
+  # The unresolved (broken-link span) texts of that same Scope row.
+  def scope_row_unresolved(page, item)
+    scope_row_cells(page, item).css('span.broken_link').map { |s| s.text.strip }
+  end
+
+  def scope_row_cells(page, item)
+    doc = Nokogiri::HTML(File.read(expand_path(page)))
+    row = doc.css('table.markdown_table tr').find do |tr|
+      tr.css('td').any? { |c| c.text.strip == item }
+    end
+    row || Nokogiri::XML.fragment('')
+  end
+
+  context 'when a started Scope row has an unfinished lower-numbered step' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-410-phase.md', <<~MD)
+        ---
+        title: "ADR-410: Phase order"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Requirements | BA | To Do |
+        | 2 | Code | DEV | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A started row with an unfinished lower step is reported; build still completes. >[SRS-114] </REQ>
+    it 'reports the phase-order violation naming the row and the blocking step' do
+      expect(last_command_started.stdout)
+        .to match(/phase order: adr-410\.2\.Code started before adr-410\.1\.Requirements/)
+    end
+
+    # <REQ> Phase-order violations are non-failing advisories; the build completes. >[SRS-114] </REQ>
+    it 'still renders the overview' do
+      expect(File.exist?(expand_path('myproject/build/decisions/overview.html'))).to be true
+    end
+
+    # <REQ> The Kit column is cross-record only; it is empty when the record declares no Depends On. >[SRS-119] </REQ>
+    it 'leaves the Kit cell empty (a phase-order issue is intra-record, not a Depends On)' do
+      expect(kit_cell('adr-410')).to eq('')
+    end
+  end
+
+  context 'when Scope rows share a step number or omit the # column' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # adr-420: two rows share step 1 (concurrent), one started one not -> no violation
+      write_file('myproject/decisions/adr-420-concurrent.md', <<~MD)
+        ---
+        title: "ADR-420: Concurrent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | In-Progress |
+        | 1 | Requirements | BA | To Do |
+      MD
+      # adr-421: no # column -> intrinsic row order; row 2 started before row 1 done -> violation
+      write_file('myproject/decisions/adr-421-roworder.md', <<~MD)
+        ---
+        title: "ADR-421: Row order"
+        ---
+
+        # Scope
+
+        | Item | Owner | Status |
+        |---|---|---|
+        | Requirements | BA | To Do |
+        | Code | DEV | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Rows sharing a step number are concurrent, not blocked by each other. >[SRS-113] </REQ>
+    it 'does not flag equal-numbered rows as a phase-order violation' do
+      expect(last_command_started.stdout).not_to match(/phase order: adr-420/)
+    end
+
+    # <REQ> With no # column the intrinsic row order applies. >[SRS-113] >[SRS-114] </REQ>
+    it 'uses row order when the # column is absent' do
+      expect(last_command_started.stdout)
+        .to match(/phase order: adr-421\.2\.Code started before adr-421\.1\.Requirements/)
+    end
+  end
+
+  context 'when one record Depends On another in the same group' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/release x/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | In-Progress |
+      MD
+      write_file('myproject/decisions/release x/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | To Do |
+        | 2 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A Depends On reference resolves to the target's work item of the same activity type. >[SRS-115] </REQ>
+    it 'aligns each Depends On row to the prerequisite row of the same activity type' do
+      page = 'myproject/build/decisions/release x/adr-2.html'
+      expect(scope_row_links(page, 'Analysis')).to eq(['adr-1.html#adr-1.scope.1'])
+      expect(scope_row_links(page, 'Code')).to eq(['adr-1.html#adr-1.scope.2'])
+    end
+
+    # <REQ> A dependent's Analysis is met by the prerequisite's Analysis, not its Code. >[SRS-115] >[SRS-116] </REQ>
+    it 'derives readiness from the activity-aligned predecessor, not the whole record' do
+      # ADR-1.Analysis is Done but ADR-1.Code is In-Progress: ADR-2 is blocked overall
+      # because ADR-2.Code depends on the not-yet-Done ADR-1.Code.
+      expect(kit_cell('adr-2')).to eq('Blocked')
+    end
+
+    # <REQ> The Owner does not affect Depends On resolution. >[SRS-115] </REQ>
+    it 'is unaffected by the differing owners on the two records' do
+      expect(scope_row_links('myproject/build/decisions/release x/adr-2.html', 'Analysis'))
+        .to eq(['adr-1.html#adr-1.scope.1'])
+    end
+
+    # <REQ> The Gantt bar tooltip names the work item, a blank line, then an After: list of every predecessor, one per line. >[SRS-116] </REQ>
+    it 'lists every predecessor in the Gantt bar tooltip, internal phase order before external Depends On' do
+      node = overview_doc.css('div.workitem_gantt .gantt_bar').find { |b| b.text.strip == 'ADR-2 Code' }
+      expect(node).not_to be_nil
+      # Item, blank line, then After: with the intra-record phase predecessor
+      # (ADR-2.Analysis) first and the cross-record Depends On (ADR-1.Code) after.
+      expect(node['title']).to eq("ADR-2.Code\n\nAfter:\nADR-2.Analysis\nADR-1.Code")
+    end
+  end
+
+  context 'when a prerequisite work item is Done' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+      MD
+      write_file('myproject/decisions/g/adr-2-ready.md', <<~MD)
+        ---
+        title: "ADR-2: Ready"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A row is kitted when its resolved predecessor's Status is Done. >[SRS-116] >[SRS-119] </REQ>
+    it 'renders Ready and reports no kit violation' do
+      expect(kit_cell('adr-2')).to eq('Ready')
+      expect(last_command_started.stdout).not_to match(/kit violations/)
+    end
+  end
+
+  context 'when a started row is blocked by an unsatisfied cross-record predecessor' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | In-Progress |
+      MD
+      write_file('myproject/decisions/g/adr-2-started.md', <<~MD)
+        ---
+        title: "ADR-2: Started"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A started row with a not-Done resolved predecessor is a cross-record violation. >[SRS-117] </REQ>
+    it 'reports the cross-record kit violation naming the row and the predecessor' do
+      expect(last_command_started.stdout).to match(/not kitted: adr-2\.1\.Code needs adr-1\.1\.Code/)
+    end
+
+    # <REQ> The overview emphasises a record blocked while having a started row. >[SRS-117] >[SRS-119] </REQ>
+    it 'renders Blocked and emphasises the cell' do
+      node = kit_node('adr-2')
+      expect(node.text.strip).to eq('Blocked')
+      expect(node['style']).to include('font-weight: bold')
+    end
+  end
+
+  context 'when the dependent activity is absent from the prerequisite' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # ADR-1 has Analysis + Code but no Tests row.
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | Done |
+      MD
+      write_file('myproject/decisions/g/adr-2-tests.md', <<~MD)
+        ---
+        title: "ADR-2: Tests"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Tests | TEST | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Resolution falls back to the nearest earlier activity when no exact match exists. >[SRS-115] </REQ>
+    it 'falls back to the nearest earlier activity (Code) for a Tests row' do
+      expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Tests'))
+        .to eq(['adr-1.html#adr-1.scope.2'])
+    end
+  end
+
+  context 'when a Depends On crosses into another planning group' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/release a/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | In-Progress |
+      MD
+      write_file('myproject/decisions/release b/adr-3-cross.md', <<~MD)
+        ---
+        title: "ADR-3: Cross group"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A cross-group Depends On blocks readiness until the predecessor is Done. >[SRS-116] >[SRS-117] </REQ>
+    it 'blocks the dependent on its cross-group predecessor' do
+      expect(kit_cell('adr-3')).to eq('Blocked')
+    end
+
+    # <REQ> A real record in another group is honoured, never warned as unresolved. >[SRS-118] </REQ>
+    it 'does not warn about the cross-group reference' do
+      expect(last_command_started.stdout).not_to match(/unresolved Depends On/)
+    end
+
+    # <REQ> The cross-group link resolves across the folder boundary to the aligned row. >[SRS-115] </REQ>
+    it 'deep-links across the group folders to the aligned row' do
+      expect(scope_row_links('myproject/build/decisions/release b/adr-3.html', 'Code'))
+        .to eq(['../release%20a/adr-1.html#adr-1.scope.1'])
+    end
+  end
+
+  context 'when a Depends On reference does not resolve' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-5-bad.md', <<~MD)
+        ---
+        title: "ADR-5: Bad ref"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-999] | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> An unresolved Depends On reference is reported without failing the build. >[SRS-118] </REQ>
+    it 'reports the unresolved reference and still renders' do
+      expect(last_command_started.stdout).to match(/unresolved Depends On: adr-5 -> ADR-999/)
+      expect(File.exist?(expand_path('myproject/build/decisions/overview.html'))).to be true
+    end
+
+    # <REQ> An unresolved reference renders as a broken-link span in the Scope table. >[SRS-118] </REQ>
+    it 'renders the unresolved reference as a broken link' do
+      expect(scope_row_unresolved('myproject/build/decisions/adr-5.html', 'Code')).to eq(['ADR-999'])
+    end
+  end
+
+  context 'when records differ in their declared prerequisites and readiness' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # adr-1: no Depends On -> empty Kit
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+      MD
+      # adr-2: depends on adr-1 (Done) -> Ready
+      write_file('myproject/decisions/g/adr-2-ready.md', <<~MD)
+        ---
+        title: "ADR-2: Ready"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | To Do |
+      MD
+      # adr-3: depends on adr-2 (To Do, not Done) -> Blocked
+      write_file('myproject/decisions/g/adr-3-blocked.md', <<~MD)
+        ---
+        title: "ADR-3: Blocked"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-2] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Kit column is empty, Ready, or Blocked per the record's prerequisites. >[SRS-119] </REQ>
+    it 'renders empty / Ready / Blocked across the three records' do
+      expect(kit_cell('adr-1')).to eq('')
+      expect(kit_cell('adr-2')).to eq('Ready')
+      expect(kit_cell('adr-3')).to eq('Blocked')
+    end
+  end
+
+  context 'when the record lifecycle status diverges from its Scope row statuses' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Status
+
+        |  | Date | Status |
+        |:---:|---|---|
+        | * | 01-06-2026 | Implemented |
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | To Do |
+      MD
+      write_file('myproject/decisions/g/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Readiness reads the bounded per-row Status, never the record lifecycle status. >[SRS-116] </REQ>
+    it 'treats an Implemented record with a To Do Scope row as not Done' do
+      expect(kit_cell('adr-2')).to eq('Blocked')
+    end
+  end
+
+  context 'when a record has both a Scope and an Affected Documents table' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/specifications/req/req.md', "# Requirements\n\n[REQ-001] A requirement.\n")
+      write_file('myproject/decisions/g/adr-1-both.md', <<~MD)
+        ---
+        title: "ADR-1: Both tables"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | Done |
+
+        # Affected Documents
+
+        | # | Proposed Text | Req-ID |
+        |---|---|---|
+        | 1 | First. | >[REQ-001] |
+        | 2 | Second. | >[REQ-001] |
+      MD
+      write_file('myproject/decisions/g/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Scope row anchors are namespaced so they do not collide with Affected Documents. >[SRS-113] </REQ>
+    it 'emits distinct, non-colliding anchors for the two tables' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/g/adr-1.html')))
+      ids = doc.xpath('//*[starts-with(@id, "adr-1.")]/@id').map(&:value)
+      expect(ids).to contain_exactly('adr-1.1', 'adr-1.2', 'adr-1.scope.1', 'adr-1.scope.2')
+    end
+
+    # <REQ> A Depends On link targets the namespaced Scope anchor of the aligned row. >[SRS-115] </REQ>
+    it 'links a dependent to the namespaced Scope anchor' do
+      expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Code'))
+        .to eq(['adr-1.html#adr-1.scope.2'])
+    end
+  end
+
+  context 'when a Depends On target has no # step column' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/g/adr-1-nostep.md', <<~MD)
+        ---
+        title: "ADR-1: No step column"
+        ---
+
+        # Scope
+
+        | Item | Owner | Status |
+        |---|---|---|
+        | Code | DEV | Done |
+      MD
+      write_file('myproject/decisions/g/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> With no step column on the target there is no anchor, so the link opens the record. >[SRS-115] </REQ>
+    it 'links to the record page without a fragment' do
+      expect(scope_row_links('myproject/build/decisions/g/adr-2.html', 'Code')).to eq(['adr-1.html'])
+    end
+  end
+
+  # ----- ADR-198: work-item swimlane Gantt on the overview -----
+
+  def overview_doc
+    Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/overview.html')))
+  end
+
+  def gantt_container(doc = overview_doc)
+    doc.at_css('div.workitem_gantt')
+  end
+
+  # The owner-lane labels, top to bottom.
+  def gantt_lanes(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_owner').map { |o| o.text.strip }
+  end
+
+  # Geometry of the bar whose label is "<record> <activity>": its grid-column
+  # start, day span, grid-row, and CSS class list. nil when no such bar.
+  def gantt_bar(label, doc = overview_doc)
+    node = doc.css('div.workitem_gantt .gantt_bar').find { |b| b.text.strip == label }
+    return nil unless node
+
+    col = node['style'].match(%r{grid-column:\s*(\d+)\s*/\s*span\s*(\d+)})
+    row = node['style'].match(/grid-row:\s*(\d+)/)
+    { start: col[1].to_i, span: col[2].to_i, row: row[1].to_i, classes: node['class'].split }
+  end
+
+  context 'when the overview renders the work-item Gantt' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | Done |
+        | 2 | Code | DEV | Done |
+      MD
+      write_file('myproject/decisions/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-1] | In-Progress |
+        | 2 | Code | DEV | >[ADR-1] | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The overview renders a work-item schedule between the charts and the records table. >[SRS-136] </REQ>
+    it 'places the Gantt container between the charts grid and the records table' do
+      doc = overview_doc
+      nodes = doc.css('div.decisions_overview_charts, div.workitem_gantt, table.decisions_overview')
+      expect(nodes.map { |n| n.name == 'table' ? 'table' : n['class'].split.first })
+        .to eq(%w[decisions_overview_charts workitem_gantt table])
+    end
+
+    # <REQ> One lane per owner named across all records, in the shared roster order. >[SRS-136] </REQ>
+    it 'draws one lane per owner across all records' do
+      expect(gantt_lanes).to eq(%w[BA DEV])
+    end
+
+    # <REQ> A work item with no estimate spans a single day-column (display minimum). >[SRS-137] </REQ>
+    it 'spans every unestimated bar a single day-column' do
+      %w[Analysis Code].each do |item|
+        expect(gantt_bar("ADR-1 #{item}")[:span]).to eq(1)
+        expect(gantt_bar("ADR-2 #{item}")[:span]).to eq(1)
+      end
+    end
+
+    # <REQ> A bar starts no earlier than the latest finish of its predecessors (intra-record step). >[SRS-138] </REQ>
+    it 'starts a later step after its earlier same-record step finishes' do
+      analysis = gantt_bar('ADR-1 Analysis')
+      code = gantt_bar('ADR-1 Code')
+      expect(code[:start]).to be >= (analysis[:start] + analysis[:span])
+    end
+
+    # <REQ> A bar starts no earlier than the latest finish of its cross-record predecessor. >[SRS-138] </REQ>
+    it 'starts the dependent record after its activity-aligned predecessor finishes' do
+      base = gantt_bar('ADR-1 Analysis')
+      dependent = gantt_bar('ADR-2 Analysis')
+      expect(dependent[:start]).to be >= (base[:start] + base[:span])
+    end
+
+    # <REQ> Work items sharing an owner do not overlap; the lane is serialised. >[SRS-139] </REQ>
+    it 'serialises the two BA work items so their day spans do not overlap' do
+      first = gantt_bar('ADR-1 Analysis')
+      second = gantt_bar('ADR-2 Analysis')
+      expect(first[:row]).to eq(second[:row])
+      expect(second[:start]).to be >= (first[:start] + first[:span])
+    end
+
+    # <REQ> Each bar indicates its row Status. >[SRS-140] </REQ>
+    it 'colours each bar by its row Status' do
+      expect(gantt_bar('ADR-1 Analysis')[:classes]).to include('gantt_done')
+      expect(gantt_bar('ADR-2 Analysis')[:classes]).to include('gantt_inprogress')
+      expect(gantt_bar('ADR-2 Code')[:classes]).to include('gantt_todo')
+    end
+
+    # <REQ> The schedule is deterministic across runs. >[SRS-139] </REQ>
+    it 'produces an identical Gantt on a second run' do
+      first = gantt_container.to_html
+      run_command_and_stop('almirah please myproject')
+      expect(gantt_container.to_html).to eq(first)
+    end
+  end
+
+  context 'when unlinked work items have different owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-30-parallel.md', <<~MD)
+        ---
+        title: "ADR-30: Parallel"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 1 | Code | DEV | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Different-owner work items with no dependency share day columns (run in parallel). >[SRS-139] </REQ>
+    it 'starts both bars on the same day column' do
+      expect(gantt_bar('ADR-30 Analysis')[:start]).to eq(gantt_bar('ADR-30 Code')[:start])
+    end
+  end
+
+  context 'when a started work item is blocked by an unfinished cross-record predecessor' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/grp/adr-1-base.md', <<~MD)
+        ---
+        title: "ADR-1: Base"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Code | DEV | To Do |
+      MD
+      write_file('myproject/decisions/grp/adr-2-dep.md', <<~MD)
+        ---
+        title: "ADR-2: Dependent"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Status |
+        |---|---|---|---|---|
+        | 1 | Code | DEV | >[ADR-1] | In-Progress |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A started-but-blocked work item is visually emphasised. >[SRS-140] </REQ>
+    it 'marks the blocked bar with the violation emphasis' do
+      expect(gantt_bar('ADR-2 Code')[:classes]).to include('gantt_blocked')
+    end
+  end
+
+  # ----- ADR-204: consensus owner order for the Gantt lanes -----
+
+  context 'when records agree on the workflow owner order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Three records all running BA -> DEV -> TEST, but listed in the file so the
+      # naive first-seen roster would still be BA, DEV, TEST; the heatmap's
+      # descending-count order would instead lead with the busiest (DEV here).
+      write_file('myproject/decisions/adr-50-a.md', <<~MD)
+        ---
+        title: "ADR-50: A"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Code | DEV | In-Progress |
+        | 3 | Tests | TEST | To Do |
+      MD
+      write_file('myproject/decisions/adr-51-b.md', <<~MD)
+        ---
+        title: "ADR-51: B"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Code | DEV | In-Progress |
+        | 3 | Tests | TEST | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt lanes follow the majority workflow order. >[SRS-148] </REQ>
+    it 'orders the lanes by the workflow sequence the records describe' do
+      expect(gantt_lanes).to eq(%w[BA DEV TEST])
+    end
+
+    # <REQ> The lane order is identical across runs. >[SRS-147] </REQ>
+    it 'produces the same lane order on a second run' do
+      first = gantt_lanes
+      run_command_and_stop('almirah please myproject')
+      expect(gantt_lanes).to eq(first)
+    end
+
+    # <REQ> The WIP heatmap keeps its descending-count order, distinct from the lanes. >[SRS-148] </REQ>
+    it 'leaves the WIP heatmap in descending-count order, not the lane order' do
+      # Two DEV In-Progress rows, zero for BA/TEST, so the heatmap leads with DEV
+      # while the Gantt lanes lead with BA -- the two orders are deliberately different.
+      html = File.read(expand_path('myproject/build/decisions/overview.html'))
+      expect(wip_labels(html).first).to eq('DEV')
+      expect(gantt_lanes.first).to eq('BA')
+    end
+  end
+
+  context 'when a minority record runs the owners in the opposite order' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Two records vote DEV-before-TEST, one votes TEST-before-DEV; the majority wins.
+      %w[60 61].each do |n|
+        write_file("myproject/decisions/adr-#{n}-fwd.md", <<~MD)
+          ---
+          title: "ADR-#{n}: Forward"
+          ---
+
+          # Scope
+
+          | # | Item | Owner | Status |
+          |---|---|---|---|
+          | 1 | Code | DEV | To Do |
+          | 2 | Tests | TEST | To Do |
+        MD
+      end
+      write_file('myproject/decisions/adr-62-rev.md', <<~MD)
+        ---
+        title: "ADR-62: Reverse"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Tests | TEST | To Do |
+        | 2 | Code | DEV | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A minority opposite-order record does not flip the lanes. >[SRS-147] </REQ>
+    it 'keeps the majority order despite the opposite-order record' do
+      expect(gantt_lanes).to eq(%w[DEV TEST])
+    end
+  end
+
+  context 'when records name different subsets and an extra owner' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      # Most records run BA -> DEV -> TEST; one skips DEV and appends DevOps.
+      %w[70 71].each do |n|
+        write_file("myproject/decisions/adr-#{n}-full.md", <<~MD)
+          ---
+          title: "ADR-#{n}: Full"
+          ---
+
+          # Scope
+
+          | # | Item | Owner | Status |
+          |---|---|---|---|
+          | 1 | Analysis | BA | To Do |
+          | 2 | Code | DEV | To Do |
+          | 3 | Tests | TEST | To Do |
+        MD
+      end
+      write_file('myproject/decisions/adr-72-extra.md', <<~MD)
+        ---
+        title: "ADR-72: Extra"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+        | 2 | Tests | TEST | To Do |
+        | 3 | Deploy | DevOps | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A missing role does not displace the shared roles; an added role is placed after the roles it follows. >[SRS-147] </REQ>
+    it 'keeps the shared order and places the added owner last' do
+      expect(gantt_lanes).to eq(%w[BA DEV TEST DevOps])
+    end
+  end
+
+  context 'when no decision record declares Scope owners' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/adr-40-plain.md', <<~MD)
+        ---
+        title: "ADR-40: Plain"
+        ---
+
+        ## Context
+
+        A record with no Scope table.
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt container is omitted when there is nothing to schedule. >[SRS-136] </REQ>
+    it 'omits the Gantt container' do
+      expect(gantt_container).to be_nil
+    end
+  end
+
+  # ----- ADR-201: group-segmented Gantt with a Buffer lane -----
+
+  # The group band cells, left to right: each cell's label, grid-column start and span.
+  def gantt_bands(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_release_band').map do |c|
+      col = c['style'].match(%r{grid-column:\s*(\d+)\s*/\s*span\s*(\d+)})
+      { name: c.text.strip, start: col[1].to_i, span: col[2].to_i }
+    end
+  end
+
+  def buffer_bar_starts(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_buffer_bar').map { |b| b['style'][/grid-column:\s*(\d+)/, 1].to_i }
+  end
+
+  def grid_row(node)
+    node['style'][/grid-row:\s*(\d+)/, 1].to_i
+  end
+
+  context 'when records span multiple decision groups' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/group-a/adr-10-a.md', <<~MD)
+        ---
+        title: "ADR-10: A"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+      MD
+      write_file('myproject/decisions/group-b/adr-20-b.md', <<~MD)
+        ---
+        title: "ADR-20: B"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Depends On | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|---|
+        | 1 | Analysis | BA | >[ADR-10] | 1 | 2 | To Do |
+        | 2 | Code | DEV | >[ADR-10] | 2 | 3 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The schedule is segmented into one block per group, in folder-encounter order. >[SRS-141] </REQ>
+    it 'draws one group band per folder, left to right in encounter order' do
+      bands = gantt_bands
+      expect(bands.map { |b| b[:name] }).to eq(%w[group-a group-b])
+      expect(bands[0][:start]).to be < bands[1][:start]
+    end
+
+    # <REQ> A group band spans its block's day columns, with a gutter between blocks. >[SRS-142], >[SRS-141] </REQ>
+    it 'spans each band over its block and leaves a gutter before the next block' do
+      bands = gantt_bands
+      expect(bands[1][:start]).to be > (bands[0][:start] + bands[0][:span])
+    end
+
+    # <REQ> A predecessor in another group is treated as an already-available input. >[SRS-143] </REQ>
+    it 'starts a cross-group dependent at its own block day one, not after its predecessor' do
+      group_b_start = gantt_bands.find { |b| b[:name] == 'group-b' }[:start]
+      expect(gantt_bar('ADR-20 Analysis')[:start]).to eq(group_b_start)
+    end
+
+    # <REQ> The same owner in different groups runs in parallel, not serialised across blocks. >[SRS-143] </REQ>
+    it 'does not serialise the same owner across different group blocks' do
+      bands = gantt_bands
+      expect(gantt_bar('ADR-10 Analysis')[:start]).to eq(bands.find { |b| b[:name] == 'group-a' }[:start])
+      expect(gantt_bar('ADR-20 Analysis')[:start]).to eq(bands.find { |b| b[:name] == 'group-b' }[:start])
+    end
+
+    # <REQ> The Buffer lane renders one computed buffer bar per group, after its work. >[SRS-144] </REQ>
+    it 'renders a Buffer lane with one computed buffer bar per group after its work' do
+      doc = overview_doc
+      expect(doc.css('div.workitem_gantt .gantt_buffer').map { |n| n.text.strip }).to eq(['Buffer'])
+      starts = buffer_bar_starts(doc)
+      expect(starts.length).to eq(2)
+      code_a = gantt_bar('ADR-10 Code', doc)
+      expect(starts.min).to be >= (code_a[:start] + code_a[:span])
+    end
+
+    # <REQ> The Buffer lane is the last row, below every owner lane. >[SRS-144] </REQ>
+    it 'places the Buffer lane below every owner lane' do
+      doc = overview_doc
+      buffer_row = grid_row(doc.at_css('div.workitem_gantt .gantt_buffer'))
+      owner_rows = doc.css('div.workitem_gantt .gantt_owner').map { |o| grid_row(o) }
+      expect(owner_rows).to all(be < buffer_row)
+    end
+
+    # <REQ> The segmented layout is identical across runs. >[SRS-145] </REQ>
+    it 'produces an identical segmented Gantt on a second run' do
+      first = gantt_container.to_html
+      run_command_and_stop('almirah please myproject')
+      expect(gantt_container.to_html).to eq(first)
+    end
+  end
+
+  # The month-header labels along the Gantt's calendar axis, left to right.
+  def gantt_months(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_month_head').map { |m| m.text.strip }
+  end
+
+  # ----- ADR-211: per-group planning start dates labelling each tiled block -----
+  context 'when decision groups have configured planning start dates' do
+    before do
+      write_file('myproject/project.yml', <<~YML)
+        specifications:
+          input: []
+        planning:
+          start_date: 04-05-2026
+          groups:
+            alpha: 04-05-2026
+            beta: 15-06-2026
+      YML
+      %w[alpha beta gamma].each do |group|
+        write_file("myproject/decisions/#{group}/adr-#{group}.md", <<~MD)
+          ---
+          title: "ADR #{group}"
+          ---
+
+          # Scope
+
+          | # | Item | Owner | Est (focused) | Est (safe) | Status |
+          |---|---|---|---|---|---|
+          | 1 | Code | DEV | 2 | 2 | To Do |
+        MD
+      end
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Each group block's day columns are labelled from its configured start date. >[SRS-163], >[SRS-151] </REQ>
+    it 'labels each group block from its own configured start month' do
+      # alpha starts in May, beta in June: both months appear among the blocks.
+      expect(gantt_months).to include('May 2026', 'Jun 2026')
+    end
+
+    # <REQ> A group with no configured start date falls back to the project start date. >[SRS-163] </REQ>
+    it 'labels an unconfigured group from the project start date' do
+      # gamma has no entry, so it anchors at the 04-05-2026 project start (May).
+      gamma = gantt_bands.find { |b| b[:name] == 'gamma' }
+      span = gamma[:start]..(gamma[:start] + gamma[:span] - 1)
+      gamma_day_heads = overview_doc.css('div.workitem_gantt .gantt_month_head').select do |m|
+        col = m['style'][/grid-column:\s*(\d+)/, 1].to_i
+        span.cover?(col)
+      end
+      expect(gamma_day_heads.map { |m| m.text.strip }).to include('May 2026')
+    end
+
+    # <REQ> The start date relabels a block without changing the gutter-separated layout. >[SRS-141], >[SRS-163] </REQ>
+    it 'keeps the blocks tiled in folder order with a gutter between them' do
+      bands = gantt_bands
+      expect(bands.map { |b| b[:name] }).to eq(%w[alpha beta gamma])
+      expect(bands[1][:start]).to be > (bands[0][:start] + bands[0][:span])
+      expect(bands[2][:start]).to be > (bands[1][:start] + bands[1][:span])
+    end
+  end
+
+  def gantt_today_nodes(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_today')
+  end
+
+  def gantt_today_md
+    write_file('myproject/decisions/adr-70-anchor.md', <<~MD)
+      ---
+      title: "ADR-70: Anchor"
+      ---
+
+      # Scope
+
+      | # | Item | Owner | Est (focused) | Est (safe) | Status |
+      |---|---|---|---|---|---|
+      | 1 | Analysis | BA | 2 | 4 | To Do |
+    MD
+  end
+
+  context 'when today precedes the scheduled work (Gantt today marker)' do
+    before do
+      # Anchor far in the future so today is always before the only block: the
+      # rule is omitted because today falls outside the block's calendar (ADR-211).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 01-01-2999\n")
+      gantt_today_md
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The today rule is omitted from a block the current date falls before. >[SRS-160] </REQ>
+    it 'omits the today rule when today precedes the block' do
+      expect(gantt_today_nodes.length).to eq(0)
+    end
+  end
+
+  context 'when today is past the scheduled work (Gantt today marker)' do
+    before do
+      # Anchor far in the past so today is always beyond the only block: the rule
+      # is omitted because today falls outside the block's calendar (ADR-211).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 01-01-2000\n")
+      gantt_today_md
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The today rule is omitted from a block the current date falls after. >[SRS-160] </REQ>
+    it 'omits the today rule when today is past the block' do
+      expect(gantt_today_nodes.length).to eq(0)
+    end
+  end
+
+  context 'when today falls within a group block (Gantt today marker)' do
+    before do
+      # Anchor two days before today with a long bar, so the only block's calendar
+      # spans the real run date no matter when the suite runs.
+      start = (Date.today - 2).strftime('%d-%m-%Y')
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: #{start}\n")
+      write_file('myproject/decisions/plan/adr-71-now.md', <<~MD)
+        ---
+        title: "ADR-71: Now"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 10 | 10 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A single full-height today rule is drawn in the block whose calendar contains today. >[SRS-160] </REQ>
+    it 'draws exactly one today rule inside the block spanning today' do
+      expect(gantt_today_nodes.length).to eq(1)
+      expect(gantt_today_nodes.first['style']).to match(%r{grid-row:\s*1\s*/\s*span\s*\d+})
+    end
+  end
+
+  # ----- ADR-195: estimates, critical chain, and project buffer -----
+
+  def critical_chain_doc
+    Nokogiri::HTML(File.read(expand_path('myproject/build/decisions/critical-chain.html')))
+  end
+
+  def cc_chain_rows(doc = critical_chain_doc)
+    doc.css('div.critical_chain table.cc_chain tr')
+       .map { |r| r.css('td').map { |c| c.text.strip } }.reject(&:empty?)
+  end
+
+  context 'when a decision group carries estimates' do
+    before do
+      # Anchor on Monday 22-06-2026 so the short bars do not cross a weekend and
+      # their calendar spans equal their working-day estimates (ADR-205).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 22-06-2026\n")
+      write_file('myproject/decisions/plan/adr-50-est.md', <<~MD)
+        ---
+        title: "ADR-50: Estimated"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+        | 3 | Tests | TEST | 2 | 5 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> Each Gantt bar spans its focused estimate in day columns. >[SRS-121] </REQ>
+    it 'sizes each Gantt bar by its focused estimate' do
+      expect(gantt_bar('ADR-50 Analysis')[:span]).to eq(2)
+      expect(gantt_bar('ADR-50 Code')[:span]).to eq(3)
+      expect(gantt_bar('ADR-50 Tests')[:span]).to eq(2)
+    end
+
+    # <REQ> The dedicated page renders the chain, buffer, and projected duration. >[SRS-124], >[SRS-127] </REQ>
+    it 'renders the critical chain view with buffer and projected duration' do
+      doc = critical_chain_doc
+      expect(cc_chain_rows(doc)).to eq([%w[ADR-50 Analysis BA 2], %w[ADR-50 Code DEV 3], %w[ADR-50 Tests TEST 2]])
+      expect(doc.at_css('div.critical_chain .cc_buffer').text).to include('4 working days')      # ceil(0.5 * (2+3+3))
+      expect(doc.at_css('div.critical_chain .cc_projected').text).to include('11 working days')  # 7 + 4
+    end
+
+    # <REQ> The computed project buffer fills the Gantt Buffer lane. >[SRS-125], >[SRS-144] </REQ>
+    # <REQ> The buffer bar spans its working-day columns on the business-day axis. >[SRS-154] </REQ>
+    it 'spans the Gantt buffer bar over its working-day columns' do
+      bars = overview_doc.css('div.workitem_gantt .gantt_buffer_bar')
+      expect(bars.length).to eq(1)
+      # 4 working buffer days, no weekday holidays crossed -> 4 business columns
+      # (weekends are off the axis, ADR-206).
+      expect(bars.first['style'][%r{/ span (\d+)}, 1].to_i).to eq(4)
+    end
+  end
+
+  # ----- ADR-212: critical-chain highlight on the Gantt bars -----
+  context 'when a group block has a critical chain (Gantt highlight)' do
+    before do
+      # Two independent records in one group: a long Analysis (the chain) and a
+      # short Code branch off it. The chain traces to the latest finish, so only
+      # the long bar is on it.
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 22-06-2026\n")
+      write_file('myproject/decisions/plan/adr-80-long.md', <<~MD)
+        ---
+        title: "ADR-80: Long"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 5 | 5 | To Do |
+      MD
+      write_file('myproject/decisions/plan/adr-81-short.md', <<~MD)
+        ---
+        title: "ADR-81: Short"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Code | DEV | 1 | 1 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt outlines the bars on a group block's critical chain. >[SRS-164] </REQ>
+    it 'marks the critical-chain bar and leaves the off-chain bar unmarked' do
+      expect(gantt_bar('ADR-80 Analysis')[:classes]).to include('gantt_critical')
+      expect(gantt_bar('ADR-81 Code')[:classes]).not_to include('gantt_critical')
+    end
+
+    # <REQ> The chain outline is a channel separate from the row-Status colour. >[SRS-164] </REQ>
+    it 'keeps the Status colour class alongside the critical-chain class' do
+      classes = gantt_bar('ADR-80 Analysis')[:classes]
+      expect(classes).to include('gantt_todo', 'gantt_critical')
+    end
+  end
+
+  # --- Plan-vs-actual tracking lanes (ADR-213) --------------------------------
+  #
+  # Each owner gains a hidden "(tracking)" lane carrying a grey committed-window
+  # layer (Scope Start/Target dates) and a blue logged layer (Effort date span).
+  # The block is anchored at a fixed past start date so authored dates map to
+  # deterministic business-day columns independent of when the suite runs.
+
+  # Geometry of the tracking-layer bars of a given class, by their text label.
+  def track_bar(klass, label, doc = overview_doc)
+    node = doc.css("div.workitem_gantt .#{klass}").find { |b| b.text.strip == label }
+    return nil unless node
+
+    col = node['style'].match(%r{grid-column:\s*(\d+)\s*/\s*span\s*(\d+)})
+    row = node['style'].match(/grid-row:\s*(\d+)/)
+    { start: col[1].to_i, span: col[2].to_i, row: row[1].to_i, classes: node['class'].split }
+  end
+
+  def tracking_lane_labels(doc = overview_doc)
+    doc.css('div.workitem_gantt .gantt_owner_tracking').map { |o| o.text.strip }
+  end
+
+  context 'when the overview Gantt shows committed and logged tracking lanes' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 04-05-2026\n")
+      write_file('myproject/decisions/adr-213-track.md', <<~MD)
+        ---
+        title: "ADR-213: Tracking"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Start Date | Target Date |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | Done | 04-05-2026 | 06-05-2026 |
+        | 2 | Code | DEV | In-Progress | 07-05-2026 | 11-05-2026 |
+
+        # Effort
+
+        | Date | Item | Hours |
+        |---|---|---|
+        | 04-05-2026 | Analysis | 8 |
+        | 05-05-2026 | Analysis | 8 |
+        | 08-05-2026 | Code | 8 |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt provides a per-owner tracking lane beside the planned lane. >[SRS-165] </REQ>
+    it 'adds a "(tracking)" lane per owner without disturbing the planned lanes' do
+      expect(gantt_lanes).to eq(%w[BA DEV])
+      expect(tracking_lane_labels).to eq(['BA (tracking)', 'DEV (tracking)'])
+    end
+
+    # <REQ> The tracking lanes are hidden until the toolbar toggle reveals them. >[SRS-165] </REQ>
+    it 'hides the tracking lanes by default behind a toolbar toggle button' do
+      doc = overview_doc
+      expect(gantt_container(doc)['class'].split).not_to include('show-actuals')
+      button = doc.at_css('div.gantt_container .gantt_actuals_toggle')
+      expect(button).not_to be_nil
+      expect(button.text.strip).to eq('Show Actuals')
+      expect(doc.css('div.workitem_gantt .gantt_tracking_lane')).not_to be_empty
+    end
+
+    # <REQ> The committed layer draws the Scope Start-to-Target window. >[SRS-165] </REQ>
+    it 'draws the grey committed window from Start Date to Target Date' do
+      # Anchor 04-05-2026: business columns 0=04, 1=05, 2=06, 3=07, 4=08, 5=11.
+      committed = track_bar('gantt_track_committed', 'ADR-213 Analysis')
+      expect(committed[:classes]).to include('gantt_track_committed', 'gantt_tracking_lane')
+      expect([committed[:start], committed[:span]]).to eq([2, 3]) # cols 0..2
+      code = track_bar('gantt_track_committed', 'ADR-213 Code')
+      expect([code[:start], code[:span]]).to eq([5, 3]) # cols 3..5
+    end
+
+    # <REQ> The logged layer draws the earliest-to-latest Effort date span. >[SRS-165] </REQ>
+    it 'draws the blue logged span from the first to the last Effort date' do
+      logged = track_bar('gantt_track_logged', 'ADR-213 Analysis')
+      expect(logged[:classes]).to include('gantt_track_logged', 'gantt_tracking_lane')
+      expect([logged[:start], logged[:span]]).to eq([2, 2]) # cols 0..1
+      code = track_bar('gantt_track_logged', 'ADR-213 Code')
+      expect([code[:start], code[:span]]).to eq([6, 1]) # col 4 only
+    end
+
+    # <REQ> The tracking lane sits directly below its owner's planned lane. >[SRS-165] </REQ>
+    it 'places each tracking layer on the lane row below the planned owner lane' do
+      ba_planned = gantt_bar('ADR-213 Analysis')[:row]
+      expect(track_bar('gantt_track_committed', 'ADR-213 Analysis')[:row]).to eq(ba_planned + 1)
+      expect(track_bar('gantt_track_logged', 'ADR-213 Analysis')[:row]).to eq(ba_planned + 1)
+    end
+  end
+
+  context 'when a tracked row has a Start Date but no Target Date' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 04-05-2026\n")
+      write_file('myproject/decisions/adr-214-open.md', <<~MD)
+        ---
+        title: "ADR-214: Open Commitment"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status | Start Date | Target Date |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | In-Progress | 04-05-2026 |  |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A committed window with no target runs to today, extending the axis. >[SRS-165] </REQ>
+    it 'runs the committed window past a single column, widening the axis to reach it' do
+      committed = track_bar('gantt_track_committed', 'ADR-214 Analysis')
+      expect(committed).not_to be_nil
+      # Open commitment: from the 04-05-2026 start to today (weeks later), so the
+      # bar spans many columns and the axis must have been widened to hold them.
+      expect(committed[:span]).to be > 1
+      day_columns = overview_doc.css('div.workitem_gantt .gantt_day_head').length
+      expect(day_columns).to be >= (committed[:start] - 2 + committed[:span])
+    end
+  end
+
+  context 'when a decision group has no estimates' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plain/adr-60-plain.md', <<~MD)
+        ---
+        title: "ADR-60: Plain"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A group with no estimated work is marked unestimated, with no buffer. >[SRS-127] </REQ>
+    it 'marks the group unestimated and renders no buffer bar' do
+      expect(critical_chain_doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
+      expect(overview_doc.css('div.workitem_gantt .gantt_buffer_bar')).to be_empty
+    end
+  end
+
+  context 'when the project configures a custom buffer_ratio' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  buffer_ratio: 1.0\n")
+      write_file('myproject/decisions/plan/adr-70-ratio.md', <<~MD)
+        ---
+        title: "ADR-70: Ratio"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The configured buffer ratio scales the project buffer. >[SRS-126] </REQ>
+    it 'applies the configured buffer ratio of 1.0' do
+      # safety = (4-2) + (6-3) = 5, buffer = ceil(1.0 * 5)
+      expect(critical_chain_doc.at_css('div.critical_chain .cc_buffer').text).to include('5 working days')
+    end
+  end
+
+  # ----- ENH-202: Critical Chain moved to a dedicated page with a menu link -----
+
+  context 'when decision records carry estimates (ENH-202 page and menu)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plan/adr-80-est.md', <<~MD)
+        ---
+        title: "ADR-80: Estimated"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | To Do |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The critical chain renders on the dedicated page, not on the overview. >[SRS-127] </REQ>
+    it 'renders the chain on the dedicated page and removes it from the overview' do
+      expect(overview_doc.at_css('div.critical_chain')).to be_nil
+      expect(cc_chain_rows).to eq([%w[ADR-80 Analysis BA 2], %w[ADR-80 Code DEV 3]])
+    end
+
+    # <REQ> A "Critical Chain" menu link sits immediately after the Decision Records link. >[SRS-146] </REQ>
+    it 'adds a Critical Chain top-menu link immediately after Decision Records' do
+      ids = overview_doc.css('a[id$="_menu_item"]').map { |a| a['id'] }
+      expect(ids.index('critical_chain_menu_item')).to eq(ids.index('decisions_menu_item') + 1)
+      link = overview_doc.at_css('#critical_chain_menu_item')
+      expect(link.text).to include('Critical Chain')
+      expect(link['href']).to include('critical-chain.html')
+    end
+  end
+
+  # ----- ADR-196: effort logging and the buffer-consumption fever chart -----
+
+  # The data array embedded in a fever chart's inline Chart.js script, parsed
+  # back into [[completion, consumption], ...].
+  def fever_points(doc = critical_chain_doc)
+    script = doc.css('div.cc_fever script').map(&:text).join("\n")
+    raw = script[/data:\s*(\[\{.*?\}\])/m, 1]
+    return [] if raw.nil?
+
+    JSON.parse(raw).map { |p| [p['x'], p['y']] }
+  end
+
+  context 'when an estimated group logs effort (fever chart)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  hours_per_day: 8\n")
+      # Effort is dated far in the past, so it is on or before every sampled date
+      # (recent Fridays and today alike) and the rendered point is deterministic.
+      write_file('myproject/decisions/plan/adr-90-fever.md', <<~MD)
+        ---
+        title: "ADR-90: Fever"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | In-Progress |
+        | 2 | Code | DEV | 3 | 6 | To Do |
+
+        # Effort
+
+        | Date | Item | Owner | Hours | Note |
+        |---|---|---|---|---|
+        | 01-01-2020 | Analysis | BA | 16 | done in full |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The fever chart renders beside the group's chain table on the page. >[SRS-133] </REQ>
+    it 'renders a fever chart beside the chain table on the critical chain page' do
+      doc = critical_chain_doc
+      body = doc.at_css('div.critical_chain .cc_group_body')
+      expect(body).not_to be_nil
+      expect(body.at_css('.cc_plan table.cc_chain')).not_to be_nil
+      expect(body.at_css('.cc_fever canvas.fever_canvas')).not_to be_nil
+    end
+
+    # <REQ> Completion is focused-weighted effort credit. >[SRS-129], >[SRS-131] </REQ>
+    # <REQ> Consumption is the buffer overrun over the buffer. >[SRS-132] </REQ>
+    it 'plots the effort-derived completion and consumption point' do
+      # Analysis: 16h / 8 = 2 days fully credits the 2-day row; Code unstarted.
+      # completion = 100 * (1*2 + 0*3) / 5 = 40; consumption = 0 (no overrun).
+      expect(fever_points.last).to eq([40.0, 0.0])
+    end
+
+    # <REQ> Each fever point carries the date it was sampled on, the live point
+    # carrying today; the tooltip shows that date instead of the dataset name,
+    # followed by the values. >[SRS-162] </REQ>
+    it 'labels each point with its sample date and shows it in the tooltip' do
+      script = critical_chain_doc.css('div.cc_fever script').map(&:text).join("\n")
+      raw = script[/data:\s*(\[\{.*?\}\])/m, 1]
+      points = JSON.parse(raw)
+      # The trailing live point is dated today; all points carry a "Mon D" label.
+      expect(points.last['d']).to eq(Date.today.strftime('%b %-d'))
+      expect(points).to all(include('d'))
+      # The tooltip renders the date, then the (completion, consumption) pair.
+      expect(script).to include("ctx.raw.d + ': (' + ctx.parsed.x + ', ' + ctx.parsed.y + ')'")
+    end
+
+    # <REQ> The buffer figure is paired with the live buffer consumed, as a percentage and consumed-of-baseline days. >[SRS-161] </REQ>
+    it 'states the live buffer utilisation under the buffer figure' do
+      consumed = critical_chain_doc.at_css('.cc_plan .cc_consumed')
+      # No overrun here, so none of the 3 baseline buffer days are consumed.
+      expect(consumed.text).to eq('Buffer consumed: 0% (0 of 3 baseline days)')
+    end
+
+    # <REQ> The fever chart loads Chart.js and paints its zones. >[SRS-133], >[SRS-134] </REQ>
+    it 'loads Chart.js on the page and registers the zone plugin' do
+      html = File.read(expand_path('myproject/build/decisions/critical-chain.html'))
+      expect(html).to include('cdn.jsdelivr.net/npm/chart.js')
+      expect(html).to include('feverZonesPlugin')
+    end
+  end
+
+  context 'when a completed chain row overran (fever chart, issue-207)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  hours_per_day: 8\n")
+      # Analysis is Done having logged 32h = 4 days against a 2-day focused
+      # estimate: it overran by 2 days. A completed overrun must keep consuming
+      # the project buffer, not vanish because the row is Done (issue-207).
+      write_file('myproject/decisions/plan/adr-91-done-overrun.md', <<~MD)
+        ---
+        title: "ADR-91: Done Overrun"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Analysis | BA | 2 | 4 | Done |
+        | 2 | Code | DEV | 3 | 6 | In-Progress |
+
+        # Effort
+
+        | Date | Item | Owner | Hours | Note |
+        |---|---|---|---|---|
+        | 01-01-2020 | Analysis | BA | 32 | overran |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A Done chain row's overrun still consumes the project buffer. >[SRS-131], >[SRS-132] </REQ>
+    it 'keeps a completed row in the baseline so its overrun consumes buffer' do
+      # Baseline chain = Analysis + Code (buffer = ceil(0.5*((4-2)+(6-3))) = 3).
+      # completion = 100 * (1*2 + 0*3) / 5 = 40 (Done Analysis credits in full);
+      # consumption = 100 * max(4-2,0) / 3 = 66.67 (the completed overrun stays).
+      expect(fever_points.last).to eq([40.0, 66.67])
+    end
+
+    # <REQ> The buffer utilisation figure matches the fever chart's live point. >[SRS-161] </REQ>
+    it 'reports rounded buffer utilisation matching the fever chart' do
+      # 2 overrun days of the 3 baseline buffer days; 2/3 = 66.67% rounds to 67%.
+      expect(critical_chain_doc.at_css('.cc_plan .cc_consumed').text)
+        .to eq('Buffer consumed: 67% (2 of 3 baseline days)')
+    end
+  end
+
+  context 'when a group has no estimates (no fever chart)' do
+    before do
+      write_file('myproject/project.yml', "specifications:\n  input: []\n")
+      write_file('myproject/decisions/plain/adr-95-plain.md', <<~MD)
+        ---
+        title: "ADR-95: Plain"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Status |
+        |---|---|---|---|
+        | 1 | Analysis | BA | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> An unestimated group keeps its note and renders no fever chart. >[SRS-133] </REQ>
+    it 'renders no fever canvas for an unestimated group' do
+      doc = critical_chain_doc
+      expect(doc.at_css('div.critical_chain .cc_unestimated')).not_to be_nil
+      expect(doc.at_css('div.cc_fever')).to be_nil
+    end
+  end
+
+  # ----- ADR-205 / ADR-206: calendar Gantt on a compact working-day axis -----
+
+  context 'when the Gantt is rendered on working-day columns (ADR-206)' do
+    before do
+      # Anchor on Friday 26-06-2026: the Code bar (3 working days) runs Fri, Mon,
+      # Tue with the weekend omitted from the axis (ADR-206).
+      write_file('myproject/project.yml', "specifications:\n  input: []\nplanning:\n  start_date: 26-06-2026\n")
+      write_file('myproject/decisions/plan/adr-205-cal.md', <<~MD)
+        ---
+        title: "ADR-205: Calendar"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Code | DEV | 3 | 3 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> The Gantt renders a month name and day-of-month header. >[SRS-153] </REQ>
+    # <REQ> Weekend columns are omitted from the axis. >[SRS-152] </REQ>
+    it 'renders month and day-of-month headers without weekend columns' do
+      doc = overview_doc
+      expect(doc.css('div.workitem_gantt .gantt_month_head').map { |m| m.text.strip }).to include('Jun 2026')
+      days = doc.css('div.workitem_gantt .gantt_day_head').map { |d| d.text.strip }
+      expect(days).to eq(%w[26 29 30]) # Fri 26, then Mon 29, Tue 30 -- no 27/28
+    end
+
+    # <REQ> Friday columns are highlighted for the weekly rhythm. >[SRS-159] </REQ>
+    it 'highlights the Friday column' do
+      doc = overview_doc
+      fridays = doc.css('div.workitem_gantt .gantt_day_head.gantt_friday').map { |d| d.text.strip }
+      expect(fridays).to eq(['26'])
+      expect(doc.css('div.workitem_gantt .gantt_friday_col')).not_to be_empty
+    end
+
+    # <REQ> A bar spans only its working-day columns, not weekends. >[SRS-154] </REQ>
+    it 'compacts a weekend-crossing bar to its working-day columns' do
+      # Code = 3 working days from Fri 26-06 -> 3 business columns (Fri, Mon, Tue).
+      expect(gantt_bar('ADR-205 Code')[:span]).to eq(3)
+    end
+
+    # <REQ> The Critical Chain page shows a projected completion date. >[SRS-155] </REQ>
+    it 'shows a projected completion date on the critical chain page' do
+      # Chain = 3 working days, buffer 0, from Fri 26-06: Fri, Mon, Tue -> Tue 30-06.
+      finish = critical_chain_doc.at_css('div.critical_chain .cc_finish')
+      expect(finish).not_to be_nil
+      expect(finish.text).to include('30-06-2026')
+    end
+  end
+
+  context 'when a weekday holiday falls in the Gantt window (ADR-206)' do
+    before do
+      write_file('myproject/project.yml',
+                 "specifications:\n  input: []\nplanning:\n  start_date: 22-06-2026\n  holidays:\n    - 24-06-2026\n")
+      write_file('myproject/decisions/plan/adr-206-hol.md', <<~MD)
+        ---
+        title: "ADR-206: Holiday"
+        ---
+
+        # Scope
+
+        | # | Item | Owner | Est (focused) | Est (safe) | Status |
+        |---|---|---|---|---|---|
+        | 1 | Code | DEV | 4 | 4 | To Do |
+      MD
+      run_command_and_stop('almirah please myproject')
+    end
+
+    # <REQ> A weekday holiday renders a shaded column the bar spans. >[SRS-158], >[SRS-154] </REQ>
+    it 'shades the weekday-holiday column and spans the bar across it' do
+      doc = overview_doc
+      holidays = doc.css('div.workitem_gantt .gantt_day_head.gantt_nonworking').map { |d| d.text.strip }
+      expect(holidays).to eq(['24']) # Wed 24-06 holiday; weekends absent from the axis
+      # Code = 4 working days from Mon 22-06 with Wed 24-06 a holiday: Mon, Tue,
+      # Thu, Fri -> 5 business columns including the shaded Wed holiday.
+      expect(gantt_bar('ADR-206 Code')[:span]).to eq(5)
+    end
+
+    # <REQ> The projected completion date counts across the holiday. >[SRS-155] </REQ>
+    it 'projects completion across the holiday' do
+      # 4 working days, buffer 0, from Mon 22-06 skipping Wed 24-06 -> Fri 26-06.
+      expect(critical_chain_doc.at_css('div.critical_chain .cc_finish').text).to include('26-06-2026')
     end
   end
 end

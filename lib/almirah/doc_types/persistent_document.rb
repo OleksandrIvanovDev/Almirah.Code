@@ -2,7 +2,7 @@
 
 require_relative 'base_document'
 
-class PersistentDocument < BaseDocument # rubocop:disable Style/Documentation
+class PersistentDocument < BaseDocument
   attr_accessor :path, :items, :controlled_items, :headings, :up_link_docs, :frontmatter
 
   def initialize(fele_path)

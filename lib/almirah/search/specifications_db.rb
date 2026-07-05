@@ -12,7 +12,7 @@ class SpecificationsDb
     create_data
   end
 
-  def create_data # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def create_data
     @specifications.each do |sp|
       sp.items.each do |i|
         if (i.instance_of? Paragraph) or (i.instance_of? ControlledParagraph)
@@ -31,7 +31,7 @@ class SpecificationsDb
     end
   end
 
-  def add_markdown_list_item_to_db(data, item_for_reference, item_to_process) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def add_markdown_list_item_to_db(data, item_for_reference, item_to_process)
     e = nil
     item_to_process.rows.each do |r|
       if r.is_a?(MarkdownList)

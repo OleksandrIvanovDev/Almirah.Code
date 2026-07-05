@@ -4,10 +4,12 @@ require 'date'
 require_relative 'persistent_document'
 require_relative '../doc_items/heading'
 require_relative '../doc_items/markdown_table'
+require_relative '../doc_items/scope_table'
 
-class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metrics/ClassLength
+class Decision < PersistentDocument
   attr_accessor :path, :sequence_number, :record_type, :html_rel_path, :root_prefix, :current_status,
-                :start_date, :target_date, :target_release_version, :specifications_path, :wrong_links_hash
+                :start_date, :target_date, :target_release_version, :specifications_path, :wrong_links_hash,
+                :owners, :scope_table
 
   def initialize(file_path)
     super
@@ -19,6 +21,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     @target_date = nil
     @target_release_version = nil
     @wrong_links_hash = {}
+    @owners = []
   end
 
   def to_console
@@ -64,7 +67,73 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     )
   end
 
-  def effective_status_on(date) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  # The distinct, first-seen-ordered list of non-empty Owner cells in the Scope
+  # table. Empty when there is no Scope table, no Owner column, or no owner values.
+  # The Owner column is located by header text, not position.
+  def extract_owners
+    @owners = []
+    table = find_section_table('Scope')
+    return if table.nil?
+
+    owner_idx = column_index(table, 'Owner')
+    return if owner_idx.nil?
+
+    table.cells.each do |row|
+      owner = row[owner_idx].to_s.strip
+      @owners << owner unless owner.empty? || @owners.include?(owner)
+    end
+  end
+
+  # The parsed Scope ScopeTable (ADR-194), or nil when the record has no Scope
+  # section. Memoised so the work-item network and the readers share one table.
+  def extract_scope_table
+    table = find_section_table('Scope')
+    @scope_table = table.is_a?(ScopeTable) ? table : nil
+  end
+
+  # The Scope rows as WorkItem nodes (ADR-194); empty when there is no ScopeTable.
+  def scope_work_items
+    @scope_table ? @scope_table.work_items : []
+  end
+
+  # A record declares prerequisites when any of its rows carries a Depends On
+  # reference; the overview Kit column is empty otherwise.
+  def declared_dependencies?
+    scope_work_items.any? { |wi| wi.depends_on_refs.any? }
+  end
+
+  # Kitted when every one of its work items is (a record with no rows is kitted).
+  def fully_kitted?
+    scope_work_items.all?(&:fully_kitted?)
+  end
+
+  # A started row blocked by an unsatisfied cross-record predecessor — the
+  # overview emphasises such a record, matching the console warning.
+  def kit_started_violation?
+    scope_work_items.any?(&:cross_record_violation?)
+  end
+
+  # One entry per Scope row whose row Status is In-Progress, yielding that row's
+  # owner. Rows without an owner, or not In-Progress, contribute nothing. The
+  # per-row Status is read directly and is independent of the record's lifecycle
+  # status. Owner and Status columns are located by header text, not position.
+  def in_progress_owner_tally
+    table = find_section_table('Scope')
+    return [] if table.nil?
+
+    owner_idx = column_index(table, 'Owner')
+    status_idx = column_index(table, 'Status')
+    return [] if owner_idx.nil? || status_idx.nil?
+
+    table.cells.filter_map do |row|
+      owner = row[owner_idx].to_s.strip
+      next if owner.empty?
+
+      owner if row[status_idx].to_s.strip == 'In-Progress'
+    end
+  end
+
+  def effective_status_on(date)
     table = find_section_table('Status')
     return nil if table.nil?
 
@@ -89,9 +158,46 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     status.empty? ? nil : status
   end
 
+  # Total logged effort in hours across the # Effort table (ADR-196); 0 when the
+  # record has no Effort section. Undated and unparseable entries still count
+  # toward the record total.
+  def actual_hours
+    effort_entries.sum { |e| e[:hours] }
+  end
+
+  # Logged hours dated on or before `date` (ADR-196). Undated entries are
+  # excluded since they cannot be placed on the timeline.
+  def actual_hours_on(date)
+    effort_entries.sum { |e| e[:date] && e[:date] <= date ? e[:hours] : 0.0 }
+  end
+
+  # Logged hours dated on or before `date` for the Scope row whose Item matches
+  # `item` (case-insensitive) — the per-chain-row actual the fever chart credits
+  # (ADR-196). Entries with no Item credit no row and are excluded here.
+  def row_actual_hours_on(item, date)
+    key = item.to_s.strip.downcase
+    return 0.0 if key.empty?
+
+    effort_entries.sum do |e|
+      e[:item] == key && e[:date] && e[:date] <= date ? e[:hours] : 0.0
+    end
+  end
+
+  # The [earliest, latest] dated # Effort entry crediting the Scope row whose Item
+  # matches `item` (case-insensitive) — the real logged span the Gantt's tracking
+  # lane draws (ADR-213). nil when the row has no dated effort. Undated entries are
+  # excluded since they cannot be placed on the timeline.
+  def effort_date_range(item)
+    key = item.to_s.strip.downcase
+    return nil if key.empty?
+
+    dates = effort_entries.filter_map { |e| e[:date] if e[:item] == key }
+    dates.empty? ? nil : dates.minmax
+  end
+
   private
 
-  def lookup_cell(section_name:, key_column:, value_column:, key:) # rubocop:disable Metrics/AbcSize
+  def lookup_cell(section_name:, key_column:, value_column:, key:)
     table = find_section_table(section_name)
     return nil if table.nil?
 
@@ -106,7 +212,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     cell.empty? ? nil : cell
   end
 
-  def find_section_table(section_name) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def find_section_table(section_name)
     in_section = false
     section_level = nil
     @items.each do |item|
@@ -117,7 +223,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
         elsif in_section && item.level <= section_level
           return nil
         end
-      elsif in_section && item.is_a?(MarkdownTable)
+      elsif in_section && (item.is_a?(MarkdownTable) || item.is_a?(ScopeTable))
         return item
       end
     end
@@ -131,7 +237,7 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     col_index = column_index(table, column_name)
     return [] if col_index.nil?
 
-    table.rows.filter_map { |row| parse_dd_mm_yyyy(row[col_index]) }
+    table.cells.filter_map { |row| parse_dd_mm_yyyy(row[col_index]) }
   end
 
   def column_index(table, column_name)
@@ -150,6 +256,45 @@ class Decision < PersistentDocument # rubocop:disable Style/Documentation,Metric
     Date.new(match[3].to_i, match[2].to_i, match[1].to_i)
   rescue ArgumentError
     nil
+  end
+
+  # Parsed # Effort rows (ADR-196): [{ date:, item:, hours: }, ...]. The section
+  # is located by heading text and its columns addressed by header (Date / Item /
+  # Hours), like Status and Scope. Hours parse as non-negative floats (blank,
+  # negative, or unparseable -> 0); Item is downcased for case-insensitive row
+  # matching, or nil when absent. Memoised so the readers share one parse.
+  def effort_entries
+    return @effort_entries if defined?(@effort_entries)
+
+    @effort_entries = parse_effort_entries
+  end
+
+  def parse_effort_entries
+    table = find_section_table('Effort')
+    return [] if table.nil?
+
+    date_idx = column_index(table, 'Date')
+    hours_idx = column_index(table, 'Hours')
+    return [] if date_idx.nil? || hours_idx.nil?
+
+    item_idx = column_index(table, 'Item')
+    table.cells.map { |row| effort_entry(row, date_idx, item_idx, hours_idx) }
+  end
+
+  def effort_entry(row, date_idx, item_idx, hours_idx)
+    { date: parse_dd_mm_yyyy(row[date_idx]),
+      item: item_idx ? normalize_item(row[item_idx]) : nil,
+      hours: parse_hours(row[hours_idx]) }
+  end
+
+  def normalize_item(value)
+    text = value.to_s.strip.downcase
+    text.empty? ? nil : text
+  end
+
+  def parse_hours(value)
+    hours = Float(value.to_s.strip, exception: false)
+    hours.nil? || hours.negative? ? 0.0 : hours
   end
 
   def assign_id_parts(stem)

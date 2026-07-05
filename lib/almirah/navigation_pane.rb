@@ -1,17 +1,13 @@
-
 class NavigationPane
+  attr_accessor :specifications
 
-    attr_accessor :specifications
+  def initialize(specification)
+    @doc = specification
+  end
 
-    def initialize(specification)
-        @doc = specification
-    end
+  def to_html
+    return @doc.dom.section_tree_to_html if @doc.dom
 
-    def to_html
-        if  @doc.dom
-            return @doc.dom.section_tree_to_html()
-        else
-            return ''
-        end
-    end
+    ''
+  end
 end

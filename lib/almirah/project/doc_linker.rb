@@ -17,7 +17,7 @@ class DocLinker
     result
   end
 
-  def self.link_protocol_to_spec(protocol, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def self.link_protocol_to_spec(protocol, specification)
     top_document = specification
     bottom_document = protocol
 
@@ -44,7 +44,7 @@ class DocLinker
     end
   end
 
-  def self.link_decision_to_spec(decision, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def self.link_decision_to_spec(decision, specification)
     top_document = specification
     bottom_document = decision
 
@@ -68,7 +68,7 @@ class DocLinker
     end
   end
 
-  def self.link_source_file_to_spec(source_file, specification) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def self.link_source_file_to_spec(source_file, specification)
     top_document = specification
     bottom_document = source_file
 
@@ -92,7 +92,7 @@ class DocLinker
     end
   end
 
-  def self.link_two_specifications(doc_a, doc_b) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+  def self.link_two_specifications(doc_a, doc_b)
     if doc_b.up_link_docs.key?(doc_a.id.to_s)
       top_document = doc_a
       bottom_document = doc_b

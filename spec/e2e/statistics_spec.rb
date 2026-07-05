@@ -72,7 +72,7 @@ RSpec.describe 'Statistics', type: :aruba do
     end
   end
 
-# <REQ> The software shall provide the "Number of Items w/ Down-links" for each specification >[SRS-007] </REQ>
+  # <REQ> The software shall provide the "Number of Items w/ Down-links" for each specification >[SRS-007] </REQ>
   describe 'Number of Items with Down-links' do
     let(:idx) { Nokogiri::HTML(File.read(expand_path('myproject/build/index.html'))) }
 
@@ -105,5 +105,4 @@ RSpec.describe 'Statistics', type: :aruba do
       expect(cell.text.strip).to eq('0')
     end
   end
-
 end

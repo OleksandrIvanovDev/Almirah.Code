@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-describe 'DocParser' do # rubocop:disable Metrics/BlockLength
+describe 'DocParser' do
   it 'Recognizes Heading1' do
     input_lines = []
     input_lines << '# Heading Level 1'
