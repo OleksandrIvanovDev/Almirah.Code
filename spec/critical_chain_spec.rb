@@ -99,6 +99,28 @@ RSpec.describe CriticalChain do
     expect(described_class.new([estimated]).estimated?).to be(true)
   end
 
+  it 'backfills a short low-priority row into an idle lane gap instead of queueing it' do
+    # Three records handed from DEV to TEST, DEV serialised A -> B -> C. TEST
+    # idles on days 5..7 between A's and C's tests; B's 1-day test becomes ready
+    # on day 6, inside that gap. Having the shortest downstream chain it is
+    # placed last -- backfill must still slot it into the gap (days 6..6) rather
+    # than behind every other TEST row, keeping it off the chain.
+    a_code = work_item(record: 'A', step: 1, owner: 'DEV', focused: 2, seq: 1)
+    a_test = work_item(record: 'A', step: 2, owner: 'TEST', focused: 2, seq: 1)
+    b_code = work_item(record: 'B', step: 1, owner: 'DEV', focused: 3, seq: 2)
+    b_test = work_item(record: 'B', step: 2, owner: 'TEST', focused: 1, seq: 2)
+    c_code = work_item(record: 'C', step: 1, owner: 'DEV', focused: 2, seq: 3)
+    c_test = work_item(record: 'C', step: 2, owner: 'TEST', focused: 2, seq: 3)
+    link(a_code, a_test)
+    link(b_code, b_test)
+    link(c_code, c_test)
+    link(a_code, b_code)
+    link(b_code, c_code)
+    cc = described_class.new([a_code, a_test, b_code, b_test, c_code, c_test])
+    expect(cc.length).to eq(9) # DEV chain 2+3+2 plus C's test; B's test adds nothing
+    expect(cc.chain).to eq([a_code, b_code, c_code, c_test])
+  end
+
   it 'produces the same chain on repeated computation' do
     a = work_item(record: 'A', step: 1, owner: 'BA', focused: 2, seq: 1)
     b = work_item(record: 'B', step: 1, owner: 'BA', focused: 3, seq: 2)
