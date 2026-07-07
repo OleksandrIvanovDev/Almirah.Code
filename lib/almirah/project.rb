@@ -64,6 +64,7 @@ class Project
     render_critical_chain_page
     render_all_decisions
     render_all_risk_records
+    render_risk_registry_pages
     render_index
     create_search_data
     report_broken_links
@@ -95,6 +96,7 @@ class Project
     render_critical_chain_page
     render_all_decisions
     render_all_risk_records
+    render_risk_registry_pages
     render_index
     create_search_data
     report_broken_links
@@ -324,7 +326,10 @@ class Project
     path = @configuration.project_root_directory
     risks_root = "#{path}/risks"
     Dir.glob("#{risks_root}/*/**/*.md").each do |f|
-      next if File.basename(f).downcase == 'overview.md'
+      if File.basename(f).downcase == 'overview.md'
+        register_risk_preface(f, risks_root)
+        next
+      end
 
       doc = DocFabric.create_risk_record(f)
       rel_dir = File.dirname(f.sub("#{risks_root}/", ''))
@@ -335,6 +340,19 @@ class Project
     end
     ConsoleReporter.count('parsing risk records', @project_data.risk_records.length)
     report_duplicate_risk_ids
+  end
+
+  # A registry's own overview.md is its preface (ADR-216), parsed like a record
+  # for rendering but never collected. An overview.md nested deeper inside a
+  # registry is neither a record nor a preface and is skipped entirely.
+  def register_risk_preface(file, risks_root)
+    rel_dir = File.dirname(file.sub("#{risks_root}/", ''))
+    return unless rel_dir.index('/').nil?
+
+    doc = DocFabric.create_risk_record(file)
+    doc.registry = rel_dir
+    doc.output_rel_path = "risks/#{rel_dir}/overview.html"
+    @project_data.risk_registry_prefaces[rel_dir] = doc
   end
 
   # Add a risk record to its registry, keyed on the first-level folder under
@@ -586,6 +604,32 @@ class Project
       doc.root_prefix = '../' * depth
       doc.specifications_path = "./#{doc.root_prefix}specifications/"
       doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
+    end
+  end
+
+  # Each registry renders to build/risks/<registry>/overview.html (ADR-216):
+  # the rendered preface first, then the register table of the registry's
+  # records, with the columns configured under the risks: root of project.yml
+  # (implicit columns plus Status when unconfigured). A registry holding only
+  # an overview.md still renders, with an empty table. Runs after
+  # render_all_risk_records so every record carries its rendering paths.
+  def render_risk_registry_pages
+    registry_names = (@project_data.risk_registries.map { |g| g.keys.first } +
+                      @project_data.risk_registry_prefaces.keys).uniq
+    return if registry_names.empty?
+
+    path = @configuration.project_root_directory
+    registry_names.each do |name|
+      records = @project_data.risk_registries.find { |g| g.key?(name) }&.fetch(name) || []
+      preface = @project_data.risk_registry_prefaces[name]
+      if preface
+        preface.root_prefix = '../../'
+        preface.specifications_path = "./#{preface.root_prefix}specifications/"
+      end
+      doc = DocFabric.create_risk_registry_page(name, records, preface, @configuration.get_risk_columns(name))
+      out_dir = "#{path}/build/risks/#{name}"
+      FileUtils.mkdir_p(out_dir)
+      doc.to_html("#{out_dir}/")
     end
   end
 

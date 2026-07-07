@@ -37,6 +37,8 @@ class BaseDocument
                           'overview.html'
                         elsif instance_of? CriticalChainPage
                           'critical-chain.html'
+                        elsif instance_of? RiskRegistryPage
+                          'overview.html'
                         elsif is_a? Decision # RiskRecord included
                           "#{@id}.html"
                         else

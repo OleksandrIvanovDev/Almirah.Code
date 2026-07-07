@@ -106,6 +106,22 @@ class ProjectConfiguration
     value
   end
 
+  # The ordered register-column list for a risk registry folder (ADR-216),
+  # read from the risks: root — a list of { folder:, columns: } entries.
+  # nil when the registry carries no configuration; such a registry renders
+  # the implicit columns plus Status only.
+  def get_risk_columns(folder)
+    return nil unless @parameters.is_a?(Hash)
+
+    entries = @parameters['risks']
+    return nil unless entries.is_a?(Array)
+
+    entry = entries.find { |e| e.is_a?(Hash) && e['folder'].to_s == folder }
+    return nil unless entry.is_a?(Hash) && entry['columns'].is_a?(Array)
+
+    entry['columns'].map(&:to_s)
+  end
+
   def is_spec_db_shall_be_created
     if @parameters.key? 'output'
       @parameters['output'].each do |p|

@@ -71,8 +71,10 @@ RSpec.describe 'Risk Records', type: :aruba do
 
     # <REQ> A registry's overview.md is a preface, not a risk record. >[SRS-166] </REQ>
     it 'does not collect overview.md as a risk record' do
-      expect(File.exist?(expand_path('myproject/build/risks/product/overview.html'))).to be false
       expect(last_command_started.stdout).to match(/^parsing risk records \.+ 3 ok$/)
+      # the registry page (ADR-216) owns the overview.html path; no record row exists for it
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/risks/product/overview.html')))
+      expect(doc.at_css('table.risk_register td.item_id a[id="overview"]')).to be_nil
     end
 
     # <REQ> Records are collected from first-level subfolders only. >[SRS-166] </REQ>
