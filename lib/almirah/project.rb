@@ -45,6 +45,7 @@ class Project
     parse_all_protocols
     parse_all_source_files
     parse_decisions
+    parse_risks
     link_all_specifications
     link_all_protocols
     link_all_source_files
@@ -62,6 +63,7 @@ class Project
     render_decisions_overview
     render_critical_chain_page
     render_all_decisions
+    render_all_risk_records
     render_index
     create_search_data
     report_broken_links
@@ -74,6 +76,7 @@ class Project
     parse_test_run test_run
     parse_all_source_files
     parse_decisions
+    parse_risks
     link_all_specifications
     link_all_protocols
     link_all_source_files
@@ -91,6 +94,7 @@ class Project
     render_decisions_overview
     render_critical_chain_page
     render_all_decisions
+    render_all_risk_records
     render_index
     create_search_data
     report_broken_links
@@ -238,6 +242,10 @@ class Project
       d.output_rel_path = "decisions/#{d.html_rel_path}"
       reg.register(d)
     end
+    @project_data.risk_records.each do |d|
+      d.output_rel_path = "risks/#{d.html_rel_path}"
+      reg.register(d)
+    end
     @project_data.source_files.each do |d|
       rel = d.path.sub("#{d.root_path}/", '')
       d.output_rel_path = "source_files/#{d.repository}/#{rel}.html"
@@ -306,6 +314,52 @@ class Project
       @project_data.decision_groups.append({ group_name => [doc] })
     else
       group[group_name].append(doc)
+    end
+  end
+
+  # Collect risk records (ADR-215): each first-level subfolder of risks/ is a
+  # risk registry; a registry's overview.md is its preface, not a record. Files
+  # directly under risks/ belong to no registry and are not collected.
+  def parse_risks
+    path = @configuration.project_root_directory
+    risks_root = "#{path}/risks"
+    Dir.glob("#{risks_root}/*/**/*.md").each do |f|
+      next if File.basename(f).downcase == 'overview.md'
+
+      doc = DocFabric.create_risk_record(f)
+      rel_dir = File.dirname(f.sub("#{risks_root}/", ''))
+      doc.registry = rel_dir.split('/').first
+      doc.html_rel_path = "#{rel_dir}/#{doc.id}.html"
+      @project_data.risk_records.append(doc)
+      add_to_risk_registry(doc)
+    end
+    ConsoleReporter.count('parsing risk records', @project_data.risk_records.length)
+    report_duplicate_risk_ids
+  end
+
+  # Add a risk record to its registry, keyed on the first-level folder under
+  # risks/. Registries are single-key hashes appended in folder-encounter order,
+  # mirroring add_to_decision_group.
+  def add_to_risk_registry(doc)
+    registry = @project_data.risk_registries.find { |g| g.key?(doc.registry) }
+    if registry.nil?
+      @project_data.risk_registries.append({ doc.registry => [doc] })
+    else
+      registry[doc.registry].append(doc)
+    end
+  end
+
+  # Two risk records sharing one id would collide in the project-wide link
+  # space; each registry is expected to use its own letter prefix (ADR-215).
+  # Reported as a non-failing warning, like broken links.
+  def report_duplicate_risk_ids
+    duplicates = @project_data.risk_records.group_by(&:id).select { |_id, records| records.length > 1 }
+    return if duplicates.empty?
+
+    ConsoleReporter.warn('duplicated risk ids', duplicates.length)
+    duplicates.each do |id, records|
+      files = records.map { |r| r.path.sub("#{@configuration.project_root_directory}/", '') }.join(', ')
+      puts ConsoleReporter.warn_detail("  #{id}: #{files}")
     end
   end
 
@@ -529,6 +583,23 @@ class Project
       out_dir = out_dir_rel == '.' ? build_decisions_root : "#{build_decisions_root}/#{out_dir_rel}"
       FileUtils.mkdir_p(out_dir)
       depth = 1 + (out_dir_rel == '.' ? 0 : out_dir_rel.split('/').size)
+      doc.root_prefix = '../' * depth
+      doc.specifications_path = "./#{doc.root_prefix}specifications/"
+      doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
+    end
+  end
+
+  # Each risk record renders to its own page under build/risks/<registry>/,
+  # with the navigation pane, exactly as decision records do (ADR-215).
+  def render_all_risk_records
+    return if @project_data.risk_records.empty?
+
+    build_risks_root = "#{@configuration.project_root_directory}/build/risks"
+    @project_data.risk_records.each do |doc|
+      out_dir_rel = File.dirname(doc.html_rel_path)
+      out_dir = "#{build_risks_root}/#{out_dir_rel}"
+      FileUtils.mkdir_p(out_dir)
+      depth = 1 + out_dir_rel.split('/').size
       doc.root_prefix = '../' * depth
       doc.specifications_path = "./#{doc.root_prefix}specifications/"
       doc.to_html(NavigationPane.new(doc), "#{out_dir}/")
