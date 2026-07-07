@@ -31,6 +31,16 @@ class RiskRecord < Decision
     Float(texts.join(' ').strip, exception: false)
   end
 
+  # The record's value for an RPN group (ADR-217): the product of its numeric
+  # input sections. nil when any input is missing or not numeric — such a
+  # record renders a blank cell and is ignored by the summary aggregates.
+  def rpn_value(group)
+    factors = group[:inputs].map { |input| section_numeric(input) }
+    return nil if factors.any?(&:nil?)
+
+    factors.reduce(:*)
+  end
+
   # The distinct controlled-paragraph IDs the record's Affected Documents
   # Req-ID column links to (ADR-218), in the section's row order — the
   # IDs-only content of the register cell. Empty when the record carries no

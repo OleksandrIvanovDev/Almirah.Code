@@ -8,6 +8,7 @@ require_relative 'doc_types/traceability'
 require_relative 'doc_types/decision'
 require_relative 'doc_types/risk_record'
 require_relative 'doc_types/risk_registry_page'
+require_relative 'doc_types/risks_overview'
 require_relative 'doc_types/decisions_overview'
 require_relative 'doc_types/critical_chain_page'
 require_relative 'doc_parser'
@@ -84,6 +85,10 @@ class DocFabric
 
   def self.create_risk_registry_page(registry, records, preface, columns, rpn_groups = [])
     RiskRegistryPage.new registry, records, preface, columns, rpn_groups
+  end
+
+  def self.create_risks_overview(registries, configuration)
+    RisksOverview.new registries, configuration
   end
 
   def self.create_decisions_overview(project)

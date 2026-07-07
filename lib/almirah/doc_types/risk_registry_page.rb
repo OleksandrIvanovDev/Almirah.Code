@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base_document'
+require_relative 'rpn_rendering'
 require_relative '../doc_items/heading'
 
 # The registry page (ADR-216): build/risks/<registry>/overview.html holding
@@ -10,6 +11,8 @@ require_relative '../doc_items/heading'
 # section matched by heading text. The Status column is reserved: it is filled
 # from the record's current lifecycle status, never from a section.
 class RiskRegistryPage < BaseDocument
+  include RpnRendering
+
   STATUS_COLUMN = 'Status'
   # The column rendered as bare linked IDs from the record's Affected
   # Documents section (ADR-218), never as the section's prose.
@@ -115,39 +118,14 @@ class RiskRegistryPage < BaseDocument
     end
   end
 
-  # The computed group cell (ADR-217): the product of the record's numeric
-  # input sections, blank when any input is missing or not numeric, coloured
-  # by the group's thresholds when configured.
+  # The computed group cell (ADR-217): the record's group value, blank when
+  # any input is missing or not numeric, coloured by the group's thresholds
+  # when configured.
   def render_rpn_cell(doc, group)
-    value = rpn_value(doc, group)
+    value = doc.rpn_value(group)
     return "\t\t<td class=\"item_rpn\"></td>\n" if value.nil?
 
     classes = ['item_rpn', rpn_threshold_class(value, group)].compact.join(' ')
     "\t\t<td class=\"#{classes}\">#{format_rpn(value)}</td>\n"
-  end
-
-  def rpn_value(doc, group)
-    factors = group[:inputs].map { |input| doc.section_numeric(input) }
-    return nil if factors.any?(&:nil?)
-
-    factors.reduce(:*)
-  end
-
-  # Acceptable at or below the acceptable bound, unacceptable at or above the
-  # unacceptable bound, caution between them (the ALARP band); a lone bound
-  # leaves the rest of the range as caution. nil when no thresholds configured.
-  def rpn_threshold_class(value, group)
-    if group[:acceptable] && value <= group[:acceptable]
-      'rpn_acceptable'
-    elsif group[:unacceptable] && value >= group[:unacceptable]
-      'rpn_unacceptable'
-    elsif group[:acceptable] || group[:unacceptable]
-      'rpn_caution'
-    end
-  end
-
-  # Whole products print as integers (8 * 3 -> 24, not 24.0).
-  def format_rpn(value)
-    value == value.to_i ? value.to_i.to_s : value.to_s
   end
 end
