@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'decision'
+require_relative '../doc_items/controlled_table'
 
 # A risk record (ADR-215): one Markdown file per risk, collected from the
 # first-level subfolders of the project's risks/ folder, each subfolder being
@@ -28,6 +29,17 @@ class RiskRecord < Decision
   def section_numeric(section_name)
     texts = section_items(section_name).filter_map { |i| i.text if i.respond_to?(:text) }
     Float(texts.join(' ').strip, exception: false)
+  end
+
+  # The distinct controlled-paragraph IDs the record's Affected Documents
+  # Req-ID column links to (ADR-218), in the section's row order — the
+  # IDs-only content of the register cell. Empty when the record carries no
+  # Affected Documents section or its rows link nothing.
+  def affected_document_ids
+    table = section_items('Affected Documents').find { |i| i.is_a?(ControlledTable) }
+    return [] if table.nil?
+
+    table.rows.flat_map { |row| row.up_link_ids || [] }.uniq
   end
 
   private

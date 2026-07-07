@@ -11,6 +11,9 @@ require_relative '../doc_items/heading'
 # from the record's current lifecycle status, never from a section.
 class RiskRegistryPage < BaseDocument
   STATUS_COLUMN = 'Status'
+  # The column rendered as bare linked IDs from the record's Affected
+  # Documents section (ADR-218), never as the section's prose.
+  AFFECTED_DOCUMENTS_COLUMN = 'Affected Documents'
 
   attr_accessor :registry, :records, :preface, :columns, :rpn_groups
 
@@ -88,8 +91,28 @@ class RiskRegistryPage < BaseDocument
 
   def render_column_cell(doc, column)
     return "\t\t<td class=\"item_status\">#{doc.current_status}</td>\n" if column == STATUS_COLUMN
+    return render_affected_documents_cell(doc) if column == AFFECTED_DOCUMENTS_COLUMN
 
     "\t\t<td class=\"item_text\">#{doc.section_html(column)}</td>\n"
+  end
+
+  # IDs only (ADR-218): each distinct linked controlled-paragraph ID as a
+  # clickable link in row order; a dangling ID renders in the existing
+  # broken-link style rather than being dropped. The Proposed Text stays on
+  # the record page.
+  def render_affected_documents_cell(doc)
+    links = doc.affected_document_ids.map { |id| affected_document_link(doc, id) }
+    "\t\t<td class=\"item_id\">#{links.join(', ')}</td>\n"
+  end
+
+  def affected_document_link(doc, item_id)
+    if doc.wrong_links_hash.key?(item_id)
+      %(<span class="broken_link" title="Unresolved reference">#{item_id}</span>)
+    else
+      spec = /^([a-zA-Z]+)-\d+/.match(item_id)&.[](1)&.downcase
+      href = "./../../specifications/#{spec}/#{spec}.html##{item_id}"
+      %(<a href="#{href}" class="external" title="Affected document">#{item_id}</a>)
+    end
   end
 
   # The computed group cell (ADR-217): the product of the record's numeric

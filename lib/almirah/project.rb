@@ -50,6 +50,7 @@ class Project
     link_all_protocols
     link_all_source_files
     link_all_decisions
+    link_all_risks
     check_wrong_specification_referenced
     build_link_registry
     link_work_items
@@ -82,6 +83,7 @@ class Project
     link_all_protocols
     link_all_source_files
     link_all_decisions
+    link_all_risks
     check_wrong_specification_referenced
     build_link_registry
     link_work_items
@@ -436,6 +438,22 @@ class Project
       end
     end
     ConsoleReporter.count('decision links', number_of_links)
+  end
+
+  # A risk record's Affected Documents uplinks resolve exactly as a decision
+  # record's (ADR-218): the specification paragraph gains the record among its
+  # downlinks and a dangling Req-ID lands in the record's wrong_links_hash.
+  def link_all_risks
+    number_of_links = 0
+    @project_data.risk_records.each do |r|
+      @project_data.specifications.each do |s|
+        next unless r.up_link_docs.key?(s.id.to_s)
+
+        DocLinker.link_decision_to_spec(r, s)
+        number_of_links += 1
+      end
+    end
+    ConsoleReporter.count('risk links', number_of_links)
   end
 
   def link_all_source_files

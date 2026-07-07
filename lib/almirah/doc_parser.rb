@@ -250,13 +250,14 @@ class DocParser
             if temp_md_table
               if temp_md_table.is_separator_detected # if there is a separator
                 # A Decision Record's Scope table is parsed into a purpose-built
-                # ScopeTable (ADR-194); a Protocol, or a Decision inside an
-                # "Affected Documents" section, into a ControlledTable.
+                # ScopeTable (ADR-194); a Protocol, or a Decision or RiskRecord
+                # inside an "Affected Documents" section, into a ControlledTable
+                # (ADR-218 extends the Decision path to risk records).
                 if doc.instance_of?(Decision) && in_section?(doc, 'Scope') &&
                    temp_md_table.instance_of?(MarkdownTable)
                   temp_md_table = ScopeTable.new(doc, temp_md_table)
                 elsif doc.instance_of?(Protocol) ||
-                      (doc.instance_of?(Decision) && in_section?(doc, 'Affected Documents'))
+                      (doc.is_a?(Decision) && in_section?(doc, 'Affected Documents'))
                   # check if it is a controlled table
                   tmp = /(.*)\s+>\[(\S*)\]/.match(row)
                   if tmp && (temp_md_table.instance_of? MarkdownTable)
