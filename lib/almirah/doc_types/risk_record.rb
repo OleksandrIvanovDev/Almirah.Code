@@ -16,13 +16,28 @@ class RiskRecord < Decision
   end
 
   # The rendered HTML of the record section whose heading text equals
-  # `section_name` (ADR-216): every item between that heading and the next
-  # heading of the same or a higher level. Empty when there is no such
-  # section — the register renders it as an empty cell.
+  # `section_name` (ADR-216). Empty when there is no such section — the
+  # register renders it as an empty cell.
   def section_html(section_name)
+    section_items(section_name).map(&:to_html).join
+  end
+
+  # The numeric value of the named section (ADR-217): its items' plain text
+  # parsed as a Float. nil when the section is missing, empty, or not numeric —
+  # the RPN cell renders blank rather than computing a broken record as safe.
+  def section_numeric(section_name)
+    texts = section_items(section_name).filter_map { |i| i.text if i.respond_to?(:text) }
+    Float(texts.join(' ').strip, exception: false)
+  end
+
+  private
+
+  # The items between the heading whose text equals `section_name` and the
+  # next heading of the same or a higher level; empty when no heading matches.
+  def section_items(section_name)
     in_section = false
     section_level = nil
-    rows = []
+    collected = []
     @items.each do |item|
       if item.is_a?(Heading) && !in_section
         next unless item.text.strip == section_name
@@ -32,9 +47,9 @@ class RiskRecord < Decision
       elsif in_section
         break if item.is_a?(Heading) && item.level <= section_level
 
-        rows.append item.to_html
+        collected.append item
       end
     end
-    rows.join
+    collected
   end
 end

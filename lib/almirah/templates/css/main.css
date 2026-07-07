@@ -505,4 +505,16 @@ img{
     padding: 5px;
     text-align:center;
     background:#fff;
+}/* Risk register RPN threshold bands (ADR-217): acceptable / ALARP caution / unacceptable */
+td.item_rpn {
+    text-align: center;
+}
+td.rpn_acceptable {
+    background-color: #d5f5e3;
+}
+td.rpn_caution {
+    background-color: #fdebd0;
+}
+td.rpn_unacceptable {
+    background-color: #fadbd8;
 }

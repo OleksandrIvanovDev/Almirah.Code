@@ -626,7 +626,8 @@ class Project
         preface.root_prefix = '../../'
         preface.specifications_path = "./#{preface.root_prefix}specifications/"
       end
-      doc = DocFabric.create_risk_registry_page(name, records, preface, @configuration.get_risk_columns(name))
+      doc = DocFabric.create_risk_registry_page(name, records, preface, @configuration.get_risk_columns(name),
+                                                @configuration.get_risk_rpn_groups(name))
       out_dir = "#{path}/build/risks/#{name}"
       FileUtils.mkdir_p(out_dir)
       doc.to_html("#{out_dir}/")

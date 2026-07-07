@@ -82,8 +82,8 @@ class DocFabric
     doc
   end
 
-  def self.create_risk_registry_page(registry, records, preface, columns)
-    RiskRegistryPage.new registry, records, preface, columns
+  def self.create_risk_registry_page(registry, records, preface, columns, rpn_groups = [])
+    RiskRegistryPage.new registry, records, preface, columns, rpn_groups
   end
 
   def self.create_decisions_overview(project)
