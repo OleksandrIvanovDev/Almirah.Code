@@ -78,12 +78,22 @@ class RiskRegistryPage < BaseDocument
     href = "./#{record_href(doc)}"
     s = "\t<tr>\n"
     s += "\t\t<td class=\"item_id\">\n"
-    s += "\t\t\t<a name=\"#{doc.id}\" id=\"#{doc.id}\" href=\"#{href}\" title=\"Risk Record ID\">#{doc.id}</a>"
+    s += "\t\t\t<a name=\"#{doc.id}\" id=\"#{doc.id}\" href=\"#{href}\" title=\"Risk Record ID\">#{doc.id.upcase}</a>"
     s += "\t\t</td>\n"
-    s += "\t\t<td class=\"item_text\" style='padding: 5px;'><a href=\"#{href}\" class=\"external\">#{doc.title}</a></td>\n"
+    s += "\t\t<td class=\"item_text\" style='padding: 5px;'>\
+<a href=\"#{href}\" class=\"external\">#{record_title(doc)}</a></td>\n"
     @columns.each { |c| s += render_column_cell(doc, c) }
     @rpn_groups.each { |g| s += render_rpn_cell(doc, g) }
     s + "\t</tr>\n"
+  end
+
+  # The Title cell (ENH-221): the frontmatter title with the record's own
+  # leading "ID:" prefix removed, case-insensitively — the ID column already
+  # carries it. A title not starting with the record's ID stays unchanged, and
+  # the record page keeps the full title. Display-only, like the uppercased ID:
+  # anchors and hrefs keep the canonical lowercase id.
+  def record_title(doc)
+    doc.title.to_s.sub(/\A#{Regexp.escape(doc.id)}\s*:\s*/i, '')
   end
 
   # The record page path relative to the registry page, which sits at the

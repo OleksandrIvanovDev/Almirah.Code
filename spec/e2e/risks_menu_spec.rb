@@ -129,6 +129,18 @@ RSpec.describe 'Risks Menu and Registries Page', type: :aruba do
       # unconfigured registry
       write_status_risk('process', 'procr-001-closed', 'PROCR-001: Closed', 'Closed')
       write_status_risk('process', 'procr-002-open', 'PROCR-002: Open', 'Mitigating')
+      # titled preface -> summary row shows the title (ENH-221)
+      write_file('myproject/risks/product/overview.md', <<~MD)
+        ---
+        title: Product Risk Register
+        ---
+
+        # Product Risk Register
+      MD
+      # preface without a frontmatter title -> summary row falls back to the folder name
+      write_file('myproject/risks/process/overview.md', <<~MD)
+        # Process Risks
+      MD
       run_command_and_stop('almirah please myproject')
     end
 
@@ -149,12 +161,14 @@ RSpec.describe 'Risks Menu and Registries Page', type: :aruba do
       expect(summary_doc.at_css('#risks_menu_item')['href']).to eq('overview.html')
     end
 
-    # <REQ> One row per registry, the registry name linked to its registry page. >[SRS-172] </REQ>
-    it 'renders one row per registry linking to the registry pages' do
+    # <REQ> One row per registry; the cell shows the preface's frontmatter title, falling back
+    # to the folder name when no preface title exists, linked to the registry page. >[SRS-172] </REQ>
+    it 'renders one row per registry, titled by the preface, linking to the registry pages' do
       table = summary_table('myproject/build/risks/overview.html')
       links = table.css('td a.external')
-      expect(links.map { |a| a.text.strip }).to contain_exactly('product', 'process')
-      hrefs = links.to_h { |a| [a.text.strip, a['href']] }
+      texts = links.to_h { |a| [a['id'], a.text.strip] }
+      expect(texts).to eq('product' => 'Product Risk Register', 'process' => 'process')
+      hrefs = links.to_h { |a| [a['id'], a['href']] }
       expect(hrefs['product']).to eq('./product/overview.html')
       expect(hrefs['process']).to eq('./process/overview.html')
     end

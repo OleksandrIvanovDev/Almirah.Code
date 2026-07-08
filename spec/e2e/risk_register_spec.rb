@@ -94,14 +94,34 @@ RSpec.describe 'Risk Register Table', type: :aruba do
       expect(header_cells(table)).to eq(['#', 'Title', 'Severity', 'Occurrence', 'Mitigation', 'Status'])
     end
 
-    # <REQ> The ID column links to the record page; the title comes from the frontmatter. >[SRS-168] </REQ>
-    it 'links each row id and title to the record page' do
+    # <REQ> The ID column shows the uppercased record ID linked to the record page. >[SRS-168] </REQ>
+    it 'links each row id to the record page, displayed uppercased' do
       table = register_table('myproject/build/risks/product/overview.html')
       id_links = table.css('td.item_id a')
-      expect(id_links.map { |a| a.text.strip }).to eq(%w[prodr-001 prodr-002])
+      expect(id_links.map { |a| a.text.strip }).to eq(%w[PRODR-001 PRODR-002])
       expect(id_links.map { |a| a['href'] }).to eq(['./prodr-001.html', './prodr-002.html'])
+    end
+
+    # <REQ> The uppercasing is display-only: the anchor keeps the canonical lowercase id. >[SRS-168] </REQ>
+    it 'keeps the lowercase id as the row anchor' do
+      table = register_table('myproject/build/risks/product/overview.html')
+      id_links = table.css('td.item_id a')
+      expect(id_links.map { |a| a['name'] }).to eq(%w[prodr-001 prodr-002])
+      expect(id_links.map { |a| a['id'] }).to eq(%w[prodr-001 prodr-002])
+    end
+
+    # <REQ> The Title cell drops the record's own leading ID prefix from the frontmatter title. >[SRS-168] </REQ>
+    it 'renders the titles without the id prefix, linked to the record pages' do
+      table = register_table('myproject/build/risks/product/overview.html')
       title_links = table.css('td.item_text a.external')
-      expect(title_links.map { |a| a.text.strip }).to eq(['PRODR-001: Data Loss', 'PRODR-002: Slow Search'])
+      expect(title_links.map { |a| a.text.strip }).to eq(['Data Loss', 'Slow Search'])
+      expect(title_links.map { |a| a['href'] }).to eq(['./prodr-001.html', './prodr-002.html'])
+    end
+
+    # <REQ> The record page itself keeps the full frontmatter title. >[SRS-168] </REQ>
+    it 'keeps the full title on the record page' do
+      record_html = File.read(expand_path('myproject/build/risks/product/prodr-001.html'))
+      expect(record_html).to include('PRODR-001: Data Loss')
     end
 
     # <REQ> A cell is the rendered content of the record section whose heading equals the column name. >[SRS-168] </REQ>
@@ -148,7 +168,7 @@ RSpec.describe 'Risk Register Table', type: :aruba do
       YML
       write_file('myproject/risks/product/prodr-001-configured.md', <<~MD)
         ---
-        title: "PRODR-001: Configured"
+        title: "Configured Without Prefix"
         ---
 
         body
@@ -179,6 +199,13 @@ RSpec.describe 'Risk Register Table', type: :aruba do
     it 'keeps the configured registry on its own column set' do
       table = register_table('myproject/build/risks/product/overview.html')
       expect(header_cells(table)).to eq(['#', 'Title', 'Severity', 'Status'])
+    end
+
+    # <REQ> A title not starting with the record's own ID renders unchanged. >[SRS-168] </REQ>
+    it 'renders a title without the id prefix unchanged, next to the uppercased id' do
+      table = register_table('myproject/build/risks/product/overview.html')
+      expect(table.at_css('td.item_id a').text.strip).to eq('PRODR-001')
+      expect(table.at_css('td.item_text a.external').text.strip).to eq('Configured Without Prefix')
     end
   end
 

@@ -8,19 +8,22 @@ require_relative 'rpn_rendering'
 # file-system order, with the columns Risk Registry (linked to the registry
 # page), Total Risks, Open Risks, Highest RPN and Average RPN — the RPN
 # aggregates computed over the registry's leading RPN group, ignoring records
-# whose group value is blank.
+# whose group value is blank. The Risk Registry cell shows the registry
+# preface's frontmatter title, falling back to the folder name (ENH-221).
 class RisksOverview < BaseDocument
   include RpnRendering
 
   OPEN_EXCLUDED_STATUS = 'Closed'
 
-  attr_accessor :registries, :configuration
+  attr_accessor :registries, :configuration, :prefaces
 
-  # `registries` is the ordered list of [name, records] pairs.
-  def initialize(registries, configuration)
+  # `registries` is the ordered list of [name, records] pairs; `prefaces`
+  # maps a registry name to its parsed overview.md, when it has one.
+  def initialize(registries, configuration, prefaces = {})
     super()
     @registries = registries
     @configuration = configuration
+    @prefaces = prefaces
     @id = 'overview'
     @title = 'Risk Registries'
   end
@@ -57,12 +60,20 @@ class RisksOverview < BaseDocument
     s = "\t<tr>\n"
     s += "\t\t<td class=\"item_text\" style='padding: 5px;'>\
 <a name=\"#{name}\" id=\"#{name}\" href=\"./#{name}/overview.html\" class=\"external\" \
-title=\"Risk Registry\">#{name}</a></td>\n"
+title=\"Risk Registry\">#{registry_title(name)}</a></td>\n"
     s += "\t\t<td class=\"item_rpn\">#{records.length}</td>\n"
     s += "\t\t<td class=\"item_rpn\">#{open_count(records)}</td>\n"
     s += render_highest_cell(values, group)
     s += render_average_cell(values)
     s + "\t</tr>\n"
+  end
+
+  # The registry preface's frontmatter title (ENH-221) — the same source the
+  # registry page heading uses — or the folder name when the registry has no
+  # preface or the preface carries no title.
+  def registry_title(name)
+    params = @prefaces[name]&.frontmatter&.parameters
+    (params && params['title']) || name
   end
 
   # Every record whose marked status is not Closed counts as open — including

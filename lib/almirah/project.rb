@@ -675,7 +675,7 @@ class Project
     end
     path = @configuration.project_root_directory
     FileUtils.mkdir_p("#{path}/build/risks")
-    doc = DocFabric.create_risks_overview(registries, @configuration)
+    doc = DocFabric.create_risks_overview(registries, @configuration, @project_data.risk_registry_prefaces)
     doc.to_html("#{path}/build/risks/")
   end
 
