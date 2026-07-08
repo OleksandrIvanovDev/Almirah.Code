@@ -6,7 +6,7 @@ class BaseDocument
   attr_accessor :title, :id, :dom, :headings, :output_rel_path
 
   class << self
-    attr_accessor :show_decisions_link
+    attr_accessor :show_decisions_link, :show_risks_link
   end
 
   def initialize
@@ -37,7 +37,9 @@ class BaseDocument
                           'overview.html'
                         elsif instance_of? CriticalChainPage
                           'critical-chain.html'
-                        elsif instance_of? Decision
+                        elsif instance_of?(RiskRegistryPage) || instance_of?(RisksOverview)
+                          'overview.html'
+                        elsif is_a? Decision # RiskRecord included
                           "#{@id}.html"
                         else
                           "#{@id}/#{@id}.html"
@@ -72,6 +74,7 @@ class BaseDocument
           file.puts decisions_link(rel_to('decisions/overview.html'))
           file.puts critical_chain_link(rel_to('decisions/critical-chain.html'))
         end
+        file.puts risks_link(rel_to('risks/overview.html')) if BaseDocument.show_risks_link
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
       else
@@ -89,6 +92,11 @@ class BaseDocument
   def critical_chain_link(href)
     icon = '<span><i class="fa fa-link" aria-hidden="true"></i></span>'
     %(<a id="critical_chain_menu_item" href="#{href}">#{icon}&nbsp;Critical Chain</a>)
+  end
+
+  def risks_link(href)
+    icon = '<span><i class="fa fa-exclamation-triangle" aria-hidden="true"></i></span>'
+    %(<a id="risks_menu_item" href="#{href}">#{icon}&nbsp;Risks</a>)
   end
 
   def index_link(href)

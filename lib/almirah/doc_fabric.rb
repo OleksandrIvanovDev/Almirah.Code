@@ -6,6 +6,9 @@ require_relative 'doc_types/coverage'
 require_relative 'doc_types/implementation'
 require_relative 'doc_types/traceability'
 require_relative 'doc_types/decision'
+require_relative 'doc_types/risk_record'
+require_relative 'doc_types/risk_registry_page'
+require_relative 'doc_types/risks_overview'
 require_relative 'doc_types/decisions_overview'
 require_relative 'doc_types/critical_chain_page'
 require_relative 'doc_parser'
@@ -71,6 +74,21 @@ class DocFabric
     doc.extract_owners
     doc.extract_scope_table
     doc
+  end
+
+  def self.create_risk_record(path)
+    doc = RiskRecord.new path
+    DocFabric.parse_document doc
+    doc.extract_current_status
+    doc
+  end
+
+  def self.create_risk_registry_page(registry, records, preface, columns, rpn_groups = [])
+    RiskRegistryPage.new registry, records, preface, columns, rpn_groups
+  end
+
+  def self.create_risks_overview(registries, configuration, prefaces = {})
+    RisksOverview.new registries, configuration, prefaces
   end
 
   def self.create_decisions_overview(project)

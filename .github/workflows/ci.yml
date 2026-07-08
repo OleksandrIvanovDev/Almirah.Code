@@ -23,7 +23,7 @@ jobs:
       - name: Run unit tests
         env:
           COVERAGE: "true"
-        run: bundle exec rspec spec/doc_parser_spec.rb spec/text_line_spec.rb spec/document_spec.rb
+        run: bundle exec rspec --exclude-pattern "e2e/**/*"
 
   e2e:
     name: E2E tests (Ruby ${{ matrix.ruby }})
@@ -45,5 +45,14 @@ jobs:
           BROWSER_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: bundle exec rspec spec/e2e/
 
-  # RuboCop is excluded until pre-existing offenses in lib/ are resolved.
-  # Run locally with: bundle exec rubocop
+  lint:
+    name: RuboCop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Run RuboCop
+        run: bundle exec rubocop

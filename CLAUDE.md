@@ -30,6 +30,8 @@ gem install "Almirah-${version}.gem"
 
 The `.rspec` file sets defaults: color output, doc format, random order.
 
+E2E specs (`spec/e2e/`, aruba-driven) build their fixture projects inline with `write_file` and assert on the rendered `build/` output. Do not reference `../Almirah.TDS` from automated tests — that repository is for manual testing and showcase examples only.
+
 ## Architecture
 
 Almirah is a Ruby gem (CLI via Thor) that processes Markdown-based ALM (Application Lifecycle Management) projects into interlinked HTML with traceability.

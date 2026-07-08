@@ -5,7 +5,9 @@ require 'set'
 # Lays the WorkItem network (ADR-194) on an abstract day axis for the overview
 # swimlane Gantt (ADR-198). It performs a deterministic forward pass over the
 # dependency edges and then levels each owner's lane so two work items of the
-# same owner never overlap.
+# same owner never overlap. Levelling backfills: a row may be slotted into an
+# idle gap left between rows placed earlier, so a low-priority short row does
+# not queue behind the whole lane when a gap already fits it.
 #
 # Durations are a constant placeholder (3 days) while no per-row estimates
 # exist; `duration_for` is the single hook ADR-195 overrides to feed real
@@ -68,57 +70,56 @@ class WorkItemScheduler
 
   # Greedy list-scheduler. Items are processed in a deterministic priority order
   # (resource-free earliest start, then activity rank, record id, step) so that
-  # every item's predecessors are placed before it. Each item starts at the later
-  # of its dependency finish and its owner's next free day; the owner's cursor
-  # then advances past it, serialising the lane (resource levelling).
+  # every item's predecessors are placed before it. Each item starts at the
+  # earliest day at or after its dependency finish where its owner's lane has an
+  # idle gap wide enough for it (resource levelling with backfill).
   def schedule
     @starts = {}
     @ends = {}
     @binding = {}
-    @owner_last = {}
+    @owner_rows = Hash.new { |hash, owner| hash[owner] = [] }
     return if @items.empty?
 
-    owner_free = Hash.new(1)
-    priority_order.each { |wi| place(wi, owner_free) }
+    priority_order.each { |wi| place(wi) }
   end
 
-  # Assigns one work item its start day at the later of its dependency finish and
-  # its owner's next free day, records the predecessor that bound that start, then
-  # advances that owner's free cursor past it.
-  def place(work_item, owner_free)
-    owner = work_item.owner
+  # Assigns one work item its start day, records the predecessor that bound that
+  # start, then marks the span as occupied in its owner's lane.
+  def place(work_item)
     preds = scoped_predecessors(work_item)
-    start = start_day(preds, owner_free[owner])
+    dep_finish = preds.map { |p| @ends[p] || 1 }.max || 1
+    start, lane_pred = earliest_fit(work_item.owner, dep_finish, duration_for(work_item))
     @starts[work_item] = start
     @ends[work_item] = start + duration_for(work_item)
-    @binding[work_item] = binding_predecessor(work_item, preds, start, owner)
-    advance_owner(owner, work_item, owner_free)
+    @binding[work_item] = binding_predecessor(preds, start, lane_pred)
+    @owner_rows[work_item.owner] << work_item unless work_item.owner.empty?
   end
 
-  # The earliest day a row may start: the later of its in-scope predecessors'
-  # latest finish and its owner's next free day.
-  def start_day(preds, owner_free_day)
-    dep_finish = preds.map { |p| @ends[p] || 1 }.max || 1
-    [dep_finish, owner_free_day].max
-  end
+  # The earliest start at or after `from` where the owner's lane stays clear for
+  # `duration` days, plus the lane row whose finish that start had to wait behind
+  # (nil when the row starts at `from` itself). A blank owner holds no resource,
+  # so it never serialises.
+  def earliest_fit(owner, from, duration)
+    return [from, nil] if owner.empty?
 
-  # Advance an owner's free cursor past the just-placed row, and remember it as
-  # that owner's most recent row (the resource hand-off candidate). A blank owner
-  # holds no resource, so it never serialises.
-  def advance_owner(owner, work_item, owner_free)
-    return if owner.empty?
+    start = from
+    lane_pred = nil
+    @owner_rows[owner].sort_by { |row| @starts[row] }.each do |row|
+      break if start + duration <= @starts[row]
+      next if @ends[row] <= start
 
-    owner_free[owner] = @ends[work_item]
-    @owner_last[owner] = work_item
+      start = @ends[row]
+      lane_pred = row
+    end
+    [start, lane_pred]
   end
 
   # The already-placed predecessor whose finish coincides with this row's start --
   # the dependency or same-owner hand-off the critical chain is traced back
   # through. nil when the row starts at the origin with no such predecessor.
-  def binding_predecessor(_work_item, preds, start, owner)
+  def binding_predecessor(preds, start, lane_pred)
     candidates = preds.select { |p| @ends[p] == start }
-    resource_pred = @owner_last[owner]
-    candidates << resource_pred if resource_pred && @ends[resource_pred] == start
+    candidates << lane_pred if lane_pred
     candidates.min_by { |c| [c.record_id, c.step] }
   end
 
