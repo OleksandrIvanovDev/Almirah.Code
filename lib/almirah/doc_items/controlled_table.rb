@@ -103,15 +103,17 @@ class TestStepReferenceColumn < ControlledTableColumn
     s = ''
     specifications_path = @parent_row.parent_doc.specifications_path
     if @up_link_ids
+      cell_style = 'text-align: center;'
+      cell_style += ' background-color: #fcc;' if @up_link_ids.any? { |lnk| dangling?(lnk) }
       if @up_link_ids.length == 1
         if tmp = /^([a-zA-Z]+)-\d+/.match(@up_link_ids[0])
           up_link_doc_name = tmp[1].downcase
         end
-        s += "\t\t<td class=\"item_id\" style=\"text-align: center;\">\
+        s += "\t\t<td class=\"item_id\" style=\"#{cell_style}\">\
                     <a href=\"#{specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{@up_link_ids[0]}\" \
-                    class=\"external\" title=\"Linked to\">#{@up_link_ids[0]}</a></td>\n"
+                    class=\"#{link_class(@up_link_ids[0])}\" title=\"#{link_title(@up_link_ids[0], 'Linked to')}\">#{@up_link_ids[0]}</a></td>\n"
       else
-        s += "\t\t<td class=\"item_id\" style=\"text-align: center;\">"
+        s += "\t\t<td class=\"item_id\" style=\"#{cell_style}\">"
         s += "<div id=\"COV_#{@parent_row.id}\" style=\"display: block;\">"
         s += "<a  href=\"#\" onclick=\"coverageLink_OnClick(this.parentElement); return false;\" \
                     class=\"external\" title=\"Number of verified items\">#{@up_link_ids.length}</a>"
@@ -122,7 +124,7 @@ class TestStepReferenceColumn < ControlledTableColumn
             up_link_doc_name = tmp[1].downcase
           end
           s += "\t\t\t<a href=\"#{specifications_path}#{up_link_doc_name}/#{up_link_doc_name}.html##{lnk}\" \
-                    class=\"external\" title=\"Verifies\">#{lnk}</a>\n<br>"
+                    class=\"#{link_class(lnk)}\" title=\"#{link_title(lnk, 'Verifies')}\">#{lnk}</a>\n<br>"
         end
         s += '</div>'
         s += "</td>\n"
@@ -130,6 +132,23 @@ class TestStepReferenceColumn < ControlledTableColumn
     else
       "\t\t<td style=\"text-align: center;\"></td>\n\r"
     end
+  end
+
+  # An uplink to a paragraph missing from an existing specification, per the
+  # owning document's wrong-links collection (ENH-225). The cell renders it
+  # with the wrong-links red background and the broken-link style, keeping
+  # the link to the target document clickable.
+  def dangling?(link_id)
+    doc = @parent_row.parent_doc
+    doc.respond_to?(:wrong_links_hash) && doc.wrong_links_hash.key?(link_id)
+  end
+
+  def link_class(link_id)
+    dangling?(link_id) ? 'external broken_link' : 'external'
+  end
+
+  def link_title(link_id, resolved_title)
+    dangling?(link_id) ? 'Linked item does not exist' : resolved_title
   end
 end
 
