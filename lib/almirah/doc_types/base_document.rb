@@ -35,8 +35,6 @@ class BaseDocument
                           "#{@id}.html"
                         elsif instance_of? DecisionsOverview
                           'overview.html'
-                        elsif instance_of? CriticalChainPage
-                          'critical-chain.html'
                         elsif instance_of?(RiskRegistryPage) || instance_of?(RisksOverview)
                           'overview.html'
                         elsif is_a? Decision # RiskRecord included
@@ -70,10 +68,7 @@ class BaseDocument
         else
           file.puts index_link(rel_to('index.html'))
         end
-        if BaseDocument.show_decisions_link
-          file.puts decisions_link(rel_to('decisions/overview.html'))
-          file.puts critical_chain_link(rel_to('decisions/critical-chain.html'))
-        end
+        file.puts decisions_link(rel_to('decisions/overview.html')) if BaseDocument.show_decisions_link
         file.puts risks_link(rel_to('risks/overview.html')) if BaseDocument.show_risks_link
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
@@ -87,11 +82,6 @@ class BaseDocument
   def decisions_link(href)
     icon = '<span><i class="fa fa-gavel" aria-hidden="true"></i></span>'
     %(<a id="decisions_menu_item" href="#{href}">#{icon}&nbsp;Decision Records</a>)
-  end
-
-  def critical_chain_link(href)
-    icon = '<span><i class="fa fa-link" aria-hidden="true"></i></span>'
-    %(<a id="critical_chain_menu_item" href="#{href}">#{icon}&nbsp;Critical Chain</a>)
   end
 
   def risks_link(href)

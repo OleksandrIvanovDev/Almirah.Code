@@ -2,9 +2,8 @@
 
 require 'date'
 
-# Shared date bucketing for the planning views (ADR-182): the recent Fridays a
-# time-series trail is sampled on. Used by the overview's velocity chart and the
-# Critical Chain page's fever-chart trail (ADR-196).
+# Date bucketing for the overview's velocity chart: the recent Fridays its
+# time-series trail is sampled on.
 module PlanningDates
   # `count` Fridays ending at the Friday on or before `reference_date`, oldest
   # first.

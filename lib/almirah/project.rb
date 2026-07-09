@@ -2,7 +2,6 @@
 
 require 'fileutils'
 require_relative 'doc_fabric'
-require_relative 'doc_items/work_item'
 require_relative 'navigation_pane'
 require_relative 'doc_types/traceability'
 require_relative 'doc_types/index'
@@ -53,7 +52,6 @@ class Project
     link_all_risks
     check_wrong_specification_referenced
     build_link_registry
-    link_work_items
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
@@ -62,7 +60,6 @@ class Project
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_decisions_overview
-    render_critical_chain_page
     render_all_decisions
     render_all_risk_records
     render_risk_registry_pages
@@ -70,7 +67,6 @@ class Project
     render_index
     create_search_data
     report_broken_links
-    report_kit_violations
     report_rendered
   end
 
@@ -87,7 +83,6 @@ class Project
     link_all_risks
     check_wrong_specification_referenced
     build_link_registry
-    link_work_items
     create_index
     render_all_specifications(@project_data.specifications)
     render_all_specifications(@project_data.traceability_matrices)
@@ -96,7 +91,6 @@ class Project
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
     render_decisions_overview
-    render_critical_chain_page
     render_all_decisions
     render_all_risk_records
     render_risk_registry_pages
@@ -104,7 +98,6 @@ class Project
     render_index
     create_search_data
     report_broken_links
-    report_kit_violations
     report_rendered
   end
 
@@ -122,111 +115,6 @@ class Project
 
     ConsoleReporter.warn('broken links', broken.length)
     broken.each { |b| puts ConsoleReporter.warn_detail("  #{b[:document] || '?'}: #{b[:target]}") }
-  end
-
-  # Builds the per-row WorkItem dependency network (ADR-194): registers every
-  # Scope-row work item, fills the intra-record step-order edges, then resolves
-  # each Depends On reference globally (LinkRegistry) to the activity-type-aligned
-  # work item of the target record, tagging each cross-record edge in-group or
-  # cross-group against the decision_groups boundary (ADR-197). Unresolved
-  # references are collected for report_kit_violations. Runs after
-  # build_link_registry (so every record resolves) and before rendering (so the
-  # overview Kit column is ready).
-  def link_work_items
-    @kit_unresolved = []
-    @project_data.decisions.each do |d|
-      d.scope_work_items.each { |wi| @project_data.work_items[wi.id] = wi }
-    end
-    link_intra_record_steps
-    link_cross_record_dependencies
-  end
-
-  # Each row's lower-numbered same-record steps are its predecessors; equal step
-  # numbers are concurrent (no edge). These edges are in-group by definition.
-  def link_intra_record_steps
-    @project_data.decisions.each do |d|
-      items = d.scope_work_items
-      items.each do |wi|
-        items.each do |other|
-          next if other.equal?(wi) || other.step >= wi.step
-
-          wi.add_predecessor(other, cross_group: false)
-          other.add_successor(wi)
-        end
-      end
-    end
-  end
-
-  def link_cross_record_dependencies
-    @project_data.decisions.each do |d|
-      d.scope_work_items.each do |wi|
-        wi.depends_on_refs.each { |ref| link_dependency(d, wi, ref) }
-      end
-    end
-  end
-
-  def link_dependency(record, work_item, ref)
-    target = @project_data.link_registry.find_by_id(ref)
-    unless target.is_a?(Decision)
-      @kit_unresolved << { record: record.id, target: ref }
-      return
-    end
-    prereq = aligned_work_item(target, work_item.activity)
-    return if prereq.nil? || prereq.equal?(work_item)
-
-    cross = decision_group_name(record) != decision_group_name(target)
-    work_item.add_predecessor(prereq, cross_group: cross)
-    prereq.add_successor(work_item)
-    anchor = target.scope_table&.step_column? ? prereq.row_anchor : nil
-    work_item.add_resolved_dependency(ref, target, anchor, prereq.id)
-  end
-
-  # The target record's work item whose activity (Item) matches `activity`,
-  # falling back to the nearest earlier activity by canonical phase order, then
-  # (when the target has only later activities) to its earliest row. nil only
-  # when the target has no Scope rows.
-  def aligned_work_item(target, activity)
-    items = target.scope_work_items
-    return nil if items.empty?
-
-    exact = items.select { |t| t.activity == activity }.min_by(&:step)
-    return exact if exact
-
-    rank = WorkItem::ACTIVITY_ORDER.index(activity) || WorkItem::ACTIVITY_ORDER.length
-    earlier = items.select { |t| t.activity_rank <= rank }
-    return items.min_by { |t| [t.activity_rank, t.step] } if earlier.empty?
-
-    earlier.min_by { |t| [-t.activity_rank, t.step] }
-  end
-
-  # The planning-group name (first-level decisions/ folder) a record belongs to,
-  # read from the decision_groups collection (ADR-197).
-  def decision_group_name(doc)
-    group = @project_data.decision_groups.find { |g| g.values.first.include?(doc) }
-    group&.keys&.first
-  end
-
-  # Reports the two kit gates and unresolved Depends On references (ADR-194), all
-  # as non-failing console warnings alongside report_broken_links.
-  def report_kit_violations
-    @kit_unresolved ||= []
-    phase = @project_data.work_items.each_value.select(&:phase_order_violation?)
-    cross = @project_data.work_items.each_value.select(&:cross_record_violation?)
-    total = phase.length + cross.length + @kit_unresolved.length
-    return if total.zero?
-
-    ConsoleReporter.warn('kit violations', total)
-    phase.each do |wi|
-      blocking = wi.intra_record_predecessors.reject(&:done?).map(&:id).join(', ')
-      puts ConsoleReporter.warn_detail("  phase order: #{wi.id} started before #{blocking}")
-    end
-    cross.each do |wi|
-      blocking = wi.cross_record_predecessors.reject(&:done?).map(&:id).join(', ')
-      puts ConsoleReporter.warn_detail("  not kitted: #{wi.id} needs #{blocking}")
-    end
-    @kit_unresolved.each do |u|
-      puts ConsoleReporter.warn_detail("  unresolved Depends On: #{u[:record]} -> #{u[:target]}")
-    end
   end
 
   # Assigns each document its generated output path (relative to the build root)
@@ -608,16 +496,6 @@ class Project
     FileUtils.mkdir_p("#{path}/build/decisions")
 
     doc = DocFabric.create_decisions_overview(@project)
-    doc.to_html("#{path}/build/decisions/")
-  end
-
-  def render_critical_chain_page
-    return if @project_data.decisions.empty?
-
-    path = @configuration.project_root_directory
-    FileUtils.mkdir_p("#{path}/build/decisions")
-
-    doc = DocFabric.create_critical_chain_page(@project)
     doc.to_html("#{path}/build/decisions/")
   end
 

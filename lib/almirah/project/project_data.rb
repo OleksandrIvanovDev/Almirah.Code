@@ -4,7 +4,7 @@ class ProjectData
   attr_reader :specifications, :protocols, :traceability_matrices, :coverage_matrices, :source_files,
               :specifications_dictionary, :covered_specifications_dictionary, :implemented_specifications_dictionary,
               :implementation_matrices, :decisions, :decision_groups, :risk_records, :risk_registries,
-              :risk_registry_prefaces, :work_items, :link_registry
+              :risk_registry_prefaces, :link_registry
 
   def initialize
     @specifications = []
@@ -25,9 +25,6 @@ class ProjectData
     # the registry (first-level risks/ folder) name. A registry without an
     # overview.md has no entry; its page simply starts at the register table.
     @risk_registry_prefaces = {}
-    # Every Scope-row WorkItem across all decision records, keyed by its canonical
-    # "<record>.<step>.<activity>" id (see ADR-194), populated by link_work_items.
-    @work_items = {}
 
     @specifications_dictionary = {}
     @covered_specifications_dictionary = {}
