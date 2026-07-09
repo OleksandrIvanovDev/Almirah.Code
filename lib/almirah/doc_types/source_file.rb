@@ -94,6 +94,7 @@ class SourceFile < PersistentDocument
         file.puts s.gsub! '{{DOCUMENT_TITLE}}', @title
       elsif s.include?('{{STYLES_AND_SCRIPTS}}')
         file.puts "<link rel=\"stylesheet\" href=\"#{css_path}\">"
+        file.puts font_size_style if BaseDocument.font_size
         file.puts "<script src=\"#{js_path}\"></script>"
       elsif s.include?('{{HOME_BUTTON}}')
         file.puts "<a id=\"index_menu_item\" href=\"#{index_path}\"><span><i class=\"fa fa-home\" aria-hidden=\"true\"></i></span>&nbsp;Documents</a>"

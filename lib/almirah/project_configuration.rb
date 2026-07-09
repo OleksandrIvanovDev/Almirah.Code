@@ -29,6 +29,13 @@ class ProjectConfiguration
     []
   end
 
+  # The optional base text size in pixels (ADR-224), from the top-level
+  # font_size: number. nil when absent or not a positive number.
+  def get_font_size
+    value = @parameters.is_a?(Hash) ? @parameters['font_size'] : nil
+    value.is_a?(Numeric) && value.positive? ? value : nil
+  end
+
   # The ordered register-column list for a risk registry folder (ADR-216),
   # read from the risks: root — a list of { folder:, columns: } entries.
   # nil when the registry carries no configuration; such a registry renders

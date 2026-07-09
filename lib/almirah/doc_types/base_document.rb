@@ -6,7 +6,7 @@ class BaseDocument
   attr_accessor :title, :id, :dom, :headings, :output_rel_path
 
   class << self
-    attr_accessor :show_decisions_link, :show_risks_link
+    attr_accessor :show_decisions_link, :show_risks_link, :font_size
   end
 
   def initialize
@@ -55,6 +55,7 @@ class BaseDocument
         file.puts s.gsub! '{{DOCUMENT_TITLE}}', @title
       elsif s.include?('{{STYLES_AND_SCRIPTS}}')
         file.puts "<link rel=\"stylesheet\" href=\"#{rel_to('css/main.css')}\">"
+        file.puts font_size_style if BaseDocument.font_size
         file.puts "<script src=\"#{rel_to('scripts/main.js')}\"></script>"
         if @id == 'index'
           file.puts "<script type=\"module\" src=\"#{rel_to('scripts/orama_search.js')}\"></script>"
@@ -91,6 +92,13 @@ class BaseDocument
   def index_link(href)
     icon = '<span><i class="fa fa-home" aria-hidden="true"></i></span>'
     %(<a id="index_menu_item" href="#{href}">#{icon}&nbsp;Documents</a>)
+  end
+
+  # The inline override carrying the project.yml font_size (ADR-224). Emitted
+  # after the main.css link only when the setting exists, so unconfigured
+  # projects render exactly as before.
+  def font_size_style
+    "<style>:root { --almirah-font-size: #{BaseDocument.font_size}px; }</style>"
   end
 
   # Relative URL from this page to a target path under the build root.

@@ -18,6 +18,7 @@ class Project
   def initialize(configuration)
     @configuration = configuration
     @project_data = ProjectData.new
+    BaseDocument.font_size = @configuration.get_font_size
 
     @index = nil
     @project = self
