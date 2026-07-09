@@ -60,6 +60,7 @@ class Project
     render_all_protocols
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
+    copy_decision_and_risk_images
     render_decisions_overview
     render_all_decisions
     render_all_risk_records
@@ -91,6 +92,7 @@ class Project
     render_all_protocols
     render_all_source_files
     render_all_specifications(@project_data.implementation_matrices) # intentionally after source file rendering
+    copy_decision_and_risk_images
     render_decisions_overview
     render_all_decisions
     render_all_risk_records
@@ -471,6 +473,25 @@ class Project
 
       nav_pane = NavigationPane.new(doc)
       doc.to_html(nav_pane, "#{path}/build/tests/protocols/")
+    end
+  end
+
+  # Every folder named img under decisions/ and risks/ is copied to the same
+  # relative location under build/ (ADR-227, SRS-176), so relative image
+  # references in decision records, risk records, and registry prefaces
+  # resolve in the rendered HTML. Folder-based rather than doc-id-based like
+  # the specification and protocol copies, because these records share their
+  # release and registry folders.
+  def copy_decision_and_risk_images
+    root = @configuration.project_root_directory
+    %w[decisions risks].each do |subroot|
+      Dir.glob("#{root}/#{subroot}/**/img").each do |src|
+        next unless File.directory?(src)
+
+        dst = "#{root}/build/#{src.sub("#{root}/", '')}"
+        FileUtils.mkdir_p(File.dirname(dst))
+        FileUtils.copy_entry(src, dst)
+      end
     end
   end
 
