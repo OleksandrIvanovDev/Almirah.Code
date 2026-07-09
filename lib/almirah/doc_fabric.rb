@@ -10,7 +10,6 @@ require_relative 'doc_types/risk_record'
 require_relative 'doc_types/risk_registry_page'
 require_relative 'doc_types/risks_overview'
 require_relative 'doc_types/decisions_overview'
-require_relative 'doc_types/critical_chain_page'
 require_relative 'doc_parser'
 require_relative 'source_file_parser'
 require_relative 'dom/document'
@@ -72,7 +71,6 @@ class DocFabric
     doc.extract_target_date
     doc.extract_target_release_version
     doc.extract_owners
-    doc.extract_scope_table
     doc
   end
 
@@ -93,10 +91,6 @@ class DocFabric
 
   def self.create_decisions_overview(project)
     DecisionsOverview.new project
-  end
-
-  def self.create_critical_chain_page(project)
-    CriticalChainPage.new project
   end
 
   def self.create_source_file(repository_path, path, repository_name)
