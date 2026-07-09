@@ -96,7 +96,7 @@ class SourceFile < PersistentDocument
         file.puts "<link rel=\"stylesheet\" href=\"#{css_path}\">"
         file.puts "<script src=\"#{js_path}\"></script>"
       elsif s.include?('{{HOME_BUTTON}}')
-        file.puts "<a id=\"index_menu_item\" href=\"#{index_path}\"><span><i class=\"fa fa-info\" aria-hidden=\"true\"></i></span>&nbsp;Index</a>"
+        file.puts "<a id=\"index_menu_item\" href=\"#{index_path}\"><span><i class=\"fa fa-home\" aria-hidden=\"true\"></i></span>&nbsp;Documents</a>"
       elsif s.include?('{{GEM_VERSION}}')
         file.puts "(#{Gem.loaded_specs['Almirah'].version.version})"
       else

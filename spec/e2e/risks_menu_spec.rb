@@ -173,6 +173,17 @@ RSpec.describe 'Risks Menu and Registries Page', type: :aruba do
       expect(hrefs['process']).to eq('./process/overview.html')
     end
 
+    # Every count column after the leading Risk Registry column carries the fixed
+    # 7% width, following the Index page's inline-width pattern (ADR-223).
+    it 'gives the count cells a fixed 7% width and the registry cell none' do
+      table = summary_table('myproject/build/risks/overview.html')
+      %w[product process].each do |name|
+        cells = registry_row_cells(table, name)
+        expect(cells.first['style'].to_s).not_to include('width')
+        cells[1..].each { |td| expect(td['style']).to include('width: 7%') }
+      end
+    end
+
     # <REQ> Total counts every record; Open excludes Closed; unmarked records count as open. >[SRS-172] </REQ>
     it 'computes the total and open counts from the lifecycle markers' do
       table = summary_table('myproject/build/risks/overview.html')

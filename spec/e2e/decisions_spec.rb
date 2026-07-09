@@ -58,6 +58,28 @@ RSpec.describe 'Decision Records', type: :aruba do
       expect(titles).to contain_exactly('ADR-001: First Decision', 'ADR-002: Second Decision')
     end
 
+    # <REQ> A "Documents" link with the home icon on every page, the Index page included. >[SRS-173] </REQ>
+    it 'shows the Documents menu item on the index page, self-linking, with no Home item' do
+      doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))
+      link = doc.at_css('#index_menu_item')
+      expect(link).not_to be_nil
+      expect(link.text).to include('Documents')
+      expect(link['href']).to eq('index.html')
+      expect(link.at_css('i')['class']).to include('fa-home')
+      expect(doc.at_css('#home_menu_item')).to be_nil
+    end
+
+    # <REQ> A "Documents" link with the home icon on every page, the Index page included. >[SRS-173] </REQ>
+    it 'shows the same Documents menu item on other rendered pages' do
+      %w[myproject/build/decisions/overview.html myproject/build/specifications/req/req.html].each do |page|
+        doc = Nokogiri::HTML(File.read(expand_path(page)))
+        link = doc.at_css('#index_menu_item')
+        expect(link.text).to include('Documents')
+        expect(link.text).not_to include('Index')
+        expect(doc.at_css('#home_menu_item')).to be_nil
+      end
+    end
+
     # <REQ> Top-nav Decision Records link on every rendered page, when at least one record exists. >[SRS-048] </REQ>
     it 'adds the Decision Records link to the index page top-nav' do
       doc = Nokogiri::HTML(File.read(expand_path('myproject/build/index.html')))

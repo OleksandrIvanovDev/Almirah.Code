@@ -61,8 +61,8 @@ class RisksOverview < BaseDocument
     s += "\t\t<td class=\"item_text\" style='padding: 5px;'>\
 <a name=\"#{name}\" id=\"#{name}\" href=\"./#{name}/overview.html\" class=\"external\" \
 title=\"Risk Registry\">#{registry_title(name)}</a></td>\n"
-    s += "\t\t<td class=\"item_rpn\">#{records.length}</td>\n"
-    s += "\t\t<td class=\"item_rpn\">#{open_count(records)}</td>\n"
+    s += "\t\t<td class=\"item_rpn\" style='width: 7%;'>#{records.length}</td>\n"
+    s += "\t\t<td class=\"item_rpn\" style='width: 7%;'>#{open_count(records)}</td>\n"
     s += render_highest_cell(values, group)
     s += render_average_cell(values)
     s + "\t</tr>\n"
@@ -86,17 +86,17 @@ title=\"Risk Registry\">#{registry_title(name)}</a></td>\n"
   # The worst risk's verdict carries up: the cell keeps the leading group's
   # threshold colouring. Blank without a group or computable values.
   def render_highest_cell(values, group)
-    return "\t\t<td class=\"item_rpn\"></td>\n" if values.empty?
+    return "\t\t<td class=\"item_rpn\" style='width: 7%;'></td>\n" if values.empty?
 
     highest = values.max
     classes = ['item_rpn', rpn_threshold_class(highest, group)].compact.join(' ')
-    "\t\t<td class=\"#{classes}\">#{format_rpn(highest)}</td>\n"
+    "\t\t<td class=\"#{classes}\" style='width: 7%;'>#{format_rpn(highest)}</td>\n"
   end
 
   def render_average_cell(values)
-    return "\t\t<td class=\"item_rpn\"></td>\n" if values.empty?
+    return "\t\t<td class=\"item_rpn\" style='width: 7%;'></td>\n" if values.empty?
 
     average = (values.sum.to_f / values.length).round(1)
-    "\t\t<td class=\"item_rpn\">#{format_rpn(average)}</td>\n"
+    "\t\t<td class=\"item_rpn\" style='width: 7%;'>#{format_rpn(average)}</td>\n"
   end
 end

@@ -63,11 +63,7 @@ class BaseDocument
           file.puts '<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>'
         end
       elsif s.include?('{{HOME_BUTTON}}')
-        if @id == 'index'
-          file.puts home_link(rel_to('index.html'))
-        else
-          file.puts index_link(rel_to('index.html'))
-        end
+        file.puts index_link(rel_to('index.html'))
         file.puts decisions_link(rel_to('decisions/overview.html')) if BaseDocument.show_decisions_link
         file.puts risks_link(rel_to('risks/overview.html')) if BaseDocument.show_risks_link
       elsif s.include?('{{GEM_VERSION}}')
@@ -89,14 +85,12 @@ class BaseDocument
     %(<a id="risks_menu_item" href="#{href}">#{icon}&nbsp;Risks</a>)
   end
 
+  # The Documents item (ADR-223): the same link on every page, the Index page
+  # included, where it self-links — no Home variant. The element id stays
+  # index_menu_item; the label is presentation, the id is an interface.
   def index_link(href)
-    icon = '<span><i class="fa fa-info" aria-hidden="true"></i></span>'
-    %(<a id="index_menu_item" href="#{href}">#{icon}&nbsp;Index</a>)
-  end
-
-  def home_link(href)
     icon = '<span><i class="fa fa-home" aria-hidden="true"></i></span>'
-    %(<a id="home_menu_item" href="#{href}">#{icon}&nbsp;Home</a>)
+    %(<a id="index_menu_item" href="#{href}">#{icon}&nbsp;Documents</a>)
   end
 
   # Relative URL from this page to a target path under the build root.
